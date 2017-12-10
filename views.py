@@ -1,4 +1,5 @@
 from pyld import jsonld
+from django.conf import settings
 from django.conf.urls import url
 from django.utils.decorators import classonlymethod
 from rest_framework.renderers import JSONRenderer
@@ -9,7 +10,7 @@ from .serializers import LDPSerializer
 class JSONLDRenderer(JSONRenderer):
     media_type = 'application/ld+json'
     def render(self, data, accepted_media_type=None, renderer_context=None):
-        data["@context"] = "http://owl.openinitiative.com/oicontext.jsonld"
+        data["@context"] = settings.LDP_RDF_CONTEXT
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
 class JSONLDParser(JSONParser):
