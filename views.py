@@ -26,7 +26,7 @@ class LDPViewSet(ModelViewSet):
     parser_classes = (JSONLDParser, )
     
     def __init__(self, model, **kwargs):
-        class_attrs = {'Meta': type('Meta', (), {'model': model, 'exclude': ('id',)})}
+        class_attrs = {'Meta': type('Meta', (), {'model': model, 'exclude': ()})}
         self.serializer_class = type(LDPSerializer)(model.__name__+'Serializer', (LDPSerializer,), class_attrs)
         super().__init__(model=model, **kwargs)
     
@@ -38,9 +38,13 @@ class LDPViewSet(ModelViewSet):
     
     @classonlymethod
     def urls(cls, **kwargs):
+        if isinstance(kwargs['model'], str):
+            model = kwargs['model'].split('.')[-1].lower()
+        else:
+            model = kwargs['model']._meta.object_name.lower()
         return [
-            url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='list'),
-            url(r'^(?P<pk>\d+)$', cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='object'),
+            url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='{}-list'.format(model)),
+            url(r'^(?P<pk>\d+)$', cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model)),
         ]
     
     def dispatch(self, request, *args, **kwargs):

@@ -1,11 +1,5 @@
-from rest_framework.serializers import ModelSerializer, ListSerializer, CharField
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, CharField
 from rest_framework.utils.serializer_helpers import ReturnDict
-
-class IdField(CharField):
-    def to_native(self, value):
-        return "%s"%value
-    def to_internal_value(self, instance):
-        return super(IdField, self).to_internal_value(instance.split("/")[-1]) or None
 
 class ContainerSerializer(ListSerializer):
     def to_representation(self, data):
@@ -14,10 +8,8 @@ class ContainerSerializer(ListSerializer):
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
-class LDPSerializer(ModelSerializer):
-    def __init__(self, *args, **kwargs):
-        super(LDPSerializer, self).__init__(*args, **kwargs)
-        self.fields['@id'] = IdField(source="id", required=False)
+class LDPSerializer(HyperlinkedModelSerializer):
+    url_field_name = "@id"
     
     @classmethod
     def many_init(cls, *args, **kwargs):
