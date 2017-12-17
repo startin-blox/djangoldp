@@ -1,4 +1,5 @@
 from pyld import jsonld
+from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url
 from django.utils.decorators import classonlymethod
@@ -27,7 +28,7 @@ class LDPViewSet(ModelViewSet):
     
     def __init__(self, model, **kwargs):
         class_attrs = {'Meta': type('Meta', (), {'model': model, 'exclude': ()})}
-        self.serializer_class = type(LDPSerializer)(model.__name__+'Serializer', (LDPSerializer,), class_attrs)
+        self.serializer_class = type(LDPSerializer)(model._meta.object_name.lower()+'Serializer', (LDPSerializer,), class_attrs)
         super().__init__(model=model, **kwargs)
     
     def get_queryset(self, *args, **kwargs):
@@ -39,12 +40,14 @@ class LDPViewSet(ModelViewSet):
     @classonlymethod
     def urls(cls, **kwargs):
         if isinstance(kwargs['model'], str):
-            model = kwargs['model'].split('.')[-1].lower()
-        else:
-            model = kwargs['model']._meta.object_name.lower()
+            kwargs['model'] = apps.get_model(kwargs['model'])
+        model = kwargs['model']._meta.object_name.lower()
+        detail_url = r'^(?P<pk>\d+)$'
+        if kwargs.get('lookup_field'):
+            detail_url = r'^(?P<{}>[\w-]+)$'.format(kwargs['lookup_field'])
         return [
             url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='{}-list'.format(model)),
-            url(r'^(?P<pk>\d+)$', cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model)),
+            url(detail_url, cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model)),
         ]
     
     def dispatch(self, request, *args, **kwargs):
