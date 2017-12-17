@@ -26,10 +26,10 @@ class LDPViewSet(ModelViewSet):
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     
-    def __init__(self, model, **kwargs):
-        class_attrs = {'Meta': type('Meta', (), {'model': model, 'exclude': ()})}
-        self.serializer_class = type(LDPSerializer)(model._meta.object_name.lower()+'Serializer', (LDPSerializer,), class_attrs)
-        super().__init__(model=model, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        class_attrs = {'Meta': type('Meta', (), {'model': self.model, 'exclude': ()})}
+        self.serializer_class = type(LDPSerializer)(self.model._meta.object_name.lower()+'Serializer', (LDPSerializer,), class_attrs)
     
     def get_queryset(self, *args, **kwargs):
         if self.model:
@@ -39,21 +39,26 @@ class LDPViewSet(ModelViewSet):
     
     @classonlymethod
     def urls(cls, **kwargs):
-        if isinstance(kwargs['model'], str):
-            kwargs['model'] = apps.get_model(kwargs['model'])
-        model = kwargs['model']._meta.object_name.lower()
+        model = kwargs.get('model') or cls.model
+        lookup_field = kwargs.get('lookup_field') or cls.lookup_field
+        if isinstance(model, str):
+            model = apps.get_model(model)
+            kwargs['model'] = model
+        model_name = model._meta.object_name.lower()
         detail_url = r'^(?P<pk>\d+)$'
-        if kwargs.get('lookup_field'):
-            detail_url = r'^(?P<{}>[\w-]+)$'.format(kwargs['lookup_field'])
+        
+        if lookup_field:
+            detail_url = r'^(?P<{}>[\w-]+)$'.format(lookup_field)
         return [
-            url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='{}-list'.format(model)),
-            url(detail_url, cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model)),
+            url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='{}-list'.format(model_name)),
+            url(detail_url, cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model_name)),
         ]
     
     def dispatch(self, request, *args, **kwargs):
         response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
-        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
         response["Access-Control-Allow-Methods"] = "POST,PUT"
         response["Access-Control-Allow-Headers"] = "Content-Type, if-match"
+        response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
         return response
