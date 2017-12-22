@@ -3,6 +3,7 @@ from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url
 from django.utils.decorators import classonlymethod
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from rest_framework.viewsets import ModelViewSet
@@ -20,11 +21,16 @@ class JSONLDParser(JSONParser):
         data = super(JSONLDParser, self).parse(stream, media_type, parser_context)
         return jsonld.compact(data, ctx=data["@context"])
 
+class NoCSRFAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        return
+
 
 class LDPViewSet(ModelViewSet):
     model = None
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
+    authentication_classes = (NoCSRFAuthentication,)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
