@@ -15,6 +15,7 @@ It aims at enabling people with little development skills to serve their own dat
 1. Add this module to your application, or place it in a directory included in your PYTHONPATH
 2. Create your model normally
 3. Add a url in your urls.py:
+
 ```
 from djangoldp.views import LDPViewSet
 from .models import MyModel
@@ -24,6 +25,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
 ]
 ```
+
 This creates 2 routes, one for the list, and one with an ID listing the detail of an object.
 
 ## License
