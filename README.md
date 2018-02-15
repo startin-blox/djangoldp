@@ -28,6 +28,12 @@ urlpatterns = [
 
 This creates 2 routes, one for the list, and one with an ID listing the detail of an object.
 
+## Execution
+To start the server, `cd` to the root of your Django project and run :
+```
+python3 manage.py runserver
+```
+
 ## License
 
 No licence yet. Please wait...
