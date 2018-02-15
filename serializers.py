@@ -1,4 +1,5 @@
 from django.core.urlresolvers import get_resolver
+from django.utils.datastructures import MultiValueDictKeyError
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, CharField
 from rest_framework.utils.serializer_helpers import ReturnDict
@@ -15,9 +16,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
     
     def update_lookup_field(self, field):
         #get the field name associated with the url of the view
-        lookup_field = get_resolver().reverse_dict[field.view_name][0][0][1][0]
-        field.lookup_field = lookup_field
-        field.lookup_url_kwarg = lookup_field
+        try:
+            lookup_field = get_resolver().reverse_dict[field.view_name][0][0][1][0]
+            field.lookup_field = lookup_field
+            field.lookup_url_kwarg = lookup_field
+        except MultiValueDictKeyError:
+            pass
+    
     def __init__(self, *args, **kwargs):
         super(LDPSerializer, self).__init__(*args, **kwargs)
         for name, field in self.fields.items():
