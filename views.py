@@ -28,14 +28,20 @@ class NoCSRFAuthentication(SessionAuthentication):
 
 class LDPViewSet(ModelViewSet):
     model = None
+    fields = None
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        class_attrs = {'Meta': type('Meta', (), {'model': self.model, 'exclude': ()})}
-        self.serializer_class = type(LDPSerializer)(self.model._meta.object_name.lower()+'Serializer', (LDPSerializer,), class_attrs)
+        meta_args =  {'model': self.model}
+        if self.fields:
+            meta_args['fields'] = self.fields
+        else:
+            meta_args['exclude'] = ()
+        meta_class = type('Meta', (), meta_args)
+        self.serializer_class = type(LDPSerializer)(self.model._meta.object_name.lower()+'Serializer', (LDPSerializer,), {'Meta': meta_class})
     
     def get_queryset(self, *args, **kwargs):
         if self.model:

@@ -1,3 +1,4 @@
+from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField
@@ -22,7 +23,10 @@ class JsonLdRelatedField(HyperlinkedRelatedField):
         except MultiValueDictKeyError:
             pass
     def to_representation(self, value):
-        return {'@id': super().to_representation(value)}
+        try:
+            return {'@id': super().to_representation(value)}
+        except ImproperlyConfigured:
+            return value.pk
 
 class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
