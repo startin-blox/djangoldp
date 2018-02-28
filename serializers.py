@@ -30,6 +30,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 self.update_lookup_field(field)
             elif isinstance(field, ManyRelatedField):
                 self.update_lookup_field(field.child_relation)
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        if hasattr(obj._meta, 'rdf_type'):
+            data['@type'] = obj._meta.rdf_type
+        return data
     
     @classmethod
     def many_init(cls, *args, **kwargs):
