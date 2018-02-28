@@ -11,25 +11,23 @@ class ContainerSerializer(ListSerializer):
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
-class LDPSerializer(HyperlinkedModelSerializer):
-    url_field_name = "@id"
-    
-    def update_lookup_field(self, field):
+class JsonLdRelatedField(HyperlinkedRelatedField):
+    def __init__(self, view_name=None, **kwargs):
+        super().__init__(view_name, **kwargs)
         #get the field name associated with the url of the view
         try:
-            lookup_field = get_resolver().reverse_dict[field.view_name][0][0][1][0]
-            field.lookup_field = lookup_field
-            field.lookup_url_kwarg = lookup_field
+            lookup_field = get_resolver().reverse_dict[self.view_name][0][0][1][0]
+            self.lookup_field = lookup_field
+            self.lookup_url_kwarg = lookup_field
         except MultiValueDictKeyError:
             pass
+    def to_representation(self, value):
+        return {'@id': super().to_representation(value)}
+
+class LDPSerializer(HyperlinkedModelSerializer):
+    url_field_name = "@id"
+    serializer_related_field = JsonLdRelatedField
     
-    def __init__(self, *args, **kwargs):
-        super(LDPSerializer, self).__init__(*args, **kwargs)
-        for name, field in self.fields.items():
-            if isinstance(field, HyperlinkedRelatedField):
-                self.update_lookup_field(field)
-            elif isinstance(field, ManyRelatedField):
-                self.update_lookup_field(field.child_relation)
     def to_representation(self, obj):
         data = super().to_representation(obj)
         if hasattr(obj._meta, 'rdf_type'):
