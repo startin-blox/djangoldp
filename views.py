@@ -1,7 +1,7 @@
 from pyld import jsonld
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.utils.decorators import classonlymethod
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.renderers import JSONRenderer
@@ -49,23 +49,6 @@ class LDPViewSet(ModelViewSet):
         else:
             return super(LDPView, self).get_queryset(*args, **kwargs)
     
-    @classonlymethod
-    def urls(cls, **kwargs):
-        model = kwargs.get('model') or cls.model
-        lookup_field = kwargs.get('lookup_field') or cls.lookup_field
-        if isinstance(model, str):
-            model = apps.get_model(model)
-            kwargs['model'] = model
-        model_name = model._meta.object_name.lower()
-        detail_url = r'^(?P<pk>\d+)$'
-        
-        if lookup_field:
-            detail_url = r'^(?P<{}>[\w-]+)$'.format(lookup_field)
-        return [
-            url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='{}-list'.format(model_name)),
-            url(detail_url, cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model_name)),
-        ]
-    
     def dispatch(self, request, *args, **kwargs):
         response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
         response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
@@ -74,3 +57,22 @@ class LDPViewSet(ModelViewSet):
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
         return response
+    
+    @classonlymethod
+    def urls(cls, **kwargs):
+        model = kwargs.get('model') or cls.model
+        lookup_field = kwargs.get('lookup_field') or cls.lookup_field
+        if isinstance(model, str):
+            model = apps.get_model(model)
+            kwargs['model'] = model
+        model_name = model._meta.object_name.lower()
+        
+        detail_url = r'^(?P<pk>\d+)$'
+        if lookup_field:
+            detail_url = r'^(?P<{}>[\w-]+)$'.format(lookup_field)
+        
+        urls = [
+            url(r'^$', cls.as_view({'get': 'list', 'post': 'create'}, **kwargs), name='{}-list'.format(model_name)),
+            url(detail_url, cls.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}, **kwargs), name='{}-detail'.format(model_name)),
+        ]
+        return include(urls)
