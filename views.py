@@ -2,6 +2,7 @@ from pyld import jsonld
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
+from django.core.urlresolvers import get_resolver
 from django.utils.decorators import classonlymethod
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.renderers import JSONRenderer
@@ -32,7 +33,6 @@ class LDPViewSet(ModelViewSet):
     exclude = None
     parent_model = None
     nested_field = None
-    nested_lookup_field = None #usefull?
     nested_related_name = None
     list_actions = {'get': 'list', 'post': 'create'}
     detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
@@ -42,14 +42,15 @@ class LDPViewSet(ModelViewSet):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        meta_args =  {'model': self.model}
+        model_name = self.model._meta.object_name.lower()
+        lookup_field = get_resolver().reverse_dict[model_name+'-detail'][0][0][1][0]
+        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}}
         if self.fields:
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = self.exclude or ()
         meta_class = type('Meta', (), meta_args)
-        print('model', self.model)
-        self.serializer_class = type(LDPSerializer)(self.model._meta.object_name.lower()+'Serializer', (LDPSerializer,), {'Meta': meta_class})
+        self.serializer_class = type(LDPSerializer)(model_name+'Serializer', (LDPSerializer,), {'Meta': meta_class})
     
     def get_parent(self):
         return self.parent_model.objects.get(id=self.kwargs[self.lookup_field])
@@ -100,17 +101,16 @@ class LDPViewSet(ModelViewSet):
         related_field = kwargs['model']._meta.get_field(nested_field)
         related_name = related_field.related_query_name()
         related_model = related_field.related_model
-        lookup_field = model_name+'_id'
+        nested_lookup_field = model_name+'_id'
         
         nested_args = {
              'model': related_model,
              'exclude': (), #exclude related_name for foreignkey attributes 
              'parent_model': kwargs['model'],
              'nested_field': nested_field,
-             'nested_lookup_field': lookup_field,
              'nested_related_name': related_name
         }
-        nested_detail_url = cls.get_detail_url(lookup_field, base_url)
+        nested_detail_url = cls.get_detail_url(nested_lookup_field, base_url)
         return [
             url(base_url+'$', cls.as_view(cls.list_actions, **nested_args), name='{}-{}-list'.format(model_name, nested_field)),
             url(nested_detail_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
