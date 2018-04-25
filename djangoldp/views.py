@@ -53,7 +53,7 @@ class LDPViewSetGenerator(ModelViewSet):
         related_field = kwargs['model']._meta.get_field(nested_field)
         related_name = related_field.related_query_name()
         related_model = related_field.related_model
-        nested_lookup_field = model_name+'_id'
+        nested_lookup_field = related_model._meta.object_name.lower()+'_id'
         
         nested_args = {
              'model': related_model,
@@ -63,9 +63,12 @@ class LDPViewSetGenerator(ModelViewSet):
              'nested_related_name': related_name
         }
         nested_detail_url = cls.get_detail_url(nested_lookup_field, base_url)
+#        return [
+#            url(base_url+'$', cls.as_view(cls.list_actions, **nested_args), name='{}-{}-list'.format(model_name, nested_field)),
+#            url(nested_detail_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
+#        ]
         return [
-            url(base_url+'$', cls.as_view(cls.list_actions, **nested_args), name='{}-{}-list'.format(model_name, nested_field)),
-            url(nested_detail_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
+            url(base_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
         ]
     
     @classonlymethod
@@ -74,10 +77,11 @@ class LDPViewSetGenerator(ModelViewSet):
         model_name = kwargs['model']._meta.object_name.lower()
         detail_url = cls.get_detail_url(**kwargs)
         
-        return include([
-            url(r'^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
-            url(detail_url+'$', cls.as_view(cls.detail_actions, **kwargs), name='{}-detail'.format(model_name)),
-        ] + cls.get_nested_urls(detail_url, model_name, **kwargs))
+        return include(
+            cls.get_nested_urls(detail_url, model_name, **kwargs) + [
+                url(r'^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
+                url(detail_url+'$', cls.as_view(cls.detail_actions, **kwargs), name='{}-detail'.format(model_name)),
+            ])
 
 class LDPViewSet(LDPViewSetGenerator):
     model = None
