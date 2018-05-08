@@ -50,7 +50,14 @@ urlpatterns = [
 
 This creates 2 routes, one for the list, and one with an ID listing the detail of an object.
 
-4. You can also register your model for the django administration site
+4. In the settings.py file, add your application name at the beginning of the application list, and add the following lines
+
+```
+STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
+LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
+```
+
+5. You can also register your model for the django administration site
 
 ```
 from django.contrib import admin
@@ -59,7 +66,7 @@ from .models import Todo
 admin.site.register(Todo)
 ```
 
-5. You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
+6. You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
 
 ## Execution
 To start the server, `cd` to the root of your Django project and run :
