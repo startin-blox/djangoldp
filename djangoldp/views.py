@@ -63,12 +63,9 @@ class LDPViewSetGenerator(ModelViewSet):
              'nested_related_name': related_name
         }
         nested_detail_url = cls.get_detail_url(nested_lookup_field, base_url)
-#        return [
-#            url(base_url+'$', cls.as_view(cls.list_actions, **nested_args), name='{}-{}-list'.format(model_name, nested_field)),
-#            url(nested_detail_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
-#        ]
         return [
-            url(base_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
+            url(base_url+'$', cls.as_view(cls.list_actions, **nested_args), name='{}-{}-list'.format(model_name, nested_field)),
+            url(nested_detail_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
         ]
     
     @classonlymethod
