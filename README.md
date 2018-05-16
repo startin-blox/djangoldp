@@ -69,6 +69,16 @@ admin.site.register(Todo)
 
 ### 7- You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
 
+### 8- You will probably need to create a super user
+```
+./manage.py createsuperuser
+```
+
+### 9- If you have no CSS on the admin screens : 
+```
+./manage.py collectstatic
+```
+
 ## Execution
 To start the server, `cd` to the root of your Django project and run :
 ```
