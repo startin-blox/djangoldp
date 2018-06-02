@@ -3,6 +3,7 @@ from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
 from django.core.urlresolvers import get_resolver
+from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.renderers import JSONRenderer
@@ -106,7 +107,7 @@ class LDPViewSet(LDPViewSetGenerator):
         self.serializer_class = type(LDPSerializer)(model_name+'Serializer', (LDPSerializer,), {'Meta': meta_class})
     
     def get_parent(self):
-        return self.parent_model.objects.get(id=self.kwargs[self.lookup_field])
+        return get_object_or_404(self.parent_model, id=self.kwargs[self.lookup_field])
     
     def perform_create(self, serializer):
         create_args = {}
