@@ -28,6 +28,13 @@ class NoCSRFAuthentication(SessionAuthentication):
         return
 
 class LDPViewSetGenerator(ModelViewSet):
+    """An extension of ModelViewSet that generates automatically URLs for the model"""
+    model = None
+    nested_fields = []
+    model_prefix = None
+    list_actions = {'get': 'list', 'post': 'create'}
+    detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
+    
     @classonlymethod
     def get_model(cls, **kwargs):
         '''gets the model in the arguments or in the viewset definition'''
@@ -37,65 +44,47 @@ class LDPViewSetGenerator(ModelViewSet):
         return model
     
     @classonlymethod
-    def get_detail_url(cls, lookup_field=None, base_url='', **kwargs):
-        '''builds the detail url based on the lookup_field'''
-        lookup_field = lookup_field or kwargs.get('lookup_field') or cls.lookup_field
-        if lookup_field and lookup_field != 'pk':
-            return r'{}(?P<{}>[\w-]+)/'.format(base_url, lookup_field)
-        return  r'{}(?P<pk>\d+)/'.format(base_url)
+    def get_lookup_arg(cls, **kwargs):
+        return kwargs.get('lookup_url_kwarg') or cls.lookup_url_kwarg or kwargs.get('lookup_field') or cls.lookup_field
     
     @classonlymethod
-    def get_nested_urls(cls, detail_url, model_name, **kwargs):
-        nested_field = kwargs.get('nested_field') or cls.nested_field
-        if not nested_field:
-            return []
-        
-        base_url = r'{}{}/'.format(detail_url, nested_field)
-        related_field = kwargs['model']._meta.get_field(nested_field)
-        related_name = related_field.related_query_name()
-        related_model = related_field.related_model
-        nested_lookup_field = related_model._meta.object_name.lower()+'_id'
-        
-        nested_args = {
-             'model': related_model,
-             'exclude': (), #exclude related_name for foreignkey attributes 
-             'parent_model': kwargs['model'],
-             'nested_field': nested_field,
-             'nested_related_name': related_name
-        }
-        nested_detail_url = cls.get_detail_url(nested_lookup_field, base_url)
-        return [
-            url(base_url+'$', cls.as_view(cls.list_actions, **nested_args), name='{}-{}-list'.format(model_name, nested_field)),
-            url(nested_detail_url+'$', cls.as_view(cls.detail_actions, **nested_args), name='{}-{}-detail'.format(model_name, nested_field)),
-        ]
+    def get_detail_expr(cls, lookup_field=None, **kwargs):
+        '''builds the detail url based on the lookup_field'''
+        lookup_field = lookup_field or cls.get_lookup_arg(**kwargs)
+        lookup_group = r'\d' if lookup_field == 'pk' else r'[\w-]'
+        return r'(?P<{}>{}+)/'.format(lookup_field, lookup_group)
     
     @classonlymethod
     def urls(cls, **kwargs):
         kwargs['model'] = cls.get_model(**kwargs)
         model_name = kwargs['model']._meta.object_name.lower()
-        detail_url = cls.get_detail_url(**kwargs)
+        if kwargs.get('model_prefix'):
+            model_name = '{}-{}'.format(kwargs['model_prefix'], model_name)
+        detail_expr = cls.get_detail_expr(**kwargs)
         
-        return include(
-            cls.get_nested_urls(detail_url, model_name, **kwargs) + [
-                url(r'^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
-                url(detail_url+'$', cls.as_view(cls.detail_actions, **kwargs), name='{}-detail'.format(model_name)),
-            ])
+        urls = [
+                url('^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
+                url('^'+detail_expr+'$', cls.as_view(cls.detail_actions, **kwargs), name='{}-detail'.format(model_name)),
+            ]
+        
+        for field in kwargs.get('nested_fields') or cls.nested_fields:
+            urls.append(url(detail_expr+field+'/', LDPNestedViewSet.nested_urls(field, **kwargs)))
+        
+        return include(urls)
 
 class LDPViewSet(LDPViewSetGenerator):
-    model = None
+    """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    parent_model = None
-    nested_field = None
-    nested_related_name = None
-    list_actions = {'get': 'list', 'post': 'create'}
-    detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.serializer_class = self.build_serializer()
+    
+    def build_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name+'-detail'][0][0][1][0]
         meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}}
@@ -104,22 +93,14 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             meta_args['exclude'] = self.exclude or ()
         meta_class = type('Meta', (), meta_args)
-        self.serializer_class = type(LDPSerializer)(model_name+'Serializer', (LDPSerializer,), {'Meta': meta_class})
+        return type(LDPSerializer)(model_name+'Serializer', (LDPSerializer,), {'Meta': meta_class})
     
-    def get_parent(self):
-        return get_object_or_404(self.parent_model, id=self.kwargs[self.lookup_field])
-    
-    def perform_create(self, serializer):
-        create_args = {}
-        if self.parent_model:
-            create_args[self.nested_related_name] = self.get_parent()
+    def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author'):
-            create_args[self.model._meta.auto_author] = self.request.user
-        serializer.save(**create_args)
+            kwargs[self.model._meta.auto_author] = self.request.user
+        serializer.save(**kwargs)
     
     def get_queryset(self, *args, **kwargs):
-        if self.parent_model:
-            return getattr(self.get_parent(), self.nested_field).all()
         if self.model:
             return self.model.objects.all()
         else:
@@ -133,3 +114,34 @@ class LDPViewSet(LDPViewSetGenerator):
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
         return response
+
+class LDPNestedViewSet(LDPViewSet):
+    """A special case of LDPViewSet serving objects of a relation of a given object (e.g. members of a group, or skills of a user)"""
+    parent_model = None
+    parent_lookup_field = None
+    nested_field = None
+    nested_related_name = None
+    
+    def get_parent(self):
+        return get_object_or_404(self.parent_model, **{self.parent_lookup_field: self.kwargs[self.parent_lookup_field]})
+    
+    def perform_create(self, serializer, **kwargs):
+        kwargs[self.nested_related_name] = self.get_parent()
+        super().perform_create(serializer, **kwargs)
+    
+    def get_queryset(self, *args, **kwargs):
+        return getattr(self.get_parent(), self.nested_field).all()
+    
+    @classonlymethod
+    def nested_urls(cls, nested_field, **kwargs):
+        related_field = cls.get_model(**kwargs)._meta.get_field(nested_field)
+        
+        return cls.urls(
+            model = related_field.related_model,
+            exclude = (),
+            parent_model = cls.get_model(**kwargs),
+            nested_field = nested_field,
+            nested_related_name = related_field.related_query_name(),
+            parent_lookup_field = cls.get_lookup_arg(**kwargs),
+            model_prefix = cls.get_model(**kwargs)._meta.object_name.lower(),
+            lookup_url_kwarg = related_field.related_model._meta.object_name.lower()+'_id')

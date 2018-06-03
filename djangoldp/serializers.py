@@ -18,6 +18,7 @@ class JsonLdRelatedField(HyperlinkedRelatedField):
         #get the field name associated with the url of the view
         try:
             lookup_field = get_resolver().reverse_dict[self.view_name][0][0][1][0]
+            print(self.view_name, self.queryset, lookup_field)
             self.lookup_field = lookup_field
             self.lookup_url_kwarg = lookup_field
         except MultiValueDictKeyError:
