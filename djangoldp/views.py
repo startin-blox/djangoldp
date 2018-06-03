@@ -2,6 +2,7 @@ from pyld import jsonld
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
+from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
@@ -119,6 +120,7 @@ class LDPNestedViewSet(LDPViewSet):
     """A special case of LDPViewSet serving objects of a relation of a given object (e.g. members of a group, or skills of a user)"""
     parent_model = None
     parent_lookup_field = None
+    related_field = None
     nested_field = None
     nested_related_name = None
     
@@ -130,18 +132,33 @@ class LDPNestedViewSet(LDPViewSet):
         super().perform_create(serializer, **kwargs)
     
     def get_queryset(self, *args, **kwargs):
-        return getattr(self.get_parent(), self.nested_field).all()
+        if self.related_field.many_to_many or self.related_field.one_to_many:
+            return getattr(self.get_parent(), self.nested_field).all()
+        if self.related_field.many_to_one or self.related_field.one_to_one:
+            return [getattr(self.get_parent(), self.nested_field)]
+    
+    @classonlymethod
+    def get_related_fields(cls, model):
+        return {field.get_accessor_name():field for field in model._meta.fields_map.values()}
     
     @classonlymethod
     def nested_urls(cls, nested_field, **kwargs):
-        related_field = cls.get_model(**kwargs)._meta.get_field(nested_field)
+        try:
+            related_field = cls.get_model(**kwargs)._meta.get_field(nested_field)
+        except FieldDoesNotExist:
+            related_field = cls.get_related_fields(cls.get_model(**kwargs))[nested_field]
+        if related_field.related_query_name:
+            nested_related_name = related_field.related_query_name()
+        else:
+            nested_related_name = related_field.remote_field.attname
         
         return cls.urls(
             model = related_field.related_model,
             exclude = (),
             parent_model = cls.get_model(**kwargs),
             nested_field = nested_field,
-            nested_related_name = related_field.related_query_name(),
+            nested_related_name = nested_related_name,
+            related_field = related_field,
             parent_lookup_field = cls.get_lookup_arg(**kwargs),
             model_prefix = cls.get_model(**kwargs)._meta.object_name.lower(),
             lookup_url_kwarg = related_field.related_model._meta.object_name.lower()+'_id')
