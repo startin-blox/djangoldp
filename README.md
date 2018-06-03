@@ -85,6 +85,22 @@ To start the server, `cd` to the root of your Django project and run :
 python3 manage.py runserver
 ```
 
-## Lic ense
+## Custom Parameters to LDPViewSet
 
-No licence yet. Please wait...
+### lookup_field
+Can be used to use a slug in the url instead of the primary key.
+```
+LDPViewSet.urls(model=User, lookup_field='username')
+```
+
+### nested_fields
+list of ForeignKey, ManyToManyField, OneToOneField and their reverse relations. When a field is listed in this parameter, a container will be created inside each single element of the container.
+
+In the following example, besides the urls `/members/` and `/members/<pk>/`, two other will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/` 
+```
+    url(r'^members/', LDPViewSet.urls(model=Member, nested_fields=("skills",))),
+```
+
+## License
+
+Licence MIT
