@@ -12,7 +12,7 @@ setup(
     platforms='any',
     license='MIT',
     install_requires=[
-        'django>=1.11',
+        'django==1.11',
         'django_rest_framework',
         'pyld',
     ],
