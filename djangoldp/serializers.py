@@ -32,6 +32,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     
+    def get_default_field_names(self, declared_fields, model_info):
+        return super().get_default_field_names(declared_fields, model_info) + list(getattr(self.Meta, 'extra_fields', []))
+    
     def to_representation(self, obj):
         data = super().to_representation(obj)
         if hasattr(obj._meta, 'rdf_type'):
