@@ -150,11 +150,11 @@ class LDPNestedViewSet(LDPViewSet):
         if related_field.related_query_name:
             nested_related_name = related_field.related_query_name()
         else:
-            nested_related_name = related_field.remote_field.attname
+            nested_related_name = related_field.remote_field.name
         
         return cls.urls(
             model = related_field.related_model,
-            exclude = (),
+            exclude = (nested_related_name,) if related_field.one_to_many else (),
             parent_model = cls.get_model(**kwargs),
             nested_field = nested_field,
             nested_related_name = nested_related_name,
