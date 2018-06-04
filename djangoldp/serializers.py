@@ -13,27 +13,31 @@ class ContainerSerializer(ListSerializer):
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
-class JsonLdRelatedField(HyperlinkedRelatedField):
+class JsonLdField(HyperlinkedRelatedField):
     def __init__(self, view_name=None, **kwargs):
         super().__init__(view_name, **kwargs)
-        #get the field name associated with the url of the view
+        self.get_lookup_args()
+        
+    def get_lookup_args(self):
         try:
             lookup_field = get_resolver().reverse_dict[self.view_name][0][0][1][0]
             self.lookup_field = lookup_field
             self.lookup_url_kwarg = lookup_field
         except MultiValueDictKeyError:
             pass
+
+class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
         try:
             return {'@id': super().to_representation(value)}
         except ImproperlyConfigured:
             return value.pk
 
-class JsonLdIdentityField(JsonLdRelatedField):
+class JsonLdIdentityField(JsonLdField):
     def __init__(self, view_name=None, **kwargs):
         kwargs['read_only'] = True
         kwargs['source'] = '*'
-        super(JsonLdIdentityField, self).__init__(view_name, **kwargs)
+        super().__init__(view_name, **kwargs)
 
     def use_pk_only_optimization(self):
         return False
