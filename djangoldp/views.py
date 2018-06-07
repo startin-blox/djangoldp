@@ -88,7 +88,7 @@ class LDPViewSet(LDPViewSetGenerator):
     def build_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name+'-detail'][0][0][1][0]
-        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': 1, 'extra_fields': self.nested_fields}
+        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': 0, 'extra_fields': self.nested_fields}
         if self.fields:
             meta_args['fields'] = self.fields
         else:
