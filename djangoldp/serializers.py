@@ -1,8 +1,9 @@
+import json
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
-from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, CharField
+from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
 from rest_framework.utils.serializer_helpers import ReturnDict
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 
@@ -17,7 +18,7 @@ class JsonLdField(HyperlinkedRelatedField):
     def __init__(self, view_name=None, **kwargs):
         super().__init__(view_name, **kwargs)
         self.get_lookup_args()
-        
+    
     def get_lookup_args(self):
         try:
             lookup_field = get_resolver().reverse_dict[self.view_name][0][0][1][0]
@@ -26,19 +27,40 @@ class JsonLdField(HyperlinkedRelatedField):
         except MultiValueDictKeyError:
             pass
 
+class ManyJsonLdRelatedField(ManyRelatedField):
+    def to_internal_value(self, data):
+        data = json.loads(data)
+        if isinstance(data, dict):
+            data = [data]
+        return [self.child_relation.to_internal_value(item['@id']) for item in data]
+
 class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
         try:
             return {'@id': super().to_representation(value)}
         except ImproperlyConfigured:
             return value.pk
+    
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(json.loads(data)['@id'])
+        except:
+            return super().to_internal_value(data)
+    
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        list_kwargs = {'child_relation': cls(*args, **kwargs)}
+        for key in kwargs:
+            if key in MANY_RELATION_KWARGS:
+                list_kwargs[key] = kwargs[key]
+        return ManyJsonLdRelatedField(**list_kwargs)
 
 class JsonLdIdentityField(JsonLdField):
     def __init__(self, view_name=None, **kwargs):
         kwargs['read_only'] = True
         kwargs['source'] = '*'
         super().__init__(view_name, **kwargs)
-
+    
     def use_pk_only_optimization(self):
         return False
 
@@ -57,7 +79,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return data
     
     def build_nested_field(self, field_name, relation_info, nested_depth):
-        print(nested_depth)
         class NestedSerializer(self.__class__):
             class Meta:
                 model = relation_info.related_model
