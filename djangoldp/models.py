@@ -6,6 +6,11 @@ class LDPSource(models.Model):
     
     class Meta:
         rdf_type = 'hd:federation'
+        ordering = ('federation',)
+        permissions = (
+            ('view_source', 'acl:Read'),
+            ('control_source', 'acl:Control'),
+        )
     
     def __str__(self):
         return "{}: {}".format(self.federation, self.container)

@@ -11,6 +11,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.viewsets import ModelViewSet
+from .models import LDPSource
 from .serializers import LDPSerializer
 
 class JSONLDRenderer(JSONRenderer):
@@ -175,3 +176,15 @@ class LDPNestedViewSet(LDPViewSet):
             parent_lookup_field = cls.get_lookup_arg(**kwargs),
             model_prefix = cls.get_model(**kwargs)._meta.object_name.lower(),
             lookup_url_kwarg = related_field.related_model._meta.object_name.lower()+'_id')
+
+class LDPSourceViewSet(LDPViewSet):
+    model = LDPSource
+    federation = None
+    
+    @classonlymethod
+    def urls(cls, **kwargs):
+        return include([url(name+'/', super(LDPSourceViewSet, cls).urls(federation=name, **kwargs))
+            for name in LDPSource.objects.order_by().values_list('federation', flat=True).distinct()])
+    
+    def get_queryset(self, *args, **kwargs):
+        return super().get_queryset(*args, **kwargs).filter(federation=self.federation)
