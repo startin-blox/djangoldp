@@ -6,6 +6,7 @@ from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, 
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
 from rest_framework.utils.serializer_helpers import ReturnDict
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
+from guardian.shortcuts import get_perms
 
 class ContainerSerializer(ListSerializer):
     def to_representation(self, data):
@@ -76,6 +77,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         data = super().to_representation(obj)
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
+        data['permissions'] = [{'mode': name.split('_')[0]} for name in get_perms(self.context['request'].user, obj)]
         return data
     
     def build_nested_field(self, field_name, relation_info, nested_depth):

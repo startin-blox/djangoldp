@@ -9,6 +9,7 @@ from django.utils.decorators import classonlymethod
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
+from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.viewsets import ModelViewSet
 from .serializers import LDPSerializer
 
@@ -27,6 +28,17 @@ class JSONLDParser(JSONParser):
 class NoCSRFAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
+
+class WACPermissions(DjangoObjectPermissions):
+    perms_map = {
+        'GET': ['%(app_label)s.view_%(model_name)s'],
+        'OPTIONS': ['%(app_label)s.view_%(model_name)s'],
+        'HEAD': ['%(app_label)s.view_%(model_name)s'],
+        'POST': ['%(app_label)s.add_%(model_name)s'],
+        'PUT': ['%(app_label)s.change_%(model_name)s'],
+        'PATCH': ['%(app_label)s.change_%(model_name)s'],
+        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+    }
 
 class LDPViewSetGenerator(ModelViewSet):
     """An extension of ModelViewSet that generates automatically URLs for the model"""
@@ -80,6 +92,7 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
+    permission_classes = (WACPermissions,)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
