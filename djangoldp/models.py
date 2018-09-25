@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 class LDPSource(models.Model):
@@ -14,3 +15,11 @@ class LDPSource(models.Model):
     
     def __str__(self):
         return "{}: {}".format(self.federation, self.container)
+
+
+class LDNotification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    author = models.URLField()
+    object = models.URLField()
+    type = models.CharField(max_length=255)
+    summary = models.TextField()
