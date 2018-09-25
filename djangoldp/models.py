@@ -6,7 +6,7 @@ class LDPSource(models.Model):
     federation = models.CharField(max_length=255)
     
     class Meta:
-        rdf_type = 'hd:federation'
+        rdf_type = 'sib:source'
         ordering = ('federation',)
         permissions = (
             ('view_source', 'acl:Read'),
