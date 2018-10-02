@@ -15,5 +15,6 @@ setup(
         'django==1.11',
         'django_rest_framework',
         'pyld',
+        'django-guardian'
     ],
 )
