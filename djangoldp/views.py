@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls import url, include
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
+from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
 from rest_framework.authentication import SessionAuthentication
@@ -183,8 +184,11 @@ class LDPSourceViewSet(LDPViewSet):
     
     @classonlymethod
     def urls(cls, **kwargs):
-        return include([url(name+'/', super(LDPSourceViewSet, cls).urls(federation=name, **kwargs))
-            for name in LDPSource.objects.order_by().values_list('federation', flat=True).distinct()])
+        try:
+            return include([url(name+'/', super(LDPSourceViewSet, cls).urls(federation=name, **kwargs))
+                for name in LDPSource.objects.order_by().values_list('federation', flat=True).distinct()])
+        except OperationalError: #for the case where the table doesn't exist
+            return include([])
     
     def get_queryset(self, *args, **kwargs):
         return super().get_queryset(*args, **kwargs).filter(federation=self.federation)
