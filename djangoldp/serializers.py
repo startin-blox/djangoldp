@@ -9,8 +9,12 @@ from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from guardian.shortcuts import get_perms
 
 class ContainerSerializer(ListSerializer):
+    id=''
     def to_representation(self, data):
-        return {'@id': '', 'ldp:contains':super(ContainerSerializer, self).to_representation(data)}
+        return {'@id': self.id, 'ldp:contains':super(ContainerSerializer, self).to_representation(data)}
+    def get_attribute(self, instance):
+        self.id = self.parent.context['request'].get_full_path()+self.field_name+"/"
+        return super().get_attribute(instance)
     @property
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
@@ -34,6 +38,11 @@ class ManyJsonLdRelatedField(ManyRelatedField):
         if isinstance(data, dict):
             data = [data]
         return [self.child_relation.to_internal_value(item['@id']) for item in data]
+    def to_representation(self, value):
+        return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
+    def get_attribute(self, instance):
+        self.id = self.parent.context['request'].get_full_path()+self.field_name+"/"
+        return super().get_attribute(instance)
 
 class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
@@ -44,7 +53,7 @@ class JsonLdRelatedField(JsonLdField):
     
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(json.loads(data)['@id'])
+            return super().to_internal_value(data['@id'])
         except:
             return super().to_internal_value(data)
     

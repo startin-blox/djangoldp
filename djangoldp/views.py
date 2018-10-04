@@ -25,7 +25,7 @@ class JSONLDParser(JSONParser):
     media_type = 'application/ld+json'
     def parse(self, stream, media_type=None, parser_context=None):
         data = super(JSONLDParser, self).parse(stream, media_type, parser_context)
-        return jsonld.compact(data, ctx=data["@context"])
+        return jsonld.compact(data, ctx=settings.LDP_RDF_CONTEXT)
 
 class NoCSRFAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
@@ -41,6 +41,9 @@ class WACPermissions(DjangoObjectPermissions):
         'PATCH': ['%(app_label)s.change_%(model_name)s'],
         'DELETE': ['%(app_label)s.delete_%(model_name)s'],
     }
+
+class AnnonReadOnly(WACPermissions):
+    authenticated_users_only = False
 
 class LDPViewSetGenerator(ModelViewSet):
     """An extension of ModelViewSet that generates automatically URLs for the model"""
@@ -83,7 +86,7 @@ class LDPViewSetGenerator(ModelViewSet):
             ]
         
         for field in kwargs.get('nested_fields') or cls.nested_fields:
-            urls.append(url(detail_expr+field+'/', LDPNestedViewSet.nested_urls(field, **kwargs)))
+            urls.append(url('^'+detail_expr+field+'/', LDPNestedViewSet.nested_urls(field, **kwargs)))
         
         return include(urls)
 
@@ -103,7 +106,7 @@ class LDPViewSet(LDPViewSetGenerator):
     def build_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name+'-detail'][0][0][1][0]
-        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': 0, 'extra_fields': self.nested_fields}
+        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': 2, 'extra_fields': self.nested_fields}
         if self.fields:
             meta_args['fields'] = self.fields
         else:
@@ -176,6 +179,7 @@ class LDPNestedViewSet(LDPViewSet):
             related_field = related_field,
             parent_lookup_field = cls.get_lookup_arg(**kwargs),
             model_prefix = cls.get_model(**kwargs)._meta.object_name.lower(),
+            permission_classes = kwargs.get('permission_classes'),
             lookup_url_kwarg = related_field.related_model._meta.object_name.lower()+'_id')
 
 class LDPSourceViewSet(LDPViewSet):
