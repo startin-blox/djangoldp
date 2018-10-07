@@ -10,10 +10,18 @@ from guardian.shortcuts import get_perms
 
 class ContainerSerializer(ListSerializer):
     id=''
-    def to_representation(self, data):
-        return {'@id': self.id, 'ldp:contains':super(ContainerSerializer, self).to_representation(data)}
+    def to_internal_value(self, data):
+        data = json.loads(data)
+        if isinstance(data, dict):
+            data = [data]
+        return [self.child_relation.to_internal_value(item['@id']) for item in data]
+    def to_representation(self, value):
+        return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
     def get_attribute(self, instance):
-        self.id = self.parent.context['request'].get_full_path()+self.field_name+"/"
+        parent_id_field = self.parent.fields[self.parent.url_field_name]
+        context = self.parent.context
+        parent_id = parent_id_field.get_url(instance, parent_id_field.view_name, context['request'], context['format'])
+        self.id = parent_id + self.field_name+"/"
         return super().get_attribute(instance)
     @property
     def data(self):
@@ -31,18 +39,6 @@ class JsonLdField(HyperlinkedRelatedField):
             self.lookup_url_kwarg = lookup_field
         except MultiValueDictKeyError:
             pass
-
-class ManyJsonLdRelatedField(ManyRelatedField):
-    def to_internal_value(self, data):
-        data = json.loads(data)
-        if isinstance(data, dict):
-            data = [data]
-        return [self.child_relation.to_internal_value(item['@id']) for item in data]
-    def to_representation(self, value):
-        return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
-    def get_attribute(self, instance):
-        self.id = self.parent.context['request'].get_full_path()+self.field_name+"/"
-        return super().get_attribute(instance)
 
 class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
@@ -63,7 +59,7 @@ class JsonLdRelatedField(JsonLdField):
         for key in kwargs:
             if key in MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
-        return ManyJsonLdRelatedField(**list_kwargs)
+        return ContainerSerializer(**list_kwargs)
 
 class JsonLdIdentityField(JsonLdField):
     def __init__(self, view_name=None, **kwargs):
@@ -90,13 +86,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return data
     
     def build_nested_field(self, field_name, relation_info, nested_depth):
-        class NestedSerializer(self.__class__):
+        class NestedLDPSerializer(self.__class__):
             class Meta:
                 model = relation_info.related_model
                 depth = nested_depth - 1
                 fields = '__all__'
         
-        return NestedSerializer, get_nested_relation_kwargs(relation_info)
+        return NestedLDPSerializer, get_nested_relation_kwargs(relation_info)
     
     @classmethod
     def many_init(cls, *args, **kwargs):
