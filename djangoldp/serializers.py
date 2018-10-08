@@ -8,8 +8,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from guardian.shortcuts import get_perms
 
-class ContainerSerializer(ListSerializer):
-    id=''
+class LDListMixin:
     def to_internal_value(self, data):
         data = json.loads(data)
         if isinstance(data, dict):
@@ -23,9 +22,15 @@ class ContainerSerializer(ListSerializer):
         parent_id = parent_id_field.get_url(instance, parent_id_field.view_name, context['request'], context['format'])
         self.id = parent_id + self.field_name+"/"
         return super().get_attribute(instance)
+
+class ContainerSerializer(LDListMixin, ListSerializer):
+    id=''
     @property
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
+
+class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
+    pass
 
 class JsonLdField(HyperlinkedRelatedField):
     def __init__(self, view_name=None, **kwargs):
@@ -59,7 +64,7 @@ class JsonLdRelatedField(JsonLdField):
         for key in kwargs:
             if key in MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
-        return ContainerSerializer(**list_kwargs)
+        return ManyJsonLdRelatedField(**list_kwargs)
 
 class JsonLdIdentityField(JsonLdField):
     def __init__(self, view_name=None, **kwargs):
