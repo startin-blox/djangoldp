@@ -87,7 +87,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         data = super().to_representation(obj)
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
-        data['permissions'] = [{'mode': name.split('_')[0]} for name in get_perms(self.context['request'].user, obj)]
+        data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in get_perms(self.context['request'].user, obj)]
         return data
     
     def build_nested_field(self, field_name, relation_info, nested_depth):
