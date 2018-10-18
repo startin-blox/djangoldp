@@ -179,7 +179,7 @@ class LDPNestedViewSet(LDPViewSet):
             related_field = related_field,
             parent_lookup_field = cls.get_lookup_arg(**kwargs),
             model_prefix = cls.get_model(**kwargs)._meta.object_name.lower(),
-            permission_classes = kwargs.get('permission_classes'),
+            permission_classes = kwargs.get('permission_classes', ()),
             lookup_url_kwarg = related_field.related_model._meta.object_name.lower()+'_id')
 
 class LDPSourceViewSet(LDPViewSet):
