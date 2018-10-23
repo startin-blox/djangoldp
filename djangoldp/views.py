@@ -14,6 +14,11 @@ from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.viewsets import ModelViewSet
 from .models import LDPSource
 from .serializers import LDPSerializer
+from guardian.shortcuts import get_objects_for_user
+from rest_framework_guardian import filters
+
+def debug(req):
+    import pdb; pdb.set_trace()
 
 class JSONLDRenderer(JSONRenderer):
     media_type = 'application/ld+json'
@@ -98,11 +103,13 @@ class LDPViewSet(LDPViewSetGenerator):
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
     permission_classes = (WACPermissions,)
+    filter_backends = (filters.DjangoObjectPermissionsFilter,)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.serializer_class = self.build_serializer()
-    
+        
+        
     def build_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name+'-detail'][0][0][1][0]
@@ -121,7 +128,9 @@ class LDPViewSet(LDPViewSetGenerator):
     
     def get_queryset(self, *args, **kwargs):
         if self.model:
-            return self.model.objects.all()
+            perm=".view_".join((self.model._meta.app_label, self.model._meta.model_name))
+            # return self.model.objects.all() #
+            return  get_objects_for_user(self.request.user,perm)
         else:
             return super(LDPView, self).get_queryset(*args, **kwargs)
     
