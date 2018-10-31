@@ -1,5 +1,8 @@
 from django.conf import settings
 from django.db import models
+from django.contrib.auth.models import User
+
+User._meta.serializer_fields  = ('username','first_name','last_name')
 
 class LDPSource(models.Model):
     container = models.URLField()
