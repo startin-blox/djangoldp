@@ -81,7 +81,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     
     def get_default_field_names(self, declared_fields, model_info):
-        return super().get_default_field_names(declared_fields, model_info) + list(getattr(self.Meta, 'extra_fields', []))
+        fields = super().get_default_field_names(declared_fields, model_info)
+        excludes = list(getattr(self.Meta, 'exclude', []))
+        extra = list(getattr(self.Meta, 'extra_fields', []))
+        return [f for f in fields if f not in excludes] + extra
     
     def to_representation(self, obj):
         data = super().to_representation(obj)
@@ -95,8 +98,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
             class Meta:
                 model = relation_info.related_model
                 depth = nested_depth - 1
-                fields = '__all__'
-        
+                try:
+                    fields = model._meta.serializer_fields
+                except:
+                    fields = '__all__'
+
+ 
         return NestedLDPSerializer, get_nested_relation_kwargs(relation_info)
     
     @classmethod
