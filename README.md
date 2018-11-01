@@ -9,6 +9,8 @@ It aims at enabling people with little development skills to serve their own dat
 * Django (known to work with django 1.11)
 * Django Rest Framework
 * pyld
+* django-guardian
+* djangorestframework-guardian
 
 ## Installation
 
@@ -33,6 +35,22 @@ class Todo(models.Model):
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
 
+```
+
+Note that at this stage you can limit access to certain fields of models using
+
+```
+<Model>._meta.serializer_fields (<>list of field names to show>)
+```
+
+ For example, if you have a model with a related field with type **django.contrib.auth.models.User** you don't want to show personal details or password hashes.
+
+E.g.
+
+```
+from django.contrib.auth.models import User
+
+User._meta.serializer_fields  = ('username','first_name','last_name')
 ```
 
 ### 4- Add a url in your urls.py:
