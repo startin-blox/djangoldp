@@ -99,7 +99,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 model = relation_info.related_model
                 depth = nested_depth - 1
                 try:
-                    fields = model._meta.serializer_fields
+                    fields = ( '@id',) + model._meta.serializer_fields 
                 except:
                     fields = '__all__'
 
