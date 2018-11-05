@@ -85,8 +85,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             fields = list(self.Meta.model._meta.serializer_fields)
         except:
             fields = super().get_default_field_names(declared_fields, model_info)
-
-        return fields
+        return fields + list(getattr(self.Meta, 'extra_fields', []))
     
     def to_representation(self, obj):
         data = super().to_representation(obj)
