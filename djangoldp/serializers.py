@@ -81,10 +81,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     
     def get_default_field_names(self, declared_fields, model_info):
-        fields = super().get_default_field_names(declared_fields, model_info)
-        excludes = list(getattr(self.Meta, 'exclude', []))
-        extra = list(getattr(self.Meta, 'extra_fields', []))
-        return [f for f in fields if f not in excludes] + extra
+        try:
+            fields = list(self.Meta.model._meta.serializer_fields)
+        except:
+            fields = super().get_default_field_names(declared_fields, model_info)
+
+        return fields
     
     def to_representation(self, obj):
         data = super().to_representation(obj)
