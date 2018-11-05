@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='djangoldp',
-    version='0.5a5',
+    version='0.5a8',
     url='https://git.happy-dev.fr/happy-dev/djangoldp/',
     author="Startin'blox",
     author_email='sylvain@happy-dev.fr',
@@ -16,6 +16,5 @@ setup(
         'django_rest_framework',
         'pyld',
         'django-guardian',
-        'djangorestframework-guardian'
     ],
 )

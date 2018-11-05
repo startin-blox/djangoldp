@@ -100,8 +100,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 model = relation_info.related_model
                 depth = nested_depth - 1
                 try:
-                    fields = ( '@id',) + model._meta.serializer_fields 
-                except:
+                    fields = ['@id'] + list(model._meta.serializer_fields)
+                except AttributeError:
                     fields = '__all__'
 
  
