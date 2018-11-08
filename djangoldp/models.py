@@ -23,6 +23,7 @@ class LDNotification(models.Model):
     object = models.URLField()
     type = models.CharField(max_length=255)
     summary = models.TextField()
+    date = models.DateTimeField(auto_now_add=True)
     class Meta:
         permissions = (
             ('view_todo', 'Read'),

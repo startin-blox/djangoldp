@@ -122,6 +122,11 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
     url(r'^members/', LDPViewSet.urls(model=Member, nested_fields=("skills",))),
 ```
 
+## Custom Meta options on models
+
+### rdf_type
+### auto_author
+
 ## License
 
 Licence MIT
