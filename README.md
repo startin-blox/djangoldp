@@ -37,6 +37,7 @@ class Todo(models.Model):
 
 ```
 
+#### 3.1 Configure field visibility (optional) 
 Note that at this stage you can limit access to certain fields of models using
 
 ```
@@ -52,6 +53,8 @@ from django.contrib.auth.models import User
 
 User._meta.serializer_fields  = ('username','first_name','last_name')
 ```
+
+Note that this will be overridden if you explicitly set the fields= parameter as an argument to LDPViewSet.urls(), and filtered if you set the excludes= parameter.
 
 ### 4- Add a url in your urls.py:
 
