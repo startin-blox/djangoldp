@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='djangoldp',
-    version='0.5a9',
+    version='0.5a10',
     url='https://git.happy-dev.fr/happy-dev/djangoldp/',
     author="Startin'blox",
     author_email='sylvain@happy-dev.fr',

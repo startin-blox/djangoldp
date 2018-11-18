@@ -77,7 +77,7 @@ class LDPViewSetGenerator(ModelViewSet):
     def get_detail_expr(cls, lookup_field=None, **kwargs):
         '''builds the detail url based on the lookup_field'''
         lookup_field = lookup_field or cls.get_lookup_arg(**kwargs)
-        lookup_group = r'\d' if lookup_field == 'pk' else r'[\w-]'
+        lookup_group = r'\d' if lookup_field == 'pk' else r'[\w\-\.]'
         return r'(?P<{}>{}+)/'.format(lookup_field, lookup_group)
     
     @classonlymethod
