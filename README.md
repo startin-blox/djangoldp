@@ -14,19 +14,19 @@ It aims at enabling people with little development skills to serve their own dat
 
 ## Installation
 
-### 1- Install this module and all its dependencies
+1. Install this module and all its dependencies
 
 ```
 pip install djangoldp
 ```
 
-### 2- Create a django project
+2. Create a django project
  
 ```
 django-admin startproject myldpserver
 ```
 
-### 3- Create your django model inside a file myldpserver/myldpserver/models.py
+3. Create your django model inside a file myldpserver/myldpserver/models.py
 
 ```
 from django.db import models
@@ -37,7 +37,7 @@ class Todo(models.Model):
 
 ```
 
-#### 3.1 Configure field visibility (optional) 
+3.1. Configure field visibility (optional) 
 Note that at this stage you can limit access to certain fields of models using
 
 ```
@@ -56,7 +56,7 @@ User._meta.serializer_fields  = ('username','first_name','last_name')
 
 Note that this will be overridden if you explicitly set the fields= parameter as an argument to LDPViewSet.urls(), and filtered if you set the excludes= parameter.
 
-### 4- Add a url in your urls.py:
+4. Add a url in your urls.py:
 
 ```
 from django.conf.urls import url
@@ -72,14 +72,14 @@ urlpatterns = [
 
 This creates 2 routes, one for the list, and one with an ID listing the detail of an object.
 
-### 5- In the settings.py file, add your application name at the beginning of the application list, and add the following lines
+5. In the settings.py file, add your application name at the beginning of the application list, and add the following lines
 
 ```
 STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
 LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
 ```
 
-### 6- You can also register your model for the django administration site
+6. You can also register your model for the django administration site
 
 ```
 from django.contrib import admin
@@ -88,14 +88,14 @@ from .models import Todo
 admin.site.register(Todo)
 ```
 
-### 7- You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
+7. You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
 
-### 8- You will probably need to create a super user
+8. You will probably need to create a super user
 ```
 ./manage.py createsuperuser
 ```
 
-### 9- If you have no CSS on the admin screens : 
+9. If you have no CSS on the admin screens : 
 ```
 ./manage.py collectstatic
 ```
@@ -120,6 +120,13 @@ list of ForeignKey, ManyToManyField, OneToOneField and their reverse relations. 
 In the following example, besides the urls `/members/` and `/members/<pk>/`, two other will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/` 
 ```
     url(r'^members/', LDPViewSet.urls(model=Member, nested_fields=("skills",))),
+```
+
+From the 0.5 we added permissions check by default on every route, so you may encounter 400 errors code on your POST requests. You can disable those checks by specifying the permission_classes as an empty array in our URLs files.
+
+
+```
+url(r'^posts/', LDPViewSet.urls(model=Post, permission_classes=(), filter_backends = ())),
 ```
 
 ## Custom Meta options on models
