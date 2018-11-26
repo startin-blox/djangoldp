@@ -133,6 +133,13 @@ url(r'^posts/', LDPViewSet.urls(model=Post, permission_classes=(), filter_backen
 
 ### rdf_type
 ### auto_author
+This property allows to associate a model with the logged in user.
+
+```
+class MyModel(models.Model):
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    class Meta:
+        auto_author = 'author_user'
 
 ## License
 
