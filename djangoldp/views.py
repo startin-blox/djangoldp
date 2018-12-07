@@ -50,8 +50,12 @@ class AnnonReadOnly(WACPermissions):
 
 class DjangoObjectPermissionsFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
+        """
+            Ensure that queryset only contains objects visible by current user
+        """
         perm="view_{}".format(queryset.model._meta.model_name.lower())
-        return  get_objects_for_user(request.user, perm, klass=queryset.model)
+        objects = get_objects_for_user(request.user, perm, klass=queryset)
+        return  objects
 
 class LDPViewSetGenerator(ModelViewSet):
     """An extension of ModelViewSet that generates automatically URLs for the model"""
