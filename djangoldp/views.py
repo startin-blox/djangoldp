@@ -37,13 +37,17 @@ class NoCSRFAuthentication(SessionAuthentication):
 class WACPermissions(DjangoObjectPermissions):
     perms_map = {
         'GET': ['%(app_label)s.view_%(model_name)s'],
-        'OPTIONS': ['%(app_label)s.view_%(model_name)s'],
+        'OPTIONS': [],
         'HEAD': ['%(app_label)s.view_%(model_name)s'],
         'POST': ['%(app_label)s.add_%(model_name)s'],
         'PUT': ['%(app_label)s.change_%(model_name)s'],
         'PATCH': ['%(app_label)s.change_%(model_name)s'],
         'DELETE': ['%(app_label)s.delete_%(model_name)s'],
     }
+    def has_permission(self, request, view):
+        if request.method == 'OPTIONS':
+            return True
+        return super().has_permission(request, view)
 
 class AnnonReadOnly(WACPermissions):
     authenticated_users_only = False
@@ -81,7 +85,7 @@ class LDPViewSetGenerator(ModelViewSet):
     def get_detail_expr(cls, lookup_field=None, **kwargs):
         '''builds the detail url based on the lookup_field'''
         lookup_field = lookup_field or cls.get_lookup_arg(**kwargs)
-        lookup_group = r'\d' if lookup_field == 'pk' else r'[\w-]'
+        lookup_group = r'\d' if lookup_field == 'pk' else r'[\w\-\.]'
         return r'(?P<{}>{}+)/'.format(lookup_field, lookup_group)
     
     @classonlymethod
