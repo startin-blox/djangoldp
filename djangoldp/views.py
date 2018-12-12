@@ -113,8 +113,6 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
-    permission_classes = (WACPermissions,)
-    filter_backends = (DjangoObjectPermissionsFilter,)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -139,8 +137,9 @@ class LDPViewSet(LDPViewSetGenerator):
     
     def get_queryset(self, *args, **kwargs):
         if self.model:
-            perm="view_{}".format(self.model._meta.model_name.lower())
-            return  get_objects_for_user(self.request.user, perm, klass=self.model)
+            return self.model.objects.all()
+#            perm="view_{}".format(self.model._meta.model_name.lower())
+#            return  get_objects_for_user(self.request.user, perm, klass=self.model)
         else:
             return super(LDPView, self).get_queryset(*args, **kwargs)
     
