@@ -1,0 +1,12 @@
+---
+image: python:3
+
+stages:
+  - hello
+
+say_hello:
+  stage: hello
+  script:
+    - echo 'Hello world!'
+  tags:
+    - sib
