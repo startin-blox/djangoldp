@@ -16,6 +16,7 @@ from rest_framework.viewsets import ModelViewSet
 from .models import LDPSource
 from .serializers import LDPSerializer
 from guardian.shortcuts import get_objects_for_user
+from djangoldp.permissions import ObjectFilter
 
 
 class JSONLDRenderer(JSONRenderer):
@@ -33,33 +34,6 @@ class JSONLDParser(JSONParser):
 class NoCSRFAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
-
-class WACPermissions(DjangoObjectPermissions):
-    perms_map = {
-        'GET': ['%(app_label)s.view_%(model_name)s'],
-        'OPTIONS': [],
-        'HEAD': ['%(app_label)s.view_%(model_name)s'],
-        'POST': ['%(app_label)s.add_%(model_name)s'],
-        'PUT': ['%(app_label)s.change_%(model_name)s'],
-        'PATCH': ['%(app_label)s.change_%(model_name)s'],
-        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
-    }
-    def has_permission(self, request, view):
-        if request.method == 'OPTIONS':
-            return True
-        return super().has_permission(request, view)
-
-class AnnonReadOnly(WACPermissions):
-    authenticated_users_only = False
-
-class DjangoObjectPermissionsFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        """
-            Ensure that queryset only contains objects visible by current user
-        """
-        perm="view_{}".format(queryset.model._meta.model_name.lower())
-        objects = get_objects_for_user(request.user, perm, klass=queryset)
-        return  objects
 
 class LDPViewSetGenerator(ModelViewSet):
     """An extension of ModelViewSet that generates automatically URLs for the model"""
@@ -113,9 +87,11 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        if self.permission_classes and self.permission_classes.filter_class:
+            self.filter_backends = (self.permission_classes.filter_class,)
         self.serializer_class = self.build_serializer()
         
         

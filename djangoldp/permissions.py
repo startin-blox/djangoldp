@@ -1,4 +1,6 @@
 from rest_framework import permissions
+from rest_framework import filters
+from guardian.shortcuts import get_objects_for_user, get_user_perms
 
 """
 Liste des actions passées dans views selon le protocole REST :
@@ -9,105 +11,83 @@ Liste des actions passées dans views selon le protocole REST :
     destroy
 Pour chacune de ces actions, on va définir si on accepte la requête (True) ou non (False)
 """
+"""
+    The instance-level has_object_permission method will only be called if the view-level has_permission 
+    checks have already passed
+"""
+
+class WACPermissions(permissions.DjangoObjectPermissions):
+    perms_map = {
+        'GET': ['%(app_label)s.view_%(model_name)s'],
+        'OPTIONS': [],
+        'HEAD': ['%(app_label)s.view_%(model_name)s'],
+        'POST': ['%(app_label)s.add_%(model_name)s'],
+        'PUT': ['%(app_label)s.change_%(model_name)s'],
+        'PATCH': ['%(app_label)s.change_%(model_name)s'],
+        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+    }
+    def has_permission(self, request, view):
+        if request.method == 'OPTIONS':
+            return True
+        return super().has_permission(request, view)
 
 
-class PublicPostPermissions(permissions.BasePermission):
+class ObjectFilter(filters.BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        """
+            Ensure that queryset only contains objects visible by current user
+        """
+        perm = "view_{}".format(queryset.model._meta.model_name.lower())
+        objects = get_objects_for_user(request.user, perm, klass=queryset)
+        return objects
+
+class ObjectPermission(permissions.DjangoObjectPermissions):
+    filter_class = ObjectFilter
+
+class AnonymousReadOnly(permissions.DjangoObjectPermissions):
     """
         Anonymous users: can read all posts
         Logged in users: can read all posts + create new posts
         Author: can read all posts + create new posts + update their own
     """
     def has_permission(self, request, view):
-
-        if view.action == "list":
-            return True
-
-        if not request.user.is_authenticated():
-            return False
-        elif view.action == 'create':
-            return True
-        elif view.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+        if view.action in ['list', 'retrieve']:
             return True
         else:
-            return False
+            return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-
-        if view.action == "create":
+        if view.action == "create" and request.user.is_authenticated():
             return True
-
-        elif view.action in ['retrieve', 'update', 'partial_update', 'destroy']:
-            if hasattr(obj._meta, 'auto_author'):
-                auth = getattr(obj, obj._meta.auto_author)
-                if auth == request.user:
-                    return True
-        else:
-            return False
-
-
-class PrivateProjectPermissions(permissions.BasePermission):
-    """
-        Anonymous users: no permissions
-        Logged in users: can read projects if they're in the team
-        Users of group Partners: can see all projects + update all projects
-    """
-
-    def has_permission(self, request, view):
-        if not request.user.is_authenticated():
-            return False
-        if view.action == "list":
+        elif view.action == "retrieve":
             return True
-        elif view.action == 'create':
-            return True
-        elif view.action in ['retrieve', 'update', 'partial_update', 'destroy']:
-            return True
-        else:
-            return False
-
-    def has_object_permission(self, request, view, obj):
-
-        if view.action in ['retrieve']:
-            # Is user in the team ?
-            for t in obj.team.all():
-                if request.user == t:
-                    return True
-
         elif view.action in ['update', 'partial_update', 'destroy']:
-            if request.user.groups.filter(name='Partners').exists():
-                return True
+            if hasattr(obj._meta, 'auto_author'):
+                author = getattr(obj, obj._meta.auto_author)
+                if author == request.user:
+                    return True
+        else:
+            return super().has_object_permission(request, view)
 
-        return False
 
-
-class NotificationsPermissions(permissions.BasePermission):
+class InboxPermissions(permissions.DjangoObjectPermissions):
     """
         Anonymous users: can create notifications but can't read
         Logged in users: can create notifications but can't read
         Inbox owners: can read + update all notifications
     """
-
+    filter_class = ObjectFilter
     def has_permission(self, request, view):
-
-        if view.action == "list":
-            return False
-        elif view.action == 'create':
-            return True
-        elif view.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+        if view.action in ['create', 'retrieve', 'update', 'partial_update', 'destroy']:
             return True
         else:
-            return False
+            return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-
-        if view.action in ["retrieve", 'update', 'partial_update', 'destroy']:
-            if hasattr(obj._meta, 'auto_author'):
-                auth = getattr(obj, obj._meta.auto_author)
-                if auth == request.user:
-                    return True
-            else:
-                return False
-
         if view.action == "create":
-            if request.user == "AnonymousUser" or request.user.is_authenticated():
+            return True
+        if hasattr(obj._meta, 'auto_author'):
+            if request.user == getattr(obj, obj._meta.auto_author):
                 return True
+        return super().has_object_permission(request, view)
 
