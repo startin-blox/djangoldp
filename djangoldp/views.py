@@ -16,7 +16,6 @@ from rest_framework.viewsets import ModelViewSet
 from .models import LDPSource
 from .serializers import LDPSerializer
 from guardian.shortcuts import get_objects_for_user
-from djangoldp.permissions import ObjectFilter
 
 
 class JSONLDRenderer(JSONRenderer):
@@ -90,8 +89,11 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if self.permission_classes and self.permission_classes.filter_class:
-            self.filter_backends = (self.permission_classes.filter_class,)
+        if self.permission_classes:
+            for p in self.permission_classes:
+                if hasattr(p, 'filter_class') and p.filter_class:
+                    self.filter_backends = p.filter_class
+
         self.serializer_class = self.build_serializer()
         
         
@@ -114,8 +116,8 @@ class LDPViewSet(LDPViewSetGenerator):
     def get_queryset(self, *args, **kwargs):
         if self.model:
             return self.model.objects.all()
-#            perm="view_{}".format(self.model._meta.model_name.lower())
-#            return  get_objects_for_user(self.request.user, perm, klass=self.model)
+            perm="view_{}".format(self.model._meta.model_name.lower())
+            return  get_objects_for_user(self.request.user, perm, klass=self.model)
         else:
             return super(LDPView, self).get_queryset(*args, **kwargs)
     
