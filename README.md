@@ -141,6 +141,64 @@ class MyModel(models.Model):
     class Meta:
         auto_author = 'author_user'
 ```
+## permissions
+This allows you to add permissions for AnonymousUser, logged in user, author ... in the url:
+Currently, there are 3 choices :
+* PublicPostPermissions
+* PrivateProjectPermissions
+* NotificationsPermissions
+Specific permissin classes can be developed to fit special needs.
+
+PublicPostPermissions gives these permissions: 
+* Anonymous users: can read all posts
+* Logged in users: can read all posts + create new posts
+* Author: can read all posts + create new posts + update their own
+
+```
+from django.conf.urls import url
+from djangoldp.views import LDPViewSet
+from djangoldp.permissions import PublicPostPermissions
+
+urlpatterns = [
+    url(r'^projects/', ProjectViewSet.urls(permission_classes=(PublicPostPermissions,))),
+    url(r'^customers/', LDPViewSet.urls(model=Customer)),
+]
+```
+
+PrivateProjectPermissions provides the following
+* Anonymous users: no permissions
+* Logged in users: can read projects if they're in the team
+* Users of group Partners: can see all projects + update all projects
+
+```
+from django.conf.urls import url
+from djangoldp.views import LDPViewSet
+from djangoldp.permissions import PrivateProjectPermissions
+
+urlpatterns = [
+    url(r'^projects/', ProjectViewSet.urls(permission_classes=(PrivateProjectPermissions,))),
+    url(r'^customers/', LDPViewSet.urls(model=Customer)),
+]
+```
+NotificationsPermissions is used for, well, notifications:
+* Anonymous users: can create notifications but can't read
+* Logged in users: can create notifications but can't read
+* Inbox owners: can read + update all notifications 
+
+```
+from django.conf.urls import url
+from djangoldp.views import LDPViewSet
+from djangoldp.permissions import NotificationsPermissions
+
+urlpatterns = [
+    url(r'^projects/', ProjectViewSet.urls(permission_classes=(NotificationsPermissions,))),
+    url(r'^customers/', LDPViewSet.urls(model=Customer)),
+]
+```
+
+Important note:
+If you need to give permissions to owner's object, don't forget to add auto_author in model's meta
+
 
 ## License
 

@@ -34,33 +34,6 @@ class NoCSRFAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
 
-class WACPermissions(DjangoObjectPermissions):
-    perms_map = {
-        'GET': ['%(app_label)s.view_%(model_name)s'],
-        'OPTIONS': [],
-        'HEAD': ['%(app_label)s.view_%(model_name)s'],
-        'POST': ['%(app_label)s.add_%(model_name)s'],
-        'PUT': ['%(app_label)s.change_%(model_name)s'],
-        'PATCH': ['%(app_label)s.change_%(model_name)s'],
-        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
-    }
-    def has_permission(self, request, view):
-        if request.method == 'OPTIONS':
-            return True
-        return super().has_permission(request, view)
-
-class AnnonReadOnly(WACPermissions):
-    authenticated_users_only = False
-
-class DjangoObjectPermissionsFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        """
-            Ensure that queryset only contains objects visible by current user
-        """
-        perm="view_{}".format(queryset.model._meta.model_name.lower())
-        objects = get_objects_for_user(request.user, perm, klass=queryset)
-        return  objects
-
 class LDPViewSetGenerator(ModelViewSet):
     """An extension of ModelViewSet that generates automatically URLs for the model"""
     model = None
@@ -113,9 +86,14 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        if self.permission_classes:
+            for p in self.permission_classes:
+                if hasattr(p, 'filter_class') and p.filter_class:
+                    self.filter_backends = p.filter_class
+
         self.serializer_class = self.build_serializer()
         
         
@@ -138,8 +116,8 @@ class LDPViewSet(LDPViewSetGenerator):
     def get_queryset(self, *args, **kwargs):
         if self.model:
             return self.model.objects.all()
-#            perm="view_{}".format(self.model._meta.model_name.lower())
-#            return  get_objects_for_user(self.request.user, perm, klass=self.model)
+            perm="view_{}".format(self.model._meta.model_name.lower())
+            return  get_objects_for_user(self.request.user, perm, klass=self.model)
         else:
             return super(LDPView, self).get_queryset(*args, **kwargs)
     
