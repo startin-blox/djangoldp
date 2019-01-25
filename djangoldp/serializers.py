@@ -15,7 +15,7 @@ class LDListMixin:
             data = [data]
         return [self.child_relation.to_internal_value(item['@id']) for item in data]
     def to_representation(self, value):
-        return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
+        return {'@id': self.id, '@type': 'ldp:Container', 'ldp:contains': super().to_representation(value)}
     def get_attribute(self, instance):
         parent_id_field = self.parent.fields[self.parent.url_field_name]
         context = self.parent.context
@@ -89,8 +89,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
     
     def to_representation(self, obj):
         data = super().to_representation(obj)
+
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
+
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in get_perms(self.context['request'].user, obj)]
         return data
     
