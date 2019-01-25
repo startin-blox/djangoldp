@@ -147,12 +147,14 @@ class MyModel(models.Model):
 ## permissions
 This allows you to add permissions for AnonymousUser, logged in user, author ... in the url:
 Currently, there are 3 choices :
-* PublicPostPermissions
-* PrivateProjectPermissions
-* NotificationsPermissions
+* ObjectPermission
+* AnonymousReadOnly
+* InboxPermissions
 Specific permissin classes can be developed to fit special needs.
 
-PublicPostPermissions gives these permissions: 
+ObjectPermission give permissions assign in the administration
+
+AnonymousReadOnly gives these permissions: 
 * Anonymous users: can read all posts
 * Logged in users: can read all posts + create new posts
 * Author: can read all posts + create new posts + update their own
@@ -160,30 +162,15 @@ PublicPostPermissions gives these permissions:
 ```
 from django.conf.urls import url
 from djangoldp.views import LDPViewSet
-from djangoldp.permissions import PublicPostPermissions
+from djangoldp.permissions import AnonymousReadOnly
 
 urlpatterns = [
-    url(r'^projects/', ProjectViewSet.urls(permission_classes=(PublicPostPermissions,))),
+    url(r'^projects/', ProjectViewSet.urls(permission_classes=(AnonymousReadOnly,))),
     url(r'^customers/', LDPViewSet.urls(model=Customer)),
 ]
 ```
 
-PrivateProjectPermissions provides the following
-* Anonymous users: no permissions
-* Logged in users: can read projects if they're in the team
-* Users of group Partners: can see all projects + update all projects
-
-```
-from django.conf.urls import url
-from djangoldp.views import LDPViewSet
-from djangoldp.permissions import PrivateProjectPermissions
-
-urlpatterns = [
-    url(r'^projects/', ProjectViewSet.urls(permission_classes=(PrivateProjectPermissions,))),
-    url(r'^customers/', LDPViewSet.urls(model=Customer)),
-]
-```
-NotificationsPermissions is used for, well, notifications:
+InboxPermissions is used for, well, notifications:
 * Anonymous users: can create notifications but can't read
 * Logged in users: can create notifications but can't read
 * Inbox owners: can read + update all notifications 
@@ -194,7 +181,7 @@ from djangoldp.views import LDPViewSet
 from djangoldp.permissions import NotificationsPermissions
 
 urlpatterns = [
-    url(r'^projects/', ProjectViewSet.urls(permission_classes=(NotificationsPermissions,))),
+    url(r'^projects/', ProjectViewSet.urls(permission_classes=(InboxPermissions,))),
     url(r'^customers/', LDPViewSet.urls(model=Customer)),
 ]
 ```

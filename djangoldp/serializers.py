@@ -183,6 +183,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
+
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
