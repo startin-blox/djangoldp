@@ -12,7 +12,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 
 class LDListMixin:
     def to_internal_value(self, data):
-        data = json.loads(data)
+        # data = json.loads(data)
         if isinstance(data, dict):
             data = [data]
         return [self.child_relation.to_internal_value(item['@id']) for item in data]
@@ -34,7 +34,9 @@ class ContainerSerializer(LDListMixin, ListSerializer):
     @property
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
-    
+
+    def create(self, validated_data):
+        return super().create(validated_data)
 
 
 class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
@@ -117,7 +119,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 except AttributeError:
                     fields = '__all__'
 
-        return NestedLDPSerializer, get_nested_relation_kwargs(relation_info)
+        return NestedLDPSerializer, {"many": True}
+
 
     @classmethod
     def many_init(cls, *args, **kwargs):

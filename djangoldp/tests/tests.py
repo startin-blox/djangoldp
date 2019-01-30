@@ -12,8 +12,8 @@ class Serializer(TestCase):
         job = {"title": "job test",
                "skills": {
                    "ldp:contains": [
-                       {"@id:": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                       {"@id:": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
 
                    ]}
                }
