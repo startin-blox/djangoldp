@@ -8,6 +8,7 @@ settings.configure(DEBUG=True,
                            'ENGINE': 'django.db.backends.sqlite3',
                        }
                    },
+                   ROOT_URLCONF='djangoldp.tests.urls',
                    INSTALLED_APPS=('django.contrib.auth',
                                    'django.contrib.contenttypes',
                                    'django.contrib.sessions',

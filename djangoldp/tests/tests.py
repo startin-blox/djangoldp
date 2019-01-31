@@ -18,7 +18,7 @@ class Serializer(TestCase):
                    ]}
                }
 
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})

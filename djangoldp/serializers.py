@@ -9,13 +9,16 @@ from rest_framework.serializers import HyperlinkedModelSerializer, ListSerialize
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
+from djangoldp.tests.models import Skill
+
 
 class LDListMixin:
     def to_internal_value(self, data):
         # data = json.loads(data)
+        data = data['ldp:contains']
         if isinstance(data, dict):
-            data = [data]
-        return [self.child_relation.to_internal_value(item['@id']) for item in data]
+           data = [data]
+        return super().to_internal_value(data)
 
     def to_representation(self, value):
         return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
@@ -36,7 +39,9 @@ class ContainerSerializer(LDListMixin, ListSerializer):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
     def create(self, validated_data):
+        print(validated_data)
         return super().create(validated_data)
+
 
 
 class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
@@ -119,10 +124,24 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 except AttributeError:
                     fields = '__all__'
 
-        return NestedLDPSerializer, {"many": True}
+            def to_internal_value(self, data):
+                return [JsonLdRelatedField(view_name="skill-detail",queryset=Skill.objects.all()).to_internal_value(data)]
+                # super().to_internal_value(data)]
+
+
+        kwargs = get_nested_relation_kwargs(relation_info)
+        kwargs['read_only'] = False
+        return NestedLDPSerializer, kwargs
+        # return NestedLDPSerializer, {"many": True}
+
 
 
     @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls()
         return ContainerSerializer(*args, **kwargs)
+
+
+    def create(self, validated_data):
+        super().create(validated_data)
+
