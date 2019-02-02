@@ -1,4 +1,5 @@
 import json
+import pdb
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import get_resolver
@@ -18,7 +19,7 @@ class LDListMixin:
         data = data['ldp:contains']
         if isinstance(data, dict):
            data = [data]
-        return super().to_internal_value(data)
+        return [self.child.to_internal_value(item['@id']) for item in data]
 
     def to_representation(self, value):
         return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
@@ -125,9 +126,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                return [JsonLdRelatedField(view_name="skill-detail",queryset=Skill.objects.all()).to_internal_value(data)]
+                return JsonLdRelatedField(view_name="skill-detail",queryset=Skill.objects.all()).to_internal_value(data)
                 # super().to_internal_value(data)]
-
 
         kwargs = get_nested_relation_kwargs(relation_info)
         kwargs['read_only'] = False
@@ -143,5 +143,5 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
 
     def create(self, validated_data):
-        super().create(validated_data)
+        self.Meta.model.objects.create(**validated_data)
 
