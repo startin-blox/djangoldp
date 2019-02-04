@@ -1,5 +1,3 @@
-import json
-
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
@@ -9,15 +7,13 @@ from rest_framework.serializers import HyperlinkedModelSerializer, ListSerialize
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
-from djangoldp.tests.models import Skill
-
 
 class LDListMixin:
     def to_internal_value(self, data):
         # data = json.loads(data)
         data = data['ldp:contains']
         if isinstance(data, dict):
-           data = [data]
+            data = [data]
         return [self.child.to_internal_value(item) for item in data]
 
     def to_representation(self, value):
@@ -47,7 +43,6 @@ class ContainerSerializer(LDListMixin, ListSerializer):
             return super().to_internal_value(data['@id'])
         except:
             return super().to_internal_value(data)
-
 
 
 class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
@@ -99,6 +94,12 @@ class JsonLdIdentityField(JsonLdField):
     def use_pk_only_optimization(self):
         return False
 
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data['@id'])
+        except:
+            return super().to_internal_value(data)
+
 
 class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
@@ -122,6 +123,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
         class NestedLDPSerializer(self.__class__):
+
             class Meta:
                 model = relation_info.related_model
                 depth = nested_depth - 1
@@ -131,13 +133,14 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                return JsonLdRelatedField(view_name="skill-detail", queryset=Skill.objects.all()).to_internal_value(data)
-                # super().to_internal_value(data)]
+                model = self.Meta.model
+                return self.serializer_related_field(
+                    view_name='{}-detail'.format(model._meta.object_name.lower()),
+                    queryset=model.objects.all()).to_internal_value(data)
 
         kwargs = get_nested_relation_kwargs(relation_info)
         kwargs['read_only'] = False
         return NestedLDPSerializer, kwargs
-        # return NestedLDPSerializer, {"many": True}
 
     @classmethod
     def many_init(cls, *args, **kwargs):
@@ -145,11 +148,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return ContainerSerializer(*args, **kwargs)
 
     def create(self, validated_data):
-        skills = validated_data.pop('skills')
-        job_offer = self.Meta.model.objects.create(**validated_data)
+        nested_fields = []
+        nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
+        for field_name in nested_fields_name:
+            nested_fields.append((field_name, validated_data.pop(field_name)))
 
-        for skill in skills:
-            skill.save()
-            job_offer.skills.add(skill)
-        return job_offer
+        obj = self.Meta.model.objects.create(**validated_data)
 
+        for (field_name, data) in nested_fields:
+            for item in data:
+                getattr(obj, field_name).add(item)
+
+        return obj
