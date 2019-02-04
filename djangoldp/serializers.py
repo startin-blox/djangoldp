@@ -11,7 +11,10 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 class LDListMixin:
     def to_internal_value(self, data):
         # data = json.loads(data)
-        data = data['ldp:contains']
+        try:
+            data = data['ldp:contains']
+        except TypeError:
+            pass
         if isinstance(data, dict):
             data = [data]
         return [self.child.to_internal_value(item) for item in data]
