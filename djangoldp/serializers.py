@@ -149,6 +149,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         kwargs = get_nested_relation_kwargs(relation_info)
         kwargs['read_only'] = False
+        kwargs['required'] = False
         return NestedLDPSerializer, kwargs
 
     @classmethod

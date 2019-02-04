@@ -27,3 +27,19 @@ class Serializer(TestCase):
 
         self.assertEquals(result.title, "job test")
         self.assertIs(result.skills.count(), 2)
+
+    def test_save_without_nested_fields(self):
+        skill1 = Skill.objects.create(title="skill1")
+        skill2 = Skill.objects.create(title="skill2")
+        job = {"title": "job test"}
+
+        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
+
+        meta_class = type('Meta', (), meta_args)
+        serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=job)
+        serializer.is_valid()
+        result = serializer.save()
+
+        self.assertEquals(result.title, "job test")
+        self.assertIs(result.skills.count(), 0)
