@@ -83,6 +83,7 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
+    depth = 2
     renderer_classes = (JSONLDRenderer, )
     parser_classes = (JSONLDParser, )
     authentication_classes = (NoCSRFAuthentication,)
@@ -100,7 +101,7 @@ class LDPViewSet(LDPViewSetGenerator):
     def build_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name+'-detail'][0][0][1][0]
-        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': 2, 'extra_fields': self.nested_fields}
+        meta_args =  {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': self.depth, 'extra_fields': self.nested_fields}
         if self.fields:
             meta_args['fields'] = self.fields
         else:
