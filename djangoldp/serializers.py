@@ -1,5 +1,4 @@
 import json
-import pdb
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import get_resolver
@@ -19,7 +18,7 @@ class LDListMixin:
         data = data['ldp:contains']
         if isinstance(data, dict):
            data = [data]
-        return [self.child.to_internal_value(item['@id']) for item in data]
+        return [self.child.to_internal_value(item) for item in data]
 
     def to_representation(self, value):
         return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
@@ -42,6 +41,12 @@ class ContainerSerializer(LDListMixin, ListSerializer):
     def create(self, validated_data):
         print(validated_data)
         return super().create(validated_data)
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data['@id'])
+        except:
+            return super().to_internal_value(data)
 
 
 
@@ -126,7 +131,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                return JsonLdRelatedField(view_name="skill-detail",queryset=Skill.objects.all()).to_internal_value(data)
+                return JsonLdRelatedField(view_name="skill-detail", queryset=Skill.objects.all()).to_internal_value(data)
                 # super().to_internal_value(data)]
 
         kwargs = get_nested_relation_kwargs(relation_info)
@@ -134,14 +139,17 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return NestedLDPSerializer, kwargs
         # return NestedLDPSerializer, {"many": True}
 
-
-
     @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls()
         return ContainerSerializer(*args, **kwargs)
 
-
     def create(self, validated_data):
-        self.Meta.model.objects.create(**validated_data)
+        skills = validated_data.pop('skills')
+        job_offer = self.Meta.model.objects.create(**validated_data)
+
+        for skill in skills:
+            skill.save()
+            job_offer.skills.add(skill)
+        return job_offer
 
