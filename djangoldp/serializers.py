@@ -2,6 +2,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from guardian.shortcuts import get_perms
+from rest_framework.fields import empty
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -38,7 +39,6 @@ class ContainerSerializer(LDListMixin, ListSerializer):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
     def create(self, validated_data):
-        print(validated_data)
         return super().create(validated_data)
 
     def to_internal_value(self, data):
@@ -112,8 +112,14 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def get_default_field_names(self, declared_fields, model_info):
         try:
             fields = list(self.Meta.model._meta.serializer_fields)
-        except:
+        except AttributeError:
             fields = super().get_default_field_names(declared_fields, model_info)
+        try:
+            fields.remove(self.Meta.model._meta.auto_author)
+        except ValueError:
+            pass
+        except AttributeError:
+            pass
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
     def to_representation(self, obj):
