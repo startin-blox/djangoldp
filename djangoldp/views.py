@@ -137,6 +137,9 @@ class LDPViewSet(LDPViewSetGenerator):
         response["Accept-Post"] = "application/ld+json"
         return response
 
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        return response
 
 class LDPNestedViewSet(LDPViewSet):
     """A special case of LDPViewSet serving objects of a relation of a given object (e.g. members of a group, or skills of a user)"""
