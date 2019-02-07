@@ -24,6 +24,9 @@ from django.test.runner import DiscoverRunner
 
 test_runner = DiscoverRunner(verbosity=1)
 
-failures = test_runner.run_tests(['djangoldp.tests.tests'])
+failures = test_runner.run_tests([
+    'djangoldp.tests.tests_save',
+    'djangoldp.tests.tests_update'])
 if failures:
     sys.exit(failures)
+
