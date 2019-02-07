@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.urls import get_resolver
+from rest_framework import fields
 
 
 class Model(models.Model):
@@ -68,6 +69,12 @@ class Model(models.Model):
         if not path.endswith("/"):
             path = "{}/".format(path)
         return path
+
+
+class LDPUrlField (fields.URLField):
+    def to_representation(self, value):
+        str = super(LDPUrlField, self).to_representation(value)
+        return {'@id': str}
 
 
 class LDPSource(models.Model):

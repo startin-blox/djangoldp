@@ -36,6 +36,7 @@ class TestUserPermissions (TestCase):
         response = my_view(request)
         self.assertEqual(response.status_code, 201)
 
+
 class TestAnonymousUserPermissions (TestCase):
     def setUp(self):
         self.factory = RequestFactory()
