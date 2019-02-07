@@ -1,5 +1,11 @@
 from django.conf import settings
 from django.db import models
+from rest_framework import fields
+
+class LDPUrlField (fields.URLField):
+    def to_representation(self, value):
+        str = super(LDPUrlField, self).to_representation(value)
+        return {'@id': str}
 
 class LDPSource(models.Model):
     container = models.URLField()
