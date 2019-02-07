@@ -155,6 +155,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
     @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls()
+        try:
+            cls.Meta.depth = kwargs['context']['view'].many_depth
+        except KeyError:
+            pass
         return ContainerSerializer(*args, **kwargs)
 
     def create(self, validated_data):

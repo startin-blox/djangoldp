@@ -89,9 +89,10 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    depth = 0
+    depth = 1
+    many_depth = 0
     renderer_classes = (JSONLDRenderer,)
-    parser_classes =(JSONLDParser,)
+    parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
 
     def __init__(self, **kwargs):
@@ -106,8 +107,10 @@ class LDPViewSet(LDPViewSetGenerator):
     def build_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
-        meta_args = {'model': self.model, 'extra_kwargs': {'@id': {'lookup_field': lookup_field}}, 'depth': self.depth,
-                     'extra_fields': self.nested_fields}
+        meta_args = {'model': self.model, 'extra_kwargs': {
+            '@id': {'lookup_field': lookup_field}},
+             'depth': self.depth,
+             'extra_fields': self.nested_fields}
         if self.fields:
             meta_args['fields'] = self.fields
         else:
@@ -140,6 +143,7 @@ class LDPViewSet(LDPViewSetGenerator):
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
         return response
+
 
 class LDPNestedViewSet(LDPViewSet):
     """A special case of LDPViewSet serving objects of a relation of a given object (e.g. members of a group, or skills of a user)"""
