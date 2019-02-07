@@ -4,10 +4,12 @@ from django.utils.datastructures import MultiValueDictKeyError
 from guardian.shortcuts import get_perms
 from rest_framework.fields import empty
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
+from django.db import models as django_models
+from djangoldp import models
 
 class LDListMixin:
     def to_internal_value(self, data):
@@ -107,6 +109,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
+
+    ModelSerializer.serializer_field_mapping [django_models.URLField] = models.LDPUrlField
 
     def get_default_field_names(self, declared_fields, model_info):
         try:
