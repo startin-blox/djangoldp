@@ -65,6 +65,12 @@ class JsonLdField(HyperlinkedRelatedField):
         except MultiValueDictKeyError:
             pass
 
+    def to_internal_value(self, data):
+        return super().to_internal_value(data)
+
+    def get_value(self, dictionary):
+        return super().get_value(dictionary)
+
 
 class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
@@ -103,11 +109,18 @@ class JsonLdIdentityField(JsonLdField):
         except:
             return super().to_internal_value(data)
 
+    def get_value(self, dictionary):
+        return super().get_value(dictionary)
+
 
 class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
+
+    @property
+    def data(self):
+        return super().data
 
     def get_default_field_names(self, declared_fields, model_info):
         try:
@@ -130,6 +143,27 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                get_perms(self.context['request'].user, obj)]
         return data
 
+    def build_standard_field(self, field_name, model_field):
+        class JSonLDStandardField:
+            parent_view_name = None
+
+            def __init__(self, **kwargs):
+                self.parent_view_name = kwargs.pop('parent_view_name')
+                super().__init__(**kwargs)
+
+            def get_value(self, dictionary):
+                try:
+                    object_list = dictionary["@graph"]
+                    part_id = '/{}'.format(get_resolver().reverse_dict[self.parent_view_name][0][0][0], self.parent.instance.pk)
+                    obj = next(filter(lambda o: part_id in o['@id'], object_list))
+                    return super().get_value(obj)
+                except KeyError:
+                    return super().get_value(dictionary)
+
+        field_class, field_kwargs = super().build_standard_field(field_name, model_field)
+        field_kwargs['parent_view_name'] = '{}-list'.format(model_field.model._meta.object_name.lower())
+        return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class),  {}), field_kwargs
+
     def build_nested_field(self, field_name, relation_info, nested_depth):
         class NestedLDPSerializer(self.__class__):
 
@@ -147,6 +181,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     view_name='{}-detail'.format(model._meta.object_name.lower()),
                     queryset=model.objects.all()).to_internal_value(data)
 
+            def get_value(self, dictionary):
+                return super().get_value(dictionary)
+
         kwargs = get_nested_relation_kwargs(relation_info)
         kwargs['read_only'] = False
         kwargs['required'] = False
@@ -154,7 +191,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     @classmethod
     def many_init(cls, *args, **kwargs):
-        kwargs['child'] = cls()
+        kwargs['child'] = cls(**kwargs)
         try:
             cls.Meta.depth = kwargs['context']['view'].many_depth
         except KeyError:
@@ -174,3 +211,19 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 getattr(obj, field_name).add(item)
 
         return obj
+
+    def update(self, instance, validated_data):
+        nested_fields = []
+        nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
+        for field_name in nested_fields_name:
+            nested_fields.append((field_name, validated_data.pop(field_name)))
+
+        for attr, value in validated_data.items():
+             setattr(instance, attr, value)
+        instance.save()
+
+        for (field_name, data) in nested_fields:
+            for item in data:
+                getattr(instance, field_name).add(item)
+
+        return instance
