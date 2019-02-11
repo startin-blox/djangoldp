@@ -7,9 +7,11 @@ from djangoldp.tests.models import Skill, JobOffer
 class Serializer(TestCase):
 
     def test_update(self):
+        skill = Skill.objects.create(title="to drop")
         skill1 = Skill.objects.create(title="skill1")
         skill2 = Skill.objects.create(title="skill2")
         job1 = JobOffer.objects.create(title="job test")
+        job1.skills.add(skill)
 
         job = {"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
                "title": "job test updated",

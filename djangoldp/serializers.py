@@ -14,7 +14,7 @@ class LDListMixin:
         # data = json.loads(data)
         try:
             data = data['ldp:contains']
-        except TypeError:
+        except (TypeError, KeyError):
             pass
         if isinstance(data, dict):
             data = [data]
@@ -187,9 +187,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
             def to_internal_value(self, data):
                 model = self.Meta.model
-                return self.serializer_related_field(
+                instance = self.serializer_related_field(
                     view_name='{}-detail'.format(model._meta.object_name.lower()),
                     queryset=model.objects.all()).to_internal_value(data)
+                for key in data:
+                    setattr(instance, key, data[key])
+                return instance
 
             def get_value(self, dictionary):
                 return super().get_value(dictionary)
@@ -221,6 +224,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         for (field_name, data) in nested_fields:
             for item in data:
+                item.save()
                 getattr(obj, field_name).add(item)
 
         return obj
@@ -236,7 +240,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
         instance.save()
 
         for (field_name, data) in nested_fields:
+            try:
+                getattr(instance, field_name).clear()
+            except AttributeError:
+                pass
             for item in data:
+                item.save()
                 getattr(instance, field_name).add(item)
 
         return instance
