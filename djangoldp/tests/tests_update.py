@@ -55,4 +55,4 @@ class Serializer(TestCase):
         result = serializer.save()
 
         self.assertEquals(result.title, "job test updated")
-        #self.assertIs(result.skills.count(), 2)
+        self.assertIs(result.skills.count(), 2)

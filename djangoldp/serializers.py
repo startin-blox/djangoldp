@@ -30,6 +30,16 @@ class LDListMixin:
         self.id = parent_id + self.field_name + "/"
         return super().get_attribute(instance)
 
+    def get_value(self, dictionary):
+        try:
+            object_list = dictionary["@graph"]
+            view_name = '{}-list'.format(self.parent.Meta.model._meta.object_name.lower())
+            part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], self.parent.instance.pk)
+            obj = next(filter(lambda o: part_id in o['@id'], object_list))
+            return super().get_value(obj)
+        except KeyError:
+            return super().get_value(dictionary)
+
 
 class ContainerSerializer(LDListMixin, ListSerializer):
     id = ''
@@ -197,6 +207,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
         except KeyError:
             pass
         return ContainerSerializer(*args, **kwargs)
+
+    def get_value(self, dictionary):
+        return super().get_value(dictionary)
 
     def create(self, validated_data):
         nested_fields = []
