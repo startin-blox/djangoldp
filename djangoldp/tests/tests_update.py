@@ -15,8 +15,9 @@ class Serializer(TestCase):
                "title": "job test updated",
                "skills": {
                    "ldp:contains": [
+                       # {"title": "new skill"},
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk), "title": "skill2 UP"},
                    ]}
                }
 
@@ -30,6 +31,9 @@ class Serializer(TestCase):
 
         self.assertEquals(result.title, "job test updated")
         self.assertIs(result.skills.count(), 2)
+        # self.assertEquals(result.skills[0].title, "new skill")  # new skill
+        self.assertEquals(result.skills.all()[0].title, "skill1")     # no change
+        self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
 
     def test_update_graph(self):
         skill1 = Skill.objects.create(title="skill1")
@@ -37,13 +41,25 @@ class Serializer(TestCase):
         job1 = JobOffer.objects.create(title="job test")
 
         job = {"@graph": [{"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
-               "title": "job test updated",
-               "skills": {
-                   "ldp:contains": [
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
-                   ]}
-               }]
+                           "title": "job test updated",
+                           "skills": {
+                               "ldp:contains": [
+                                   {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
+                                   {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                                   # {"@id": "_.123"},
+                               ]}
+                           },
+                          # {
+                          #    "@id": "_.123",
+                          #     "title": "new skill"
+                          # },
+                          {
+                              "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
+                          },
+                          {
+                              "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
+                              "title": "skill2 UP"
+                          }]
             }
 
         meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
@@ -56,3 +72,6 @@ class Serializer(TestCase):
 
         self.assertEquals(result.title, "job test updated")
         self.assertIs(result.skills.count(), 2)
+        #self.assertEquals(result.skills[0].title, "new skill")  # new skill
+        self.assertEquals(result.skills.all()[0].title, "skill1")     # no change
+        self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated

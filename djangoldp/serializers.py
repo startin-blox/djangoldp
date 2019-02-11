@@ -92,7 +92,7 @@ class JsonLdRelatedField(JsonLdField):
     def to_internal_value(self, data):
         try:
             return super().to_internal_value(data['@id'])
-        except:
+        except KeyError:
             return super().to_internal_value(data)
 
     @classmethod
@@ -116,7 +116,7 @@ class JsonLdIdentityField(JsonLdField):
     def to_internal_value(self, data):
         try:
             return super().to_internal_value(data['@id'])
-        except:
+        except KeyError:
             return super().to_internal_value(data)
 
     def get_value(self, dictionary):
