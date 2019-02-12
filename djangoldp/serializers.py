@@ -2,11 +2,11 @@ from collections import OrderedDict, Mapping
 from urllib import parse
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
 from guardian.shortcuts import get_perms
-from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField
 from rest_framework.fields import get_error_detail, set_value
@@ -248,7 +248,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     if errors:
                         raise ValidationError(errors)
 
-
                     uri = data[self.url_field_name]
                     http_prefix = uri.startswith(('http:', 'https:'))
 
@@ -267,7 +266,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     return ret
                 else:
                     return super().to_internal_value(data)
-
 
         kwargs = get_nested_relation_kwargs(relation_info)
         kwargs['read_only'] = False

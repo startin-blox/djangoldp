@@ -109,8 +109,8 @@ class LDPViewSet(LDPViewSetGenerator):
         lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
-             'depth': self.depth,
-             'extra_fields': self.nested_fields}
+                     'depth': self.depth,
+                     'extra_fields': self.nested_fields}
         if self.fields:
             meta_args['fields'] = self.fields
         else:
