@@ -49,15 +49,15 @@ class LDListMixin:
 
             ret=[]
             for item in list:
-                fullItem=None
+                full_item=None
                 try:
-                    fullItem = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                    full_item = next(filter(lambda o: item['@id'] == o['@id'], object_list))
                 except StopIteration:
                     pass
-                if fullItem is None:
+                if full_item is None:
                     ret.append(item)
                 else:
-                    ret.append(fullItem)
+                    ret.append(full_item)
 
             return ret
         except KeyError:
@@ -210,9 +210,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                value = super().to_internal_value(data)
-                if '@id' in data:
-                    uri = data['@id']
+                if self.url_field_name in data:
+                    uri = data[self.url_field_name]
                     http_prefix = uri.startswith(('http:', 'https:'))
 
                     if http_prefix:
@@ -223,11 +222,14 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     try:
                         match = resolve(uri_to_iri(uri))
-                        value['pk'] = match.kwargs['pk']
+                        instance = self.Meta.model.objects.get(pk=match.kwargs['pk'])
+                        for key in self.data:
+                            if not key in data:
+                                data[key] = getattr(instance, key)
                     except Resolver404:
                         pass
 
-                return value
+                return super().to_internal_value(data)
 
             def get_value(self, dictionary):
                 return super().get_value(dictionary)

@@ -7,8 +7,8 @@ from djangoldp.tests.models import Skill, JobOffer
 class Serializer(TestCase):
 
     def test_save_m2m(self):
-        skill1 = Skill.objects.create(title="skill1")
-        skill2 = Skill.objects.create(title="skill2")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
 
         job = {"title": "job test",
                "skills": {
@@ -32,8 +32,8 @@ class Serializer(TestCase):
         self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
 
     def test_save_without_nested_fields(self):
-        skill1 = Skill.objects.create(title="skill1")
-        skill2 = Skill.objects.create(title="skill2")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
         job = {"title": "job test"}
 
         meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}

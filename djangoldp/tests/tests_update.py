@@ -7,9 +7,9 @@ from djangoldp.tests.models import Skill, JobOffer
 class Serializer(TestCase):
 
     def test_update(self):
-        skill = Skill.objects.create(title="to drop")
-        skill1 = Skill.objects.create(title="skill1")
-        skill2 = Skill.objects.create(title="skill2")
+        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
         job1 = JobOffer.objects.create(title="job test")
         job1.skills.add(skill)
 
@@ -17,7 +17,7 @@ class Serializer(TestCase):
                "title": "job test updated",
                "skills": {
                    "ldp:contains": [
-                       {"title": "new skill"},
+                       {"title": "new skill", "obligatoire": "okay"},
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk), "title": "skill2 UP"},
                    ]}
@@ -39,9 +39,9 @@ class Serializer(TestCase):
         self.assertEquals(skills[2].title, "skill2 UP")  # title updated
 
     def test_update_graph(self):
-        skill = Skill.objects.create(title="to drop")
-        skill1 = Skill.objects.create(title="skill1")
-        skill2 = Skill.objects.create(title="skill2")
+        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
         job1 = JobOffer.objects.create(title="job test")
         job1.skills.add(skill)
 
@@ -56,7 +56,8 @@ class Serializer(TestCase):
                            },
                           {
                              "@id": "_.123",
-                              "title": "new skill"
+                              "title": "new skill",
+                              "obligatoire": "okay"
                           },
                           {
                               "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
