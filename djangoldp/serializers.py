@@ -234,14 +234,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field_name in nested_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
 
-        obj = model.objects.create(**validated_data)
+        instance = model.objects.create(**validated_data)
 
-        for (field_name, data) in nested_fields:
-            for item in data:
-                item.save()
-                getattr(obj, field_name).add(item)
+        self.save_or_update_nested(instance, nested_fields)
 
-        return obj
+        return instance
 
     def update(self, instance, validated_data):
         nested_fields = []
@@ -253,6 +250,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
+        self.save_or_update_nested(instance, nested_fields)
+
+        return instance
+
+    def save_or_update_nested(self, instance, nested_fields):
         for (field_name, data) in nested_fields:
             try:
                 getattr(instance, field_name).clear()
@@ -267,5 +269,3 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     savedItem = self.internal_create(validated_data=item, model=manager.model)
 
                 getattr(instance, field_name).add(savedItem)
-
-        return instance
