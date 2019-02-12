@@ -1,8 +1,10 @@
+from urllib import parse
+
 from django.core.exceptions import ImproperlyConfigured
-from django.core.urlresolvers import get_resolver
+from django.core.urlresolvers import get_resolver, resolve, get_script_prefix
 from django.utils.datastructures import MultiValueDictKeyError
+from django.utils.encoding import uri_to_iri
 from guardian.shortcuts import get_perms
-from rest_framework.fields import empty
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -164,7 +166,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
             def get_value(self, dictionary):
                 try:
                     object_list = dictionary["@graph"]
-                    part_id = '/{}'.format(get_resolver().reverse_dict[self.parent_view_name][0][0][0], self.parent.instance.pk)
+                    part_id = '/{}'.format(get_resolver().reverse_dict[self.parent_view_name][0][0][0],
+                                           self.parent.instance.pk)
                     obj = next(filter(lambda o: part_id in o['@id'], object_list))
                     return super().get_value(obj)
                 except KeyError:
@@ -172,7 +175,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         field_class, field_kwargs = super().build_standard_field(field_name, model_field)
         field_kwargs['parent_view_name'] = '{}-list'.format(model_field.model._meta.object_name.lower())
-        return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class),  {}), field_kwargs
+        return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class), {}), field_kwargs
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
         class NestedLDPSerializer(self.__class__):
@@ -186,13 +189,21 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                model = self.Meta.model
-                instance = self.serializer_related_field(
-                    view_name='{}-detail'.format(model._meta.object_name.lower()),
-                    queryset=model.objects.all()).to_internal_value(data)
-                for key in data:
-                    setattr(instance, key, data[key])
-                return instance
+                value = super().to_internal_value(data)
+                if '@id' in data:
+                    uri = data['@id']
+                    http_prefix = uri.startswith(('http:', 'https:'))
+
+                    if http_prefix:
+                        uri = parse.urlparse(uri).path
+                        prefix = get_script_prefix()
+                        if uri.startswith(prefix):
+                            uri = '/' + uri[len(prefix):]
+
+                    match = resolve(uri_to_iri(uri))
+                    value['pk'] = match.kwargs['pk']
+
+                return value
 
             def get_value(self, dictionary):
                 return super().get_value(dictionary)
@@ -215,12 +226,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return super().get_value(dictionary)
 
     def create(self, validated_data):
+        return self.internal_create(validated_data, model=self.Meta.model)
+
+    def internal_create(self, validated_data, model):
         nested_fields = []
         nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
 
-        obj = self.Meta.model.objects.create(**validated_data)
+        obj = model.objects.create(**validated_data)
 
         for (field_name, data) in nested_fields:
             for item in data:
@@ -236,7 +250,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             nested_fields.append((field_name, validated_data.pop(field_name)))
 
         for attr, value in validated_data.items():
-             setattr(instance, attr, value)
+            setattr(instance, attr, value)
         instance.save()
 
         for (field_name, data) in nested_fields:
@@ -245,7 +259,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
             except AttributeError:
                 pass
             for item in data:
-                item.save()
-                getattr(instance, field_name).add(item)
+                manager = getattr(instance, field_name)
+                if 'pk' in item:
+                    oldObj = manager.model.objects.get(pk=item['pk'])
+                    savedItem = self.update(instance=oldObj, validated_data=item)
+                else:
+                    savedItem = self.internal_create(validated_data=item, model=manager.model)
+
+                getattr(instance, field_name).add(savedItem)
 
         return instance
