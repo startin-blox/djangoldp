@@ -1,7 +1,7 @@
 from urllib import parse
 
 from django.core.exceptions import ImproperlyConfigured
-from django.core.urlresolvers import get_resolver, resolve, get_script_prefix
+from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
 from guardian.shortcuts import get_perms
@@ -44,9 +44,16 @@ class LDListMixin:
             except KeyError:
                 pass
 
+            if isinstance(list, dict):
+                list = [list]
+
             ret=[]
             for item in list:
-                fullItem = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                fullItem=None
+                try:
+                    fullItem = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                except StopIteration:
+                    pass
                 if fullItem is None:
                     ret.append(item)
                 else:
@@ -214,8 +221,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         if uri.startswith(prefix):
                             uri = '/' + uri[len(prefix):]
 
-                    match = resolve(uri_to_iri(uri))
-                    value['pk'] = match.kwargs['pk']
+                    try:
+                        match = resolve(uri_to_iri(uri))
+                        value['pk'] = match.kwargs['pk']
+                    except Resolver404:
+                        pass
 
                 return value
 
