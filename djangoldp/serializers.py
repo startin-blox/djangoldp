@@ -38,7 +38,21 @@ class LDListMixin:
             view_name = '{}-list'.format(self.parent.Meta.model._meta.object_name.lower())
             part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], self.parent.instance.pk)
             obj = next(filter(lambda o: part_id in o['@id'], object_list))
-            return super().get_value(obj)
+            list = super().get_value(obj);
+            try:
+                list= list['ldp:contains']
+            except KeyError:
+                pass
+
+            ret=[]
+            for item in list:
+                fullItem = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                if fullItem is None:
+                    ret.append(item)
+                else:
+                    ret.append(fullItem)
+
+            return ret
         except KeyError:
             return super().get_value(dictionary)
 
