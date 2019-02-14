@@ -6,14 +6,15 @@ from djangoldp.tests.models import Skill, JobOffer
 
 class Serializer(TestCase):
 
-    def test_container_serializer_save(self):
-        skill1 = Skill.objects.create(title="skill1")
-        skill2 = Skill.objects.create(title="skill2")
+    def test_save_m2m(self):
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
+
         job = {"title": "job test",
                "skills": {
                    "ldp:contains": [
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk), "title": "skill2 UP"},
                    ]}
                }
 
@@ -27,10 +28,12 @@ class Serializer(TestCase):
 
         self.assertEquals(result.title, "job test")
         self.assertIs(result.skills.count(), 2)
+        self.assertEquals(result.skills.all()[0].title, "skill1")     # no change
+        self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
 
     def test_save_without_nested_fields(self):
-        skill1 = Skill.objects.create(title="skill1")
-        skill2 = Skill.objects.create(title="skill2")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
         job = {"title": "job test"}
 
         meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
@@ -43,3 +46,4 @@ class Serializer(TestCase):
 
         self.assertEquals(result.title, "job test")
         self.assertIs(result.skills.count(), 0)
+
