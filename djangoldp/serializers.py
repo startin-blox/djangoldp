@@ -357,6 +357,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     oldObj = manager.model.objects.get(pk=item['pk'])
                     savedItem = self.update(instance=oldObj, validated_data=item)
                 else:
+                    rel = getattr(instance._meta.model, field_name).rel
+                    try:
+                        if rel.related_name == field_name:
+                            reverse_id = rel.remote_field.attname
+                            item[reverse_id] = instance.pk
+                    except AttributeError:
+                        pass
                     savedItem = self.internal_create(validated_data=item, model=manager.model)
 
                 getattr(instance, field_name).add(savedItem)
