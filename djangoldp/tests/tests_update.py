@@ -172,4 +172,4 @@ class Serializer(TestCase):
         self.assertEquals(result.description, "Thread 1 UP")
         self.assertIs(result.message_set.count(), 2)
         self.assertEquals(messages[0].text, "Message 1 UP")
-        self.assertEquals(messages[1].title, "Message 2 UP")
+        self.assertEquals(messages[1].text, "Message 2 UP")

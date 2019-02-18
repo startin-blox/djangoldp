@@ -46,12 +46,12 @@ class LDListMixin:
             list = super().get_value(obj)
             try:
                 list = next(filter(lambda o: list['@id'] == o['@id'], object_list))
-            except KeyError:
+            except (KeyError, TypeError):
                 pass
 
             try:
                 list = list['ldp:contains']
-            except KeyError:
+            except (KeyError, TypeError):
                 pass
 
             if isinstance(list, dict):
