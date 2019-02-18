@@ -46,28 +46,32 @@ class Serializer(TestCase):
         job1 = JobOffer.objects.create(title="job test")
         job1.skills.add(skill)
 
-        job = {"@graph": [{"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
-                           "title": "job test updated",
-                           "skills": {
-                               "ldp:contains": [
-                                   {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                                   {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
-                                   {"@id": "_.123"},
-                               ]}
-                           },
-                          {
-                              "@id": "_.123",
-                              "title": "new skill",
-                              "obligatoire": "okay"
-                          },
-                          {
-                              "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
-                          },
-                          {
-                              "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
-                              "title": "skill2 UP"
-                          }]
-               }
+        job = {"@graph":
+            [
+                {
+                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
+                    "title": "job test updated",
+                    "skills": {
+                        "ldp:contains": [
+                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
+                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                            {"@id": "_.123"},
+                        ]}
+                },
+                {
+                    "@id": "_.123",
+                    "title": "new skill",
+                    "obligatoire": "okay"
+                },
+                {
+                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
+                },
+                {
+                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
+                    "title": "skill2 UP"
+                }
+            ]
+        }
 
         meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
 
@@ -92,33 +96,37 @@ class Serializer(TestCase):
             job1 = JobOffer.objects.create(title="job test")
             job1.skills.add(skill)
 
-            job = {"@graph":[{"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
-                               "title": "job test updated",
-                               "skills": {
-                                   "@id": "https://happy-dev.fr/job-offers/{}/skills/".format(job1.pk)
-                                    }
-                              },
-                              {
-                                  "@id": "_.123",
-                                  "title": "new skill",
-                                  "obligatoire": "okay"
-                              },
-                              {
-                                  "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
-                              },
-                              {
-                                  "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
-                                  "title": "skill2 UP"
-                              },
-                              {
-                                  '@id': "https://happy-dev.fr/job-offers/{}/skills/".format(job1.pk),
-                                  "ldp:contains": [
-                                      {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                                      {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
-                                      {"@id": "_.123"},
-                                  ]
-                              }]
-                   }
+            job = {"@graph":
+                [
+                    {
+                        "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
+                        "title": "job test updated",
+                        "skills": {
+                            "@id": "https://happy-dev.fr/job-offers/{}/skills/".format(job1.pk)
+                        }
+                    },
+                    {
+                        "@id": "_.123",
+                        "title": "new skill",
+                        "obligatoire": "okay"
+                    },
+                    {
+                        "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
+                    },
+                    {
+                        "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
+                        "title": "skill2 UP"
+                    },
+                    {
+                        '@id': "https://happy-dev.fr/job-offers/{}/skills/".format(job1.pk),
+                        "ldp:contains": [
+                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
+                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                            {"@id": "_.123"},
+                        ]
+                    }
+                ]
+            }
 
             meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
 
@@ -142,26 +150,27 @@ class Serializer(TestCase):
         message1 = Message.objects.create(text="Message 1", thread=thread, author_user=user1)
         message2 = Message.objects.create(text="Message 2", thread=thread, author_user=user1)
 
-
         json = {"@graph": [
-                {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk),
-             "text": "Message 1 UP"
-                },
-                {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk),
-                 "text": "Message 2 UP"
-                },
-                {
-                 '@id': "https://happy-dev.fr/threads/{}/".format(thread.pk),
-                 'description': "Thread 1 UP",
-                 "message_set": [
-                     {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
-                     {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
-                 ]
-                 }
+            {
+                "@id": "https://happy-dev.fr/messages/{}/".format(message1.pk),
+                "text": "Message 1 UP"
+            },
+            {
+                "@id": "https://happy-dev.fr/messages/{}/".format(message2.pk),
+                "text": "Message 2 UP"
+            },
+            {
+                '@id': "https://happy-dev.fr/threads/{}/".format(thread.pk),
+                'description': "Thread 1 UP",
+                "message_set": [
+                    {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
+                    {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
                 ]
-           }
+            }
+        ]
+        }
 
-        meta_args = {'model': Thread, 'depth': 1, 'fields': ("@id", "description", "message_set" )}
+        meta_args = {'model': Thread, 'depth': 1, 'fields': ("@id", "description", "message_set")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('ThreadSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -182,20 +191,22 @@ class Serializer(TestCase):
         message1 = Message.objects.create(text="Message 1", thread=thread, author_user=user1)
         message2 = Message.objects.create(text="Message 2", thread=thread, author_user=user1)
 
-
         json = {"@graph": [
-            {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk),
-             "text": "Message 1 UP",
-             "author_user_id": user1.pk,
-             },
-            {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk),
-             "text": "Message 2 UP",
-             "author_user_id": user1.pk,
-             },
-            {"@id": "_:b1",
-             "text": "Message 3 NEW",
-             "author_user_id": user1.pk,
-             },
+            {
+                "@id": "https://happy-dev.fr/messages/{}/".format(message1.pk),
+                "text": "Message 1 UP",
+                "author_user_id": user1.pk,
+            },
+            {
+                "@id": "https://happy-dev.fr/messages/{}/".format(message2.pk),
+                "text": "Message 2 UP",
+                "author_user_id": user1.pk,
+            },
+            {
+                "@id": "_:b1",
+                "text": "Message 3 NEW",
+                "author_user_id": user1.pk,
+            },
             {
                 '@id': "https://happy-dev.fr/threads/{}".format(thread.pk),
                 "author_user_id": user1.pk,
@@ -215,7 +226,7 @@ class Serializer(TestCase):
         ]
         }
 
-        meta_args = {'model': Thread, 'depth': 1, 'fields': ("@id", "description", "message_set" )}
+        meta_args = {'model': Thread, 'depth': 1, 'fields': ("@id", "description", "message_set")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('ThreadSerializer', (LDPSerializer,), {'Meta': meta_class})
