@@ -8,7 +8,7 @@ from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
 from guardian.shortcuts import get_perms
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import SkipField
+from rest_framework.fields import SkipField, empty
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
@@ -44,7 +44,12 @@ class LDListMixin:
             view_name = '{}-list'.format(self.parent.Meta.model._meta.object_name.lower())
             part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], self.parent.instance.pk)
             obj = next(filter(lambda o: part_id in o['@id'], object_list))
-            list = super().get_value(obj);
+            list = super().get_value(obj)
+            try:
+                list = next(filter(lambda o: list['@id'] == o['@id'], object_list))
+            except KeyError:
+                pass
+
             try:
                 list = list['ldp:contains']
             except KeyError:
@@ -290,6 +295,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
             obj = next(filter(lambda o: part_id in o[self.url_field_name], object_list))
             item = super().get_value(obj)
             full_item = None
+            if item is empty:
+                return empty
             try:
                 full_item = next(filter(lambda o: item['@id'] == o['@id'], object_list))
             except StopIteration:
@@ -350,6 +357,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     oldObj = manager.model.objects.get(pk=item['pk'])
                     savedItem = self.update(instance=oldObj, validated_data=item)
                 else:
+                    rel = getattr(instance._meta.model, field_name).rel
+                    try:
+                        if rel.related_name == field_name:
+                            reverse_id = rel.remote_field.attname
+                            item[reverse_id] = instance.pk
+                    except AttributeError:
+                        pass
                     savedItem = self.internal_create(validated_data=item, model=manager.model)
 
                 getattr(instance, field_name).add(savedItem)
