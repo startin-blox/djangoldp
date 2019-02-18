@@ -19,7 +19,6 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 
 class LDListMixin:
     def to_internal_value(self, data):
-        # data = json.loads(data)
         try:
             data = data['ldp:contains']
         except (TypeError, KeyError):

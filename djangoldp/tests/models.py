@@ -11,3 +11,13 @@ class JobOffer(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     skills = models.ManyToManyField(Skill, blank=True)
 
+
+class Thread(models.Model):
+    description = models.CharField(max_length=255, blank=True, null=True)
+
+
+class Message(models.Model):
+    text = models.CharField(max_length=255, blank=True, null=True)
+    thread = models.ForeignKey(Thread, on_delete=models.DO_NOTHING)
+
+
