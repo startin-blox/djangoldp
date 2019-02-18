@@ -29,7 +29,7 @@ class LDListMixin:
         return [self.child.to_internal_value(item) for item in data]
 
     def to_representation(self, value):
-        return {'@id': self.id, 'ldp:contains': super().to_representation(value)}
+        return {'@id': self.id, '@type': 'ldp:Container', 'ldp:contains': super().to_representation(value)}
 
     def get_attribute(self, instance):
         parent_id_field = self.parent.fields[self.parent.url_field_name]
