@@ -358,7 +358,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 else:
                     rel = getattr(instance._meta.model, field_name).rel
                     try:
-                        if rel.related_name == field_name:
+                        if rel.related_model == manager.model:
                             reverse_id = rel.remote_field.attname
                             item[reverse_id] = instance.pk
                     except AttributeError:

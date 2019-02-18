@@ -14,10 +14,12 @@ class JobOffer(models.Model):
 
 class Thread(models.Model):
     description = models.CharField(max_length=255, blank=True, null=True)
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
 
 class Message(models.Model):
     text = models.CharField(max_length=255, blank=True, null=True)
     thread = models.ForeignKey(Thread, on_delete=models.DO_NOTHING)
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
 
