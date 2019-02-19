@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from djangoldp.models import LDPModel
+from djangoldp.models import Model
 
 
 class Skill(models.Model):
@@ -29,7 +29,7 @@ class Dummy(models.Model):
     some = models.CharField(max_length=255, blank=True, null=True)
 
 
-class LDPDummy(LDPModel):
+class LDPDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
-    ldp_path = "ldp-dummys"
+    container_path = "ldp-dummys"
 

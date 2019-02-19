@@ -2,23 +2,23 @@ from django.conf import settings
 from django.db import models
 
 
-class LDPModel(models.Model):
-    ldp_path = None
+class Model(models.Model):
+    container_path = None
 
-    def get_resource_path(self):
-        return LDPModel.resource_path(self)
+    def get_absolute_url(self):
+        return Model.resource_id(self)
 
-    def get_container_path(self):
-        return LDPModel.container_path(self)
-
-    @classmethod
-    def resource_path(cls, instance):
-        return "{}{}".format(LDPModel.container_path(instance), instance.pk)
+    def get_container_id(self):
+        return Model.container_id(self)
 
     @classmethod
-    def container_path(cls, instance):
+    def resource_id(cls, instance):
+        return "{}{}".format(Model.container_id(instance), instance.pk)
+
+    @classmethod
+    def container_id(cls, instance):
         if isinstance(instance, cls):
-            path = instance.ldp_path
+            path = instance.container_path
         else:
             from django.urls import get_resolver
             view_name = '{}-list'.format(instance._meta.object_name.lower())
