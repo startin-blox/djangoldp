@@ -8,7 +8,7 @@ stages:
 test:
   stage: test
   script:
-    - echo 'Make your tests here !'
+    - python -m unittest tests/runner.py
   except:
     - master
   tags:
