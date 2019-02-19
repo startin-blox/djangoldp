@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from djangoldp.models import LDPModel
+
 
 class Skill(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True)
@@ -22,4 +24,12 @@ class Message(models.Model):
     thread = models.ForeignKey(Thread, on_delete=models.DO_NOTHING)
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
+
+class Dummy(models.Model):
+    some = models.CharField(max_length=255, blank=True, null=True)
+
+
+class LDPDummy(LDPModel):
+    some = models.CharField(max_length=255, blank=True, null=True)
+    ldp_path = "ldp-dummys"
 

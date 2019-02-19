@@ -1,6 +1,19 @@
 from django.conf import settings
 from django.db import models
 
+
+class LDPModel(models.Model):
+    ldp_path = None
+
+    def full_path(self):
+        return "{}/{}".format(self.container_path(), self.pk)
+
+    def container_path(self):
+        return self.ldp_path
+
+    class Meta:
+        abstract = True
+
 class LDPSource(models.Model):
     container = models.URLField()
     federation = models.CharField(max_length=255)
