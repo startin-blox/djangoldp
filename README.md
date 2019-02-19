@@ -29,9 +29,10 @@ django-admin startproject myldpserver
 3. Create your django model inside a file myldpserver/myldpserver/models.py
 
 ```
-from django.db import models
+from djangoldp.models import LDPModel
 
-class Todo(models.Model):
+class Todo(LDPModel):
+    ldp_path = "/my-path/"
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
 
