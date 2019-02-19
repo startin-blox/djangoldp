@@ -8,6 +8,7 @@ stages:
 test:
   stage: test
   script:
+    - pip install .[dev]
     - python -m unittest djangoldp.tests.runner
   except:
     - master
