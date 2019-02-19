@@ -1,9 +1,13 @@
 from django.conf import settings
 from django.db import models
+from django.urls import get_resolver
 
 
 class Model(models.Model):
     container_path = None
+
+    def get_container_path(self):
+        return self.container_path
 
     def get_absolute_url(self):
         return Model.resource_id(self)
@@ -13,16 +17,19 @@ class Model(models.Model):
 
     @classmethod
     def resource_id(cls, instance):
-        return "{}{}".format(Model.container_id(instance), instance.pk)
+        view_name = '{}-detail'.format(instance._meta.object_name.lower())
+        slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
+        if slug_field.startswith('/'):
+            slug_field = slug_field[1:]
+        return "{}{}".format(Model.container_id(instance), getattr(instance, slug_field))
 
     @classmethod
     def container_id(cls, instance):
         if isinstance(instance, cls):
             path = instance.container_path
         else:
-            from django.urls import get_resolver
             view_name = '{}-list'.format(instance._meta.object_name.lower())
-            path = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], instance.pk)
+            path = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0])
 
         if not path.startswith("/"):
             path = "/{}".format(path)

@@ -41,7 +41,7 @@ class LDListMixin:
         try:
             object_list = dictionary["@graph"]
             view_name = '{}-list'.format(self.parent.Meta.model._meta.object_name.lower())
-            part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], self.parent.instance.pk)
+            part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0])
             obj = next(filter(lambda o: part_id in o['@id'], object_list))
             list = super().get_value(obj)
             try:
