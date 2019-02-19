@@ -138,6 +138,9 @@ class LDPViewSet(LDPViewSetGenerator):
         response["Access-Control-Allow-Headers"] = "Content-Type, if-match"
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
+        if response.status_code == 201 and '@id' in response.data:
+            response["Location"] = response.data['@id']
+        response["Accept-Post"] = "application/ld+json"
         return response
 
     def update(self, request, *args, **kwargs):
