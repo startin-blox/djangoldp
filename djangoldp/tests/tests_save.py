@@ -4,7 +4,7 @@ from djangoldp.serializers import LDPSerializer
 from djangoldp.tests.models import Skill, JobOffer
 
 
-class Serializer(TestCase):
+class Save(TestCase):
 
     def test_save_m2m(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")

@@ -5,7 +5,7 @@ from djangoldp.serializers import LDPSerializer
 from djangoldp.tests.models import Skill, JobOffer, Thread, Message
 
 
-class Serializer(TestCase):
+class Update(TestCase):
 
     def test_update(self):
         skill = Skill.objects.create(title="to drop", obligatoire="obligatoire")

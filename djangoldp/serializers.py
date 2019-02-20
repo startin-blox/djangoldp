@@ -16,6 +16,8 @@ from rest_framework.settings import api_settings
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
+from djangoldp.models import Model
+
 
 class LDListMixin:
     def to_internal_value(self, data):
@@ -40,9 +42,8 @@ class LDListMixin:
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            view_name = '{}-list'.format(self.parent.Meta.model._meta.object_name.lower())
-            part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], self.parent.instance.pk)
-            obj = next(filter(lambda o: part_id in o['@id'], object_list))
+            container_id = Model.container_id(self.parent.instance)
+            obj = next(filter(lambda o: container_id in o['@id'], object_list))
             list = super().get_value(obj)
             try:
                 list = next(filter(lambda o: list['@id'] == o['@id'], object_list))
@@ -197,9 +198,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
             def get_value(self, dictionary):
                 try:
                     object_list = dictionary["@graph"]
-                    part_id = '/{}'.format(get_resolver().reverse_dict[self.parent_view_name][0][0][0],
-                                           self.parent.instance.pk)
-                    obj = next(filter(lambda o: part_id in o['@id'], object_list))
+                    resource_id = Model.resource_id(self.parent.instance)
+                    obj = next(filter(lambda o: resource_id in o['@id'], object_list))
                     return super().get_value(obj)
                 except KeyError:
                     return super().get_value(dictionary)
@@ -288,10 +288,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            view_name = '{}-list'.format(self.parent.Meta.model._meta.object_name.lower())
-            part_id = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0],
-                                   self.parent.instance.pk)
-            obj = next(filter(lambda o: part_id in o[self.url_field_name], object_list))
+            container_id = Model.container_path(self.parent.instance)
+            obj = next(filter(lambda o: container_id in o[self.url_field_name], object_list))
             item = super().get_value(obj)
             full_item = None
             if item is empty:

@@ -27,11 +27,14 @@ django-admin startproject myldpserver
 ```
 
 3. Create your django model inside a file myldpserver/myldpserver/models.py
+Note that container_path will be use to resolve instance iri and container iri
+In the future it could also be used to auto configure django router (e.g. urls.py)
 
 ```
-from django.db import models
+from djangoldp.models import Model
 
-class Todo(models.Model):
+class Todo(Model):
+    container_path = "/my-path/"
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
 
