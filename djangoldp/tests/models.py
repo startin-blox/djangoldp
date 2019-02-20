@@ -31,5 +31,4 @@ class Dummy(models.Model):
 
 class LDPDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
-    container_path = "ldp-dummys"
 

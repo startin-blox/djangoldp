@@ -15,10 +15,10 @@ class LDPModelTest(TestCase):
 
     def test_class_inheriting_ldp_model(self):
         dummy = LDPDummy.objects.create(some="text")
-        self.assertEquals("/ldp-dummys/", dummy.get_container_id())
-        self.assertEquals("/ldp-dummys/{}".format(dummy.pk), dummy.get_absolute_url())
-        self.assertEquals("/ldp-dummys/", Model.container_id(dummy))
-        self.assertEquals("/ldp-dummys/{}".format(dummy.pk), Model.resource_id(dummy))
+        self.assertEquals("/ldpdummys/", dummy.get_container_id())
+        self.assertEquals("/ldpdummys/{}".format(dummy.pk), dummy.get_absolute_url())
+        self.assertEquals("/ldpdummys/", Model.container_id(dummy))
+        self.assertEquals("/ldpdummys/{}".format(dummy.pk), Model.resource_id(dummy))
 
     def test_from_resolve_id(self):
         saved_instance = Dummy.objects.create(some="text")

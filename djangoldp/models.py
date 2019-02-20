@@ -27,6 +27,8 @@ class Model(models.Model):
     def container_id(cls, instance):
         if isinstance(instance, cls):
             path = instance.container_path
+            if path is None:
+                path = "{}s".format(instance._meta.object_name.lower())
         else:
             view_name = '{}-list'.format(instance._meta.object_name.lower())
             path = get_resolver().reverse(view_name)
