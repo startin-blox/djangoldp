@@ -21,7 +21,7 @@ class Model(models.Model):
         slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
-        return "{}{}".format(Model.container_id(instance), getattr(instance, slug_field))
+        return "{}{}".format(cls.container_id(instance), getattr(instance, slug_field))
 
     @classmethod
     def container_id(cls, instance):
@@ -29,18 +29,43 @@ class Model(models.Model):
             path = instance.container_path
         else:
             view_name = '{}-list'.format(instance._meta.object_name.lower())
-            path = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0])
+            path = get_resolver().reverse(view_name)
 
-        if not path.startswith("/"):
-            path = "/{}".format(path)
-
-        if not path.endswith("/"):
-            path = "{}/".format(path)
+        path = cls.__clean_path(path)
 
         return path
 
     class Meta:
         abstract = True
+
+    @classmethod
+    def resolve_id(cls, id):
+        id = cls.__clean_path(id)
+        view, args, kwargs = get_resolver().resolve(id)
+        return view.initkwargs['model'].objects.get(**kwargs)
+
+    @classmethod
+    def resolve_container(cls, path):
+        path = cls.__clean_path(path)
+        view, args, kwargs = get_resolver().resolve(path)
+        return view.initkwargs['model']
+
+    @classmethod
+    def resolve(cls, path):
+        container = cls.resolve_container(path)
+        try:
+            resolve_id = cls.resolve_id(path)
+        except:
+            resolve_id = None
+        return container, resolve_id
+
+    @classmethod
+    def __clean_path(cls, path):
+        if not path.startswith("/"):
+            path = "/{}".format(path)
+        if not path.endswith("/"):
+            path = "{}/".format(path)
+        return path
 
 
 class LDPSource(models.Model):

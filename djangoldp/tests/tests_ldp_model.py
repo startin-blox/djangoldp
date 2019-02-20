@@ -20,6 +20,14 @@ class LDPModelTest(TestCase):
         self.assertEquals("/ldp-dummys/", Model.container_id(dummy))
         self.assertEquals("/ldp-dummys/{}".format(dummy.pk), Model.resource_id(dummy))
 
+    def test_from_resolve_id(self):
+        saved_instance = Dummy.objects.create(some="text")
+        result = Model.resolve_id("/dummys/{}".format(saved_instance.pk))
+        self.assertEquals(saved_instance, result)
+
+    def test_resolve_container(self):
+        result = Model.resolve_container("/dummys/")
+        self.assertEquals(Dummy, result)
 
     @unittest.skip("futur feature: avoid urls.py on apps")
     def test_auto_url(self):
