@@ -27,6 +27,8 @@ class LDListMixin:
             pass
         if isinstance(data, dict):
             data = [data]
+        if isinstance(data, str) and str.startswith("http"):
+            data = [{'@id': data}]
         return [self.child.to_internal_value(item) for item in data]
 
     def to_representation(self, value):
@@ -336,6 +338,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 else:
                     value = self.internal_create(validated_data=value, model=manager._meta.model)
             setattr(instance, attr, value)
+
         instance.save()
 
         self.save_or_update_nested_list(instance, nested_fields)
@@ -344,12 +347,17 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def save_or_update_nested_list(self, instance, nested_fields):
         for (field_name, data) in nested_fields:
-            try:
-                getattr(instance, field_name).clear()
-            except AttributeError:
-                pass
+            manager = getattr(instance, field_name)
+
+            item_pk_to_keep = list(map(lambda e: int(e['pk']), filter(lambda x: 'pk' in x, data)))
+            for item in list(manager.all()):
+                if not item.pk in item_pk_to_keep:
+                    if getattr(manager, 'through', None) is None:
+                        item.delete()
+                    else:
+                        manager.remove(item)
+
             for item in data:
-                manager = getattr(instance, field_name)
                 if 'pk' in item:
                     oldObj = manager.model.objects.get(pk=item['pk'])
                     savedItem = self.update(instance=oldObj, validated_data=item)
@@ -363,4 +371,5 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         pass
                     savedItem = self.internal_create(validated_data=item, model=manager.model)
 
-                getattr(instance, field_name).add(savedItem)
+                if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
+                    manager.add(savedItem)
