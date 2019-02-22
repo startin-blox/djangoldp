@@ -15,6 +15,7 @@ class Save(TestCase):
                    "ldp:contains": [
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk), "title": "skill2 UP"},
+                       {"title": "skill3 NEW", "obligatoire":"obligatoire"},
                    ]}
                }
 
@@ -27,9 +28,10 @@ class Save(TestCase):
         result = serializer.save()
 
         self.assertEquals(result.title, "job test")
-        self.assertIs(result.skills.count(), 2)
+        self.assertIs(result.skills.count(), 3)
         self.assertEquals(result.skills.all()[0].title, "skill1")     # no change
         self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
+        self.assertEquals(result.skills.all()[2].title, "skill3 NEW") # creation on the fly
 
     def test_save_without_nested_fields(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
