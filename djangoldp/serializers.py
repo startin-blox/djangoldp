@@ -13,6 +13,7 @@ from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
 from rest_framework.settings import api_settings
+from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
@@ -309,7 +310,23 @@ class LDPSerializer(HyperlinkedModelSerializer):
             return super().get_value(dictionary)
 
     def create(self, validated_data):
-        return self.internal_create(validated_data, model=self.Meta.model)
+        instance = self.internal_create(validated_data, model=self.Meta.model)
+
+        self.attach_related_object(instance, validated_data)
+
+        return instance
+
+    def attach_related_object(self, instance, validated_data):
+        ModelClass = self.Meta.model
+
+        info = model_meta.get_field_info(ModelClass)
+        many_to_many = {}
+        for field_name, relation_info in info.relations.items():
+            if relation_info.to_many and relation_info.reverse and not (field_name in validated_data):
+                rel = getattr(instance._meta.model, field_name).rel
+                if rel.name in validated_data:
+                    related = validated_data[rel.name]
+                    getattr(instance, field_name).add(related)
 
     def internal_create(self, validated_data, model):
         nested_fields = []
