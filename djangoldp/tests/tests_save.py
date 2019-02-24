@@ -49,3 +49,25 @@ class Save(TestCase):
         self.assertEquals(result.title, "job test")
         self.assertIs(result.skills.count(), 0)
 
+    def test_save_on_sub_iri(self):
+        """
+            POST /job-offers/1/skills/
+        """
+        job = JobOffer.objects.create(title="job test")
+        skill = {"title": "new SKILL"}
+
+        meta_args = {'model': Skill, 'depth': 1, 'fields': ("@id", "title")}
+
+        meta_class = type('Meta', (), meta_args)
+        serializer_class = type(LDPSerializer)('SkillSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=skill)
+        serializer.is_valid()
+        kwargs = {}
+        kwargs['joboffer'] = job
+        result = serializer.save(**kwargs)
+
+        self.assertEquals(result.title, "new SKILL")
+        self.assertIs(result.joboffer_set.count(), 1)
+        self.assertEquals(result.joboffer_set.get(), job)
+        self.assertIs(result.joboffer_set.get().skills.count(), 1)
+
