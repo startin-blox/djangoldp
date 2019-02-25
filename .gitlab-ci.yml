@@ -8,7 +8,8 @@ stages:
 test:
   stage: test
   script:
-    - echo 'Make your tests here !'
+    - pip install .[dev]
+    - python -m unittest djangoldp.tests.runner
   except:
     - master
   tags:
