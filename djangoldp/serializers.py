@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
 from rest_framework.settings import api_settings
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
@@ -22,8 +22,7 @@ from rest_framework.serializers import HyperlinkedModelSerializer, ListSerialize
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
-from django.db import models as django_models
-from djangoldp import models
+from djangoldp.fields import LDPUrlField, IdURLField
 
 class LDListMixin:
     def to_internal_value(self, data):
@@ -169,7 +168,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
-    ModelSerializer.serializer_field_mapping [django_models.URLField] = models.LDPUrlField
+    ModelSerializer.serializer_field_mapping [LDPUrlField] = IdURLField
 
 
     @property
