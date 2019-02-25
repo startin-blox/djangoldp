@@ -1,9 +1,10 @@
 from django.test import TestCase, Client, RequestFactory
+
+from djangoldp.tests.models import JobOffer
 from djangoldp.views import LDPViewSet
 from djangoldp.permissions import AnonymousReadOnly
 
 from django.contrib.auth.models import AnonymousUser, User
-from djangoldp_joboffer.models import JobOffer
 
 
 class TestUserPermissions (TestCase):
