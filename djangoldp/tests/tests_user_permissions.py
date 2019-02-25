@@ -11,6 +11,7 @@ class TestUserPermissions(TestCase):
         self.factory = RequestFactory()
         #        self.c = Client()
         self.user = User.objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
+        self.job = JobOffer.objects.create(title="job")
 
     def tearDown(self):
         self.user.delete()

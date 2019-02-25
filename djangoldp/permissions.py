@@ -67,7 +67,7 @@ class AnonymousReadOnly(permissions.DjangoObjectPermissions):
                 if author == request.user:
                     return True
         else:
-            return super().has_object_permission(request, view)
+            return super().has_object_permission(request, view, obj)
 
 
 class InboxPermissions(permissions.DjangoObjectPermissions):
