@@ -69,7 +69,6 @@ class Model(models.Model):
             path = "{}/".format(path)
         return path
 
-
 class LDPSource(models.Model):
     container = models.URLField()
     federation = models.CharField(max_length=255)

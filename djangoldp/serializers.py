@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -19,6 +19,11 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 
 from djangoldp.models import Model
 
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
+from rest_framework.utils.field_mapping import get_nested_relation_kwargs
+from rest_framework.utils.serializer_helpers import ReturnDict
+
+from djangoldp.fields import LDPUrlField, IdURLField
 
 class LDListMixin:
     def to_internal_value(self, data):
@@ -164,6 +169,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
+    ModelSerializer.serializer_field_mapping [LDPUrlField] = IdURLField
+
 
     @property
     def data(self):
@@ -184,6 +191,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
+
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
