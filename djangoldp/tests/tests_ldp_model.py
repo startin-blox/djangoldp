@@ -29,11 +29,10 @@ class LDPModelTest(TestCase):
         result = Model.resolve_container("/dummys/")
         self.assertEquals(Dummy, result)
 
-    @unittest.skip("futur feature: avoid urls.py on apps")
     def test_auto_url(self):
         from django.urls import get_resolver
         dummy = LDPDummy.objects.create(some="text")
         view_name = '{}-list'.format(dummy._meta.object_name.lower())
-        path = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][0], dummy.pk)
+        path = '/{}{}'.format(get_resolver().reverse_dict[view_name][0][0][0], dummy.pk)
 
         self.assertEquals(path, dummy.get_absolute_url())

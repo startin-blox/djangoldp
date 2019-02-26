@@ -6,6 +6,7 @@ from django.core.urlresolvers import get_resolver
 from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
+from djangoldp.models import LDPSource
 from guardian.shortcuts import get_objects_for_user
 from pyld import jsonld
 from rest_framework.authentication import SessionAuthentication
@@ -13,7 +14,6 @@ from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.viewsets import ModelViewSet
 
-from .models import LDPSource
 from .serializers import LDPSerializer
 
 
