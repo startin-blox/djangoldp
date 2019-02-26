@@ -9,6 +9,7 @@ settings.configure(DEBUG=True,
                        }
                    },
                    ROOT_URLCONF='djangoldp.tests.urls',
+                   DJANGOLDP_PACKAGES=['djangoldp.tests'],
                    INSTALLED_APPS=('django.contrib.auth',
                                    'django.contrib.contenttypes',
                                    'django.contrib.sessions',

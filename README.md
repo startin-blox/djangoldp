@@ -34,13 +34,19 @@ In the future it could also be used to auto configure django router (e.g. urls.p
 from djangoldp.models import Model
 
 class Todo(Model):
-    container_path = "/my-path/"
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
 
 ```
 
-3.1. Configure field visibility (optional) 
+3.1. Configure container path (optional)
+By default it will be "todos/" with an S for model called Todo
+
+```
+<Model>._meta.container_path = "/my-path/"
+```
+
+3.2. Configure field visibility (optional) 
 Note that at this stage you can limit access to certain fields of models using
 
 ```
@@ -68,12 +74,18 @@ from djangoldp.views import LDPViewSet
 from .models import Todo
 
 urlpatterns = [
-    url(r'^todos/', LDPViewSet.urls(model=Todo)),
-    url(r'^admin/', admin.site.urls),
+    url(r'^', include('djangoldp.urls')),
+    url(r'^admin/', admin.site.urls), # Optional
 ]
 ```
 
-This creates 2 routes, one for the list, and one with an ID listing the detail of an object.
+This creates 2 routes for each Model, one for the list, and one with an ID listing the detail of an object.
+
+You could also only use this line in settings.py instead:
+
+```
+ROOT_URLCONF = 'djangoldp.urls'
+```
 
 5. In the settings.py file, add your application name at the beginning of the application list, and add the following lines
 

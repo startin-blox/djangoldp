@@ -4,10 +4,22 @@ from django.urls import get_resolver
 
 
 class Model(models.Model):
-    container_path = None
 
-    def get_container_path(self):
-        return self.container_path
+    @classmethod
+    def get_view_set(cls):
+        view_set = getattr(cls._meta, 'view_set', None)
+        if view_set is None:
+            from djangoldp.views import LDPViewSet
+            view_set = LDPViewSet
+        return view_set
+
+    @classmethod
+    def get_container_path(cls):
+        path = getattr(cls._meta, 'container_path', None)
+        if path is None:
+            path = "{}s".format(cls._meta.object_name.lower())
+
+        return path
 
     def get_absolute_url(self):
         return Model.resource_id(self)
@@ -26,9 +38,7 @@ class Model(models.Model):
     @classmethod
     def container_id(cls, instance):
         if isinstance(instance, cls):
-            path = instance.container_path
-            if path is None:
-                path = "{}s".format(instance._meta.object_name.lower())
+            path = instance.get_container_path()
         else:
             view_name = '{}-list'.format(instance._meta.object_name.lower())
             path = get_resolver().reverse(view_name)
@@ -68,6 +78,7 @@ class Model(models.Model):
         if not path.endswith("/"):
             path = "{}/".format(path)
         return path
+
 
 class LDPSource(models.Model):
     container = models.URLField()
