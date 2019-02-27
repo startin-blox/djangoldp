@@ -194,8 +194,16 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
+
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
                                get_perms(self.context['request'].user, obj)]
+
+        if hasattr(obj._meta, 'permission_classes'):
+            data['permissions'] += [{'mode': {'@type':str(perm.__name__)}} for perm in obj._meta.permission_classes]
+
+        if hasattr(obj._meta, 'rdf_context'):
+            data['@context'] = obj._meta.rdf_context
+
         return data
 
     def build_standard_field(self, field_name, model_field):
