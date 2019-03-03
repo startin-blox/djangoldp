@@ -156,6 +156,8 @@ class MyModel(models.Model):
     class Meta:
         auto_author = 'author_user'
 ```
+Now when an instance of `MyModel` is saved, its `author_user` property will be set to the current user. 
+
 ## permissions
 This allows you to add permissions for AnonymousUser, logged in user, author ... in the url:
 Currently, there are 3 choices :
