@@ -48,6 +48,7 @@ class Model(models.Model):
         return path
 
     class Meta:
+        default_permissions = ('add', 'change', 'delete', 'view', 'control')
         abstract = True
 
     @classmethod
