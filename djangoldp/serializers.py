@@ -17,13 +17,9 @@ from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
+from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
 
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
-from rest_framework.utils.field_mapping import get_nested_relation_kwargs
-from rest_framework.utils.serializer_helpers import ReturnDict
-
-from djangoldp.fields import LDPUrlField, IdURLField
 
 class LDListMixin:
     def to_internal_value(self, data):
@@ -50,11 +46,17 @@ class LDListMixin:
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            container_id = Model.container_id(self.parent.instance)
-            obj = next(filter(lambda o: container_id in o['@id'], object_list))
+            if self.parent.instance is None:
+                obj = next(filter(
+                    lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.parent.url_field_name],
+                    object_list))
+            else:
+                container_id = Model.container_id(self.parent.instance)
+                obj = next(filter(lambda o: container_id in o[self.parent.url_field_name], object_list))
             list = super().get_value(obj)
             try:
-                list = next(filter(lambda o: list['@id'] == o['@id'], object_list))
+                list = next(
+                    filter(lambda o: list[self.parent.url_field_name] == o[self.parent.url_field_name], object_list))
             except (KeyError, TypeError):
                 pass
 
@@ -63,6 +65,9 @@ class LDListMixin:
             except (KeyError, TypeError):
                 pass
 
+            if list is empty:
+                return []
+
             if isinstance(list, dict):
                 list = [list]
 
@@ -70,7 +75,9 @@ class LDListMixin:
             for item in list:
                 full_item = None
                 try:
-                    full_item = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                    full_item = next(filter(
+                        lambda o: self.parent.url_field_name in o and item[self.parent.url_field_name] == o[
+                            self.parent.url_field_name], object_list))
                 except StopIteration:
                     pass
                 if full_item is None:
@@ -95,7 +102,7 @@ class ContainerSerializer(LDListMixin, ListSerializer):
 
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(data['@id'])
+            return super().to_internal_value(data[self.parent.url_field_name])
         except (KeyError, TypeError):
             return super().to_internal_value(data)
 
@@ -133,7 +140,7 @@ class JsonLdRelatedField(JsonLdField):
 
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(data['@id'])
+            return super().to_internal_value(data[self.parent.url_field_name])
         except (KeyError, TypeError):
             return super().to_internal_value(data)
 
@@ -157,7 +164,7 @@ class JsonLdIdentityField(JsonLdField):
 
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(data['@id'])
+            return super().to_internal_value(data[self.parent.url_field_name])
         except KeyError:
             return super().to_internal_value(data)
 
@@ -169,8 +176,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
-    ModelSerializer.serializer_field_mapping [LDPUrlField] = IdURLField
-
+    ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
     @property
     def data(self):
@@ -209,9 +215,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
             def get_value(self, dictionary):
                 try:
                     object_list = dictionary["@graph"]
-                    resource_id = Model.resource_id(self.parent.instance)
-                    obj = next(filter(lambda o: resource_id in o['@id'], object_list))
-                    return super().get_value(obj)
+                    if self.parent.instance is None:
+                        obj = next(filter(
+                            lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.url_field_name],
+                            object_list))
+                        return super().get_value(obj)
+                    else:
+                        resource_id = Model.resource_id(self.parent.instance)
+                        obj = next(filter(lambda o: resource_id in o[self.parent.url_field_name], object_list))
+                        return super().get_value(obj)
                 except KeyError:
                     return super().get_value(dictionary)
 
@@ -306,7 +318,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             if item is empty:
                 return empty
             try:
-                full_item = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                full_item = next(filter(lambda o: item[self.url_field_name] == o[self.url_field_name], object_list))
             except StopIteration:
                 pass
             if full_item is None:
