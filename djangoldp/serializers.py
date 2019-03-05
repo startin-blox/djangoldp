@@ -200,24 +200,25 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                get_perms(self.context['request'].user, obj)]
 
         if hasattr(obj._meta, 'permission_classes'):
+            currentView = self.context['view']
             currentRequest = self.context['request']
             permList = obj._meta.permission_classes
             if permList:
                 for perm in permList:
                     if issubclass (perm, permissions.WACPermissions):
-                        allowed = perm.has_permission(perm, currentRequest, None)
+                        allowed = perm.has_permission(perm, currentRequest, currentView)
 
-                        if allowed:
-                            allowed = perm.has_object_permission(perm, currentRequest, None, obj)
-
-                        if allowed and currentRequest.method == 'GET':
+                        if allowed and currentView.action == 'list' or currentView.action == 'retrieve':
                             data['permissions'] += [{'mode': {'@type': 'view'}}]
-                        elif allowed and currentRequest.method == 'POST':
-                            data['permissions'] += [{'mode': {'@type': 'add'}}]
-                        elif allowed and currentRequest.method == 'PUT':
-                            data['permissions'] += [{'mode': {'@type': 'change'}}]
-                        elif allowed and currentRequest.method == 'PATCH':
-                            data['permissions'] += [{'mode': {'@type': 'change'}}]
+                        elif allowed and currentView.action == 'create':
+                            if perm.has_object_permission(perm, currentRequest, currentView, obj):
+                                data['permissions'] += [{'mode': {'@type': 'add'}}]
+                        elif allowed and currentView.action == 'update':
+                            if perm.has_object_permission(perm, currentRequest, currentView, obj):
+                                data['permissions'] += [{'mode': {'@type': 'change'}}]
+                        elif allowed and currentView.action == 'partial_update':
+                            if perm.has_object_permission(perm, currentRequest, currentView, obj):
+                                data['permissions'] += [{'mode': {'@type': 'change'}}]
 
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context

@@ -27,22 +27,11 @@ class WACPermissions(permissions.DjangoObjectPermissions):
         'DELETE': ['%(app_label)s.delete_%(model_name)s'],
     }
 
-    # All LDP permissions must extnd WACPermissions. Otherwise there
-    # will be problems when view is nons.
-
     def has_permission(self, request, view):
         if request.method == 'OPTIONS':
             return True
-        elif view:
+        else:
             return super().has_permission(request, view)
-        else:
-            return False
-
-    def has_object_permission(self, request, view, obj):
-        if view:
-            return super().has_object_permission(request, view, obj)
-        else:
-            return False
 
 
 class ObjectFilter(filters.BaseFilterBackend):
@@ -85,20 +74,20 @@ class AnonymousReadOnly(WACPermissions):
         Author: can read all posts + create new posts + update their own
     """
     def has_permission(self, request, view):
-        if request.method == "GET":
+        if view.action in ['list', 'retrieve']:
             return True
         else:
             return super().has_permission(request, view)
-        return False
 
     def has_object_permission(self, request, view, obj):
-        if request.method == "GET":
+        if view.action == "create" and request.user.is_authenticated():
             return True
-        elif request.method == "POST" and request.user.is_authenticated():
+        elif view.action == "retrieve":
             return True
-        elif request.method in ('PUT', 'PATCH'):
+        elif view.action in ['update', 'partial_update', 'destroy']:
             if hasattr(obj._meta, 'auto_author'):
                 author = getattr(obj, obj._meta.auto_author)
                 if author == request.user:
                     return True
-        return False
+        else:
+            return super().has_object_permission(request, view, obj)
