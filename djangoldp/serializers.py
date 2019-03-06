@@ -17,14 +17,10 @@ from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
-from djangoldp.models import Model
-
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
-from rest_framework.utils.field_mapping import get_nested_relation_kwargs
-from rest_framework.utils.serializer_helpers import ReturnDict
-
 from djangoldp.fields import LDPUrlField, IdURLField
+from djangoldp.models import Model
 from djangoldp import permissions
+
 
 class LDListMixin:
     def to_internal_value(self, data):
@@ -51,11 +47,17 @@ class LDListMixin:
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            container_id = Model.container_id(self.parent.instance)
-            obj = next(filter(lambda o: container_id in o['@id'], object_list))
+            if self.parent.instance is None:
+                obj = next(filter(
+                    lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.parent.url_field_name],
+                    object_list))
+            else:
+                container_id = Model.container_id(self.parent.instance)
+                obj = next(filter(lambda o: container_id in o[self.parent.url_field_name], object_list))
             list = super().get_value(obj)
             try:
-                list = next(filter(lambda o: list['@id'] == o['@id'], object_list))
+                list = next(
+                    filter(lambda o: list[self.parent.url_field_name] == o[self.parent.url_field_name], object_list))
             except (KeyError, TypeError):
                 pass
 
@@ -64,6 +66,9 @@ class LDListMixin:
             except (KeyError, TypeError):
                 pass
 
+            if list is empty:
+                return []
+
             if isinstance(list, dict):
                 list = [list]
 
@@ -71,7 +76,9 @@ class LDListMixin:
             for item in list:
                 full_item = None
                 try:
-                    full_item = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                    full_item = next(filter(
+                        lambda o: self.parent.url_field_name in o and item[self.parent.url_field_name] == o[
+                            self.parent.url_field_name], object_list))
                 except StopIteration:
                     pass
                 if full_item is None:
@@ -96,7 +103,7 @@ class ContainerSerializer(LDListMixin, ListSerializer):
 
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(data['@id'])
+            return super().to_internal_value(data[self.parent.url_field_name])
         except (KeyError, TypeError):
             return super().to_internal_value(data)
 
@@ -134,7 +141,7 @@ class JsonLdRelatedField(JsonLdField):
 
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(data['@id'])
+            return super().to_internal_value(data[self.parent.url_field_name])
         except (KeyError, TypeError):
             return super().to_internal_value(data)
 
@@ -158,7 +165,7 @@ class JsonLdIdentityField(JsonLdField):
 
     def to_internal_value(self, data):
         try:
-            return super().to_internal_value(data['@id'])
+            return super().to_internal_value(data[self.parent.url_field_name])
         except KeyError:
             return super().to_internal_value(data)
 
@@ -170,8 +177,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
-    ModelSerializer.serializer_field_mapping [LDPUrlField] = IdURLField
-
+    ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
     @property
     def data(self):
@@ -195,34 +201,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
-
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
                                get_perms(self.context['request'].user, obj)]
 
-        if hasattr(obj._meta, 'permission_classes'):
-            currentView = self.context['view']
-            currentRequest = self.context['request']
-            permList = obj._meta.permission_classes
-            if permList:
-                for perm in permList:
-                    if issubclass (perm, permissions.WACPermissions):
-                        allowed = perm.has_permission(perm, currentRequest, currentView)
-
-                        if allowed and currentView.action == 'list' or currentView.action == 'retrieve':
-                            data['permissions'] += [{'mode': {'@type': 'view'}}]
-                        elif allowed and currentView.action == 'create':
-                            if perm.has_object_permission(perm, currentRequest, currentView, obj):
-                                data['permissions'] += [{'mode': {'@type': 'add'}}]
-                        elif allowed and currentView.action == 'update':
-                            if perm.has_object_permission(perm, currentRequest, currentView, obj):
-                                data['permissions'] += [{'mode': {'@type': 'change'}}]
-                        elif allowed and currentView.action == 'partial_update':
-                            if perm.has_object_permission(perm, currentRequest, currentView, obj):
-                                data['permissions'] += [{'mode': {'@type': 'change'}}]
+        if self.context['request'].user.is_anonymous:
+            data['permissions'] += permissions.AnonymousReadOnly.anonymous_perms
+        elif self.context['request'].user.is_authenticated:
+            if hasattr(obj._meta, 'auto_author'):
+                data['permissions'] += permissions.AnonymousReadOnly.author_perms
+            else:
+                data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms                               
 
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context
-
+                                           
         return data
 
     def build_standard_field(self, field_name, model_field):
@@ -236,9 +228,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
             def get_value(self, dictionary):
                 try:
                     object_list = dictionary["@graph"]
-                    resource_id = Model.resource_id(self.parent.instance)
-                    obj = next(filter(lambda o: resource_id in o['@id'], object_list))
-                    return super().get_value(obj)
+                    if self.parent.instance is None:
+                        obj = next(filter(
+                            lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.url_field_name],
+                            object_list))
+                        return super().get_value(obj)
+                    else:
+                        resource_id = Model.resource_id(self.parent.instance)
+                        obj = next(filter(lambda o: resource_id in o[self.parent.url_field_name], object_list))
+                        return super().get_value(obj)
                 except KeyError:
                     return super().get_value(dictionary)
 
@@ -333,7 +331,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             if item is empty:
                 return empty
             try:
-                full_item = next(filter(lambda o: item['@id'] == o['@id'], object_list))
+                full_item = next(filter(lambda o: item[self.url_field_name] == o[self.url_field_name], object_list))
             except StopIteration:
                 pass
             if full_item is None:

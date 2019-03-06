@@ -73,6 +73,11 @@ class AnonymousReadOnly(WACPermissions):
         Logged in users: can read all posts + create new posts
         Author: can read all posts + create new posts + update their own
     """
+
+    anonymous_perms = [{'mode': {'@type': 'view'}}]
+    authenticated_perms = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}]
+    author_perms = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}, {'mode': {'@type': 'change'}}]
+
     def has_permission(self, request, view):
         if view.action in ['list', 'retrieve']:
             return True
