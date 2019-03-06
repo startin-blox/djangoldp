@@ -1,6 +1,6 @@
 from rest_framework import permissions
 from rest_framework import filters
-from guardian.shortcuts import get_objects_for_user, get_user_perms
+from guardian.shortcuts import get_objects_for_user
 
 """
 Liste des actions passées dans views selon le protocole REST :
@@ -26,10 +26,12 @@ class WACPermissions(permissions.DjangoObjectPermissions):
         'PATCH': ['%(app_label)s.change_%(model_name)s'],
         'DELETE': ['%(app_label)s.delete_%(model_name)s'],
     }
+
     def has_permission(self, request, view):
         if request.method == 'OPTIONS':
             return True
-        return super().has_permission(request, view)
+        else:
+            return super().has_permission(request, view)
 
 
 class ObjectFilter(filters.BaseFilterBackend):
@@ -41,36 +43,10 @@ class ObjectFilter(filters.BaseFilterBackend):
         objects = get_objects_for_user(request.user, perm, klass=queryset)
         return objects
 
-class ObjectPermission(permissions.DjangoObjectPermissions):
+class ObjectPermission(WACPermissions):
     filter_class = ObjectFilter
 
-class AnonymousReadOnly(permissions.DjangoObjectPermissions):
-    """
-        Anonymous users: can read all posts
-        Logged in users: can read all posts + create new posts
-        Author: can read all posts + create new posts + update their own
-    """
-    def has_permission(self, request, view):
-        if view.action in ['list', 'retrieve']:
-            return True
-        else:
-            return super().has_permission(request, view)
-
-    def has_object_permission(self, request, view, obj):
-        if view.action == "create" and request.user.is_authenticated():
-            return True
-        elif view.action == "retrieve":
-            return True
-        elif view.action in ['update', 'partial_update', 'destroy']:
-            if hasattr(obj._meta, 'auto_author'):
-                author = getattr(obj, obj._meta.auto_author)
-                if author == request.user:
-                    return True
-        else:
-            return super().has_object_permission(request, view, obj)
-
-
-class InboxPermissions(permissions.DjangoObjectPermissions):
+class InboxPermissions(WACPermissions):
     """
         Anonymous users: can create notifications but can't read
         Logged in users: can create notifications but can't read
@@ -91,3 +67,32 @@ class InboxPermissions(permissions.DjangoObjectPermissions):
                 return True
         return super().has_object_permission(request, view)
 
+class AnonymousReadOnly(WACPermissions):
+    """
+        Anonymous users: can read all posts
+        Logged in users: can read all posts + create new posts
+        Author: can read all posts + create new posts + update their own
+    """
+
+    anonymous_perms = [{'mode': {'@type': 'view'}}]
+    authenticated_perms = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}]
+    author_perms = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}, {'mode': {'@type': 'change'}}]
+
+    def has_permission(self, request, view):
+        if view.action in ['list', 'retrieve']:
+            return True
+        else:
+            return super().has_permission(request, view)
+
+    def has_object_permission(self, request, view, obj):
+        if view.action == "create" and request.user.is_authenticated():
+            return True
+        elif view.action == "retrieve":
+            return True
+        elif view.action in ['update', 'partial_update', 'destroy']:
+            if hasattr(obj._meta, 'auto_author'):
+                author = getattr(obj, obj._meta.auto_author)
+                if author == request.user:
+                    return True
+        else:
+            return super().has_object_permission(request, view, obj)

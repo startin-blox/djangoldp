@@ -9,7 +9,6 @@ from djangoldp.views import LDPViewSet
 class TestUserPermissions(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        #        self.c = Client()
         self.user = User.objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
         self.job = JobOffer.objects.create(title="job")
 
@@ -24,24 +23,24 @@ class TestUserPermissions(TestCase):
         response = my_view(request)
         self.assertEqual(response.status_code, 200)
 
-    def test_request_options_create_with_user(self):
+    def test_post_request_with_user(self):
         request = self.factory.options('/job-offers/')
         request.user = self.user
-        my_view = LDPViewSet.as_view({'options': 'create'}, model=JobOffer, nested_fields=["skills"],
+        my_view = LDPViewSet.as_view({'post': 'create'}, model=JobOffer, nested_fields=["skills"],
                                      permission_classes=[AnonymousReadOnly])
         response = my_view(request)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
 
-    def test_request_options_update_with_user(self):
+    def test_put_request_with_user(self):
         request = self.factory.options('/job-offers/' + str(self.job.pk) + "/")
         request.user = self.user
-        my_view = LDPViewSet.as_view({'options': 'update'}, model=JobOffer, nested_fields=["skills"],
+        my_view = LDPViewSet.as_view({'put': 'update'}, model=JobOffer, nested_fields=["skills"],
                                      permission_classes=[AnonymousReadOnly])
         response = my_view(request, pk=self.job.pk)
         self.assertEqual(response.status_code, 200)
 
     def test_request_patch_with_user(self):
-        request = self.factory.patch('/job-offers/' + str(self.job.pk) + "/")
+        request = self.factory.options('/job-offers/' + str(self.job.pk) + "/")
         request.user = self.user
         my_view = LDPViewSet.as_view({'patch': 'partial_update'}, model=JobOffer, nested_fields=["skills"])
         response = my_view(request, pk=self.job.pk)

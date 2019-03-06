@@ -19,6 +19,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
+from djangoldp import permissions
 
 
 class LDListMixin:
@@ -202,6 +203,18 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@type'] = obj._meta.rdf_type
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
                                get_perms(self.context['request'].user, obj)]
+
+        if self.context['request'].user.is_anonymous:
+            data['permissions'] += permissions.AnonymousReadOnly.anonymous_perms
+        elif self.context['request'].user.is_authenticated:
+            if hasattr(obj._meta, 'auto_author'):
+                data['permissions'] += permissions.AnonymousReadOnly.author_perms
+            else:
+                data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms                               
+
+        if hasattr(obj._meta, 'rdf_context'):
+            data['@context'] = obj._meta.rdf_context
+                                           
         return data
 
     def build_standard_field(self, field_name, model_field):
