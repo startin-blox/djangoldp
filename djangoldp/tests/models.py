@@ -32,3 +32,20 @@ class Dummy(models.Model):
 class LDPDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
 
+
+class Invoice(Model):
+    title = models.CharField(max_length=255, blank=True, null=True)
+
+
+class Batch(Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='batches')
+    title = models.CharField(max_length=255, blank=True, null=True)
+
+
+class Task(models.Model):
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=255)
+
+
+Batch._meta.serializer_fields = ['@id', 'title', 'invoice', 'tasks']
+Task._meta.serializer_fields = ['@id', 'title', 'batch']

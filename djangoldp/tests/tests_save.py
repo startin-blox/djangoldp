@@ -1,10 +1,44 @@
 from django.test import TestCase
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer
+from djangoldp.tests.models import Skill, JobOffer, Invoice
 
 
 class Save(TestCase):
+
+    def test_save_m2m_graph_with_many_nested(self):
+        invoice = {
+            "@graph": [
+                {
+                    "@id": "./",
+                    "batches": {"@id": "_:b381"},
+                    "title": "Nouvelle facture",
+                },
+                {
+                    "@id": "_:b381",
+                    "tasks": {"@id": "_:b382"},
+                    "title": "Batch 1"
+                },
+                {
+                    "@id": "_:b382",
+                    "title": "Tache 1"
+                }
+            ]
+        }
+
+        meta_args = {'model': Invoice, 'depth': 1, 'fields': ("@id", "title", "batches")}
+
+        meta_class = type('Meta', (), meta_args)
+        serializer_class = type(LDPSerializer)('InvoiceSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=invoice)
+        serializer.is_valid()
+        result = serializer.save()
+
+        self.assertEquals(result.title, "Nouvelle facture")
+        self.assertIs(result.batches.count(), 1)
+        self.assertEquals(result.batches.all()[0].title, "Batch 1")
+        self.assertIs(result.batches.all()[0].tasks.count(), 1)
+        #self.assertEquals(result.batches.all()[0].tasks.all()[0].title, "Tache 1")
 
     def test_save_m2m(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
@@ -35,9 +69,9 @@ class Save(TestCase):
 
     def test_save_m2m_graph_simple(self):
         job = {"@graph": [
-                   {"title": "job test",
-                    },
-               ]}
+            {"title": "job test",
+             },
+        ]}
 
         meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
 
