@@ -136,6 +136,7 @@ class LDPViewSet(LDPViewSetGenerator):
         response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
         response["Access-Control-Allow-Methods"] = "POST,PUT, PATCH"
         response["Access-Control-Allow-Headers"] = "Content-Type, if-match"
+        response["Access-Control-Expose-Headers"] = "Location"
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
         if response.status_code == 201 and '@id' in response.data:
