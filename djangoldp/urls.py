@@ -30,6 +30,6 @@ for class_name in model_classes:
     urls_fct = model_class.get_view_set().urls
     urlpatterns.append(url(r'^' + path, include(
         urls_fct(model=model_class,
-                 permission_classes=getattr(model_class._meta, 'permission_classes', []),
-                 fields=getattr(model_class._meta, 'serializer_fields', []),
-                 nested_fields=getattr(model_class._meta, 'nested_fields', [])))))
+                 permission_classes=getattr(model_class._meta, 'permission_classes', getattr(model_class.Meta, 'permission_classes', [])),
+                 fields=getattr(model_class._meta, 'serializer_fields', getattr(model_class.Meta, 'serializer_fields', [])),
+                 nested_fields=getattr(model_class._meta, 'nested_fields', getattr(model_class.Meta, 'nested_fields', []))))))
