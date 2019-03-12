@@ -206,13 +206,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         if self.context['request'].user.is_anonymous:
             data['permissions'] += permissions.AnonymousReadOnly.anonymous_perms
-        elif self.context['request'].user.is_authenticated and hasattr(obj._meta, 'auto_author'):
-            if hasattr(obj._meta, 'auto_author'):
-                author = getattr(obj, obj._meta.auto_author)
-                if author == self.context['request'].user:
-                    data['permissions'] += permissions.AnonymousReadOnly.author_perms
-            else:
-                data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms                               
+        if hasattr(obj._meta, 'auto_author'):
+            author = getattr(obj, obj._meta.auto_author)
+            if author == self.context['request'].user:
+                data['permissions'] += permissions.AnonymousReadOnly.author_perms
+        else:
+            data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms
 
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context
