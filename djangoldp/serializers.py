@@ -17,9 +17,9 @@ from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
+from djangoldp import permissions
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
-from djangoldp import permissions
 
 
 class LDListMixin:
@@ -210,11 +210,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
             if hasattr(obj._meta, 'auto_author'):
                 data['permissions'] += permissions.AnonymousReadOnly.author_perms
             else:
-                data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms                               
+                data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms
 
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context
-                                           
+
         return data
 
     def build_standard_field(self, field_name, model_field):
