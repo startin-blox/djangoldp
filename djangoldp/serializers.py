@@ -30,7 +30,7 @@ class LDListMixin:
             pass
         if isinstance(data, dict):
             data = [data]
-        if isinstance(data, str) and str.startswith("http"):
+        if isinstance(data, str) and data.startswith("http"):
             data = [{'@id': data}]
         return [self.child.to_internal_value(item) for item in data]
 
