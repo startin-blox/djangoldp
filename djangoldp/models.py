@@ -7,7 +7,7 @@ class Model(models.Model):
 
     @classmethod
     def get_view_set(cls):
-        view_set = getattr(cls._meta, 'view_set', None)
+        view_set = getattr(cls._meta, 'view_set', getattr(cls.Meta, 'view_set', None))
         if view_set is None:
             from djangoldp.views import LDPViewSet
             view_set = LDPViewSet
@@ -15,7 +15,7 @@ class Model(models.Model):
 
     @classmethod
     def get_container_path(cls):
-        path = getattr(cls._meta, 'container_path', None)
+        path = getattr(cls._meta, 'container_path', getattr(cls.Meta, 'container_path', None))
         if path is None:
             path = "{}s".format(cls._meta.object_name.lower())
 

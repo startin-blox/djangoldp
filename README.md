@@ -36,6 +36,7 @@ from djangoldp.models import Model
 class Todo(Model):
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
+    
 
 ```
 
@@ -45,6 +46,7 @@ By default it will be "todos/" with an S for model called Todo
 ```
 <Model>._meta.container_path = "/my-path/"
 ```
+
 
 3.2. Configure field visibility (optional) 
 Note that at this stage you can limit access to certain fields of models using
@@ -134,14 +136,14 @@ list of ForeignKey, ManyToManyField, OneToOneField and their reverse relations. 
 
 In the following example, besides the urls `/members/` and `/members/<pk>/`, two other will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/` 
 ```
-    url(r'^members/', LDPViewSet.urls(model=Member, nested_fields=("skills",))),
+   <Model>._meta.nested_fields=["skills"]
 ```
 
 From the 0.5 we added permissions check by default on every route, so you may encounter 400 errors code on your POST requests. You can disable those checks by specifying the permission_classes as an empty array in our URLs files.
 
 
 ```
-url(r'^posts/', LDPViewSet.urls(model=Post, permission_classes=(), filter_backends = ())),
+   <Model>.permissions_classes=[]
 ```
 
 ## Custom Meta options on models
@@ -149,6 +151,7 @@ url(r'^posts/', LDPViewSet.urls(model=Post, permission_classes=(), filter_backen
 ### rdf_type
 ### auto_author
 This property allows to associate a model with the logged in user.
+
 
 ```python
 class MyModel(models.Model):
@@ -158,7 +161,7 @@ class MyModel(models.Model):
 ```
 Now when an instance of `MyModel` is saved, its `author_user` property will be set to the current user. 
 
-## permissions
+## permissions_classes
 This allows you to add permissions for AnonymousUser, logged in user, author ... in the url:
 Currently, there are 3 choices :
 * ObjectPermission
@@ -173,15 +176,17 @@ AnonymousReadOnly gives these permissions:
 * Logged in users: can read all posts + create new posts
 * Author: can read all posts + create new posts + update their own
 
-```
-from django.conf.urls import url
-from djangoldp.views import LDPViewSet
-from djangoldp.permissions import AnonymousReadOnly
+```python
+from djangoldp.models import Model
+from djangoldp.permissions import AnonymousReadonly
 
-urlpatterns = [
-    url(r'^projects/', ProjectViewSet.urls(permission_classes=(AnonymousReadOnly,))),
-    url(r'^customers/', LDPViewSet.urls(model=Customer)),
-]
+class Todo(Model):
+    name = models.CharField(max_length=255)
+    deadline = models.DateTimeField()
+    
+    class Meta:
+        permission_classes =  AnonymousReadonly
+
 ```
 
 InboxPermissions is used for, well, notifications:
@@ -194,15 +199,49 @@ from django.conf.urls import url
 from djangoldp.views import LDPViewSet
 from djangoldp.permissions import NotificationsPermissions
 
-urlpatterns = [
-    url(r'^projects/', ProjectViewSet.urls(permission_classes=(InboxPermissions,))),
-    url(r'^customers/', LDPViewSet.urls(model=Customer)),
-]
+class Project(Model):
+    name = models.CharField(max_length=255)
+    deadline = models.DateTimeField()
+    
+    class Meta:
+        permission_classes =  InbcxPermissions
+
 ```
 
 Important note:
 If you need to give permissions to owner's object, don't forget to add auto_author in model's meta
 
+### view_set 
+In case of custom viewset, you can use 
+
+```
+from djangoldp.models import Model
+
+class Todo(Model):
+    name = models.CharField(max_length=255)
+    deadline = models.DateTimeField()
+    
+    class Meta:
+        view_set =  TodoViewSet
+
+```
+
+### container_path 
+See 3.1. Configure container path (optional)
+
+### serializer_fields 
+```
+from djangoldp.models import Model
+
+class Todo(Model):
+    name = models.CharField(max_length=255)
+    deadline = models.DateTimeField()
+    
+    class Meta:
+        serializer_fields =  ['name']
+
+```
+Only `name` will be serialized
 
 ## License
 
