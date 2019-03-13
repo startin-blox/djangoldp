@@ -41,19 +41,19 @@ class Save(TestCase):
         self.assertEquals(result.batches.all()[0].tasks.all()[0].title, "Tache 1")
 
     def test_save_m2m(self):
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug2")
 
         job = {"title": "job test",
                "skills": {
                    "ldp:contains": [
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk), "title": "skill2 UP"},
-                       {"title": "skill3 NEW", "obligatoire": "obligatoire"},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug), "title": "skill2 UP"},
+                       {"title": "skill3", "obligatoire": "obligatoire", "slug": "slug3"},
                    ]}
                }
 
-        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills", "slug")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -65,7 +65,7 @@ class Save(TestCase):
         self.assertIs(result.skills.count(), 3)
         self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
         self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
-        self.assertEquals(result.skills.all()[2].title, "skill3 NEW")  # creation on the fly
+        self.assertEquals(result.skills.all()[2].title, "skill3")  # creation on the fly
 
     def test_save_m2m_graph_simple(self):
         job = {"@graph": [

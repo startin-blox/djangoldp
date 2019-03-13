@@ -307,7 +307,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     try:
                         match = resolve(uri_to_iri(uri))
-                        ret['pk'] = match.kwargs['pk']
+                        slug_field = Model.slug_field(self.__class__.Meta.model)
+                        ret[slug_field] = match.kwargs[slug_field]
                     except Resolver404:
                         pass
 
@@ -389,9 +390,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         for attr, value in validated_data.items():
             if isinstance(value, dict):
+                slug_field = Model.slug_field(instance)
                 manager = getattr(instance, attr)
-                if 'pk' in value:
-                    oldObj = manager._meta.model.objects.get(pk=value['pk'])
+                if slug_field in value:
+                    kwargs = {slug_field: value[slug_field]}
+                    oldObj = manager._meta.model.objects.get(**kwargs)
                     value = self.update(instance=oldObj, validated_data=value)
                 else:
                     value = self.internal_create(validated_data=value, model=manager._meta.model)
@@ -406,18 +409,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def save_or_update_nested_list(self, instance, nested_fields):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
+            slug_field = Model.slug_field(instance)
 
-            item_pk_to_keep = list(map(lambda e: int(e['pk']), filter(lambda x: 'pk' in x, data)))
+            item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
             for item in list(manager.all()):
-                if not item.pk in item_pk_to_keep:
+                if not str(getattr(item, slug_field)) in item_pk_to_keep:
                     if getattr(manager, 'through', None) is None:
                         item.delete()
                     else:
                         manager.remove(item)
 
             for item in data:
-                if 'pk' in item:
-                    oldObj = manager.model.objects.get(pk=item['pk'])
+                if slug_field in item:
+                    kwargs = {slug_field: item[slug_field]}
+                    oldObj = manager.model.objects.get(**kwargs)
                     savedItem = self.update(instance=oldObj, validated_data=item)
                 else:
                     rel = getattr(instance._meta.model, field_name).rel

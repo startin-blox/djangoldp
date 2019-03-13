@@ -8,19 +8,19 @@ from djangoldp.tests.models import Skill, JobOffer, Thread, Message
 class Update(TestCase):
 
     def test_update(self):
-        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire")
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
+        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug1")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug2")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug3")
         job1 = JobOffer.objects.create(title="job test")
         job1.skills.add(skill)
 
-        job = {"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
+        job = {"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.slug),
                "title": "job test updated",
                "skills": {
                    "ldp:contains": [
                        {"title": "new skill", "obligatoire": "okay"},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk), "title": "skill2 UP"},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug), "title": "skill2 UP"},
                    ]}
                }
 
@@ -40,21 +40,21 @@ class Update(TestCase):
         self.assertEquals(skills[2].title, "skill2 UP")  # title updated
 
     def test_update_graph(self):
-        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire")
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
-        job1 = JobOffer.objects.create(title="job test")
+        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug1")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug2")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug3")
+        job1 = JobOffer.objects.create(title="job test", slug="slug4")
         job1.skills.add(skill)
 
         job = {"@graph":
             [
                 {
-                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
+                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.slug),
                     "title": "job test updated",
                     "skills": {
                         "ldp:contains": [
-                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug)},
                             {"@id": "_.123"},
                         ]}
                 },
@@ -64,10 +64,10 @@ class Update(TestCase):
                     "obligatoire": "okay"
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
+                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug),
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
+                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug),
                     "title": "skill2 UP"
                 }
             ]
@@ -90,19 +90,19 @@ class Update(TestCase):
         self.assertEquals(skills[2].title, "skill2 UP")  # title updated
 
     def test_update_graph_2(self):
-        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire")
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
-        job1 = JobOffer.objects.create(title="job test")
+        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug2")
+        job1 = JobOffer.objects.create(title="job test", slug="slug1")
         job1.skills.add(skill)
 
         job = {"@graph":
             [
                 {
-                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.pk),
+                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.slug),
                     "title": "job test updated",
                     "skills": {
-                        "@id": "https://happy-dev.fr/job-offers/{}/skills/".format(job1.pk)
+                        "@id": "https://happy-dev.fr/job-offers/{}/skills/".format(job1.slug)
                     }
                 },
                 {
@@ -111,17 +111,17 @@ class Update(TestCase):
                     "obligatoire": "okay"
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk),
+                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug),
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk),
+                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug),
                     "title": "skill2 UP"
                 },
                 {
-                    '@id': "https://happy-dev.fr/job-offers/{}/skills/".format(job1.pk),
+                    '@id': "https://happy-dev.fr/job-offers/{}/skills/".format(job1.slug),
                     "ldp:contains": [
-                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.pk)},
-                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.pk)},
+                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug)},
                         {"@id": "_.123"},
                     ]
                 }

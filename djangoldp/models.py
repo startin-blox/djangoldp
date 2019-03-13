@@ -29,11 +29,15 @@ class Model(models.Model):
 
     @classmethod
     def resource_id(cls, instance):
+        return "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance)))
+
+    @classmethod
+    def slug_field(cls, instance):
         view_name = '{}-detail'.format(instance._meta.object_name.lower())
         slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
-        return "{}{}".format(cls.container_id(instance), getattr(instance, slug_field))
+        return slug_field
 
     @classmethod
     def container_id(cls, instance):

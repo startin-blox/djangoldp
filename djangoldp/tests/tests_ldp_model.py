@@ -11,7 +11,7 @@ class LDPModelTest(TestCase):
     def test_class_not_inheriting_ldp_model(self):
         dummy = Dummy.objects.create(some="text")
         self.assertEquals("/dummys/", Model.container_id(dummy))
-        self.assertEquals("/dummys/{}".format(dummy.pk), Model.resource_id(dummy))
+        self.assertEquals("/dummys/{}".format(dummy.slug), Model.resource_id(dummy))
 
     def test_class_inheriting_ldp_model(self):
         dummy = LDPDummy.objects.create(some="text")
@@ -21,8 +21,8 @@ class LDPModelTest(TestCase):
         self.assertEquals("/ldpdummys/{}".format(dummy.pk), Model.resource_id(dummy))
 
     def test_from_resolve_id(self):
-        saved_instance = Dummy.objects.create(some="text")
-        result = Model.resolve_id("/dummys/{}".format(saved_instance.pk))
+        saved_instance = Dummy.objects.create(some="text", slug="someid")
+        result = Model.resolve_id("/dummys/{}".format(saved_instance.slug))
         self.assertEquals(saved_instance, result)
 
     def test_resolve_container(self):
