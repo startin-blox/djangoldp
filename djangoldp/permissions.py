@@ -81,13 +81,15 @@ class AnonymousReadOnly(WACPermissions):
     def has_permission(self, request, view):
         if view.action in ['list', 'retrieve']:
             return True
+        elif view.action == 'create' and request.user.is_authenticated():
+            return True
         else:
             return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
         if view.action == "create" and request.user.is_authenticated():
             return True
-        elif view.action == "retrieve":
+        elif view.action == ["list", "retrieve"]:
             return True
         elif view.action in ['update', 'partial_update', 'destroy']:
             if hasattr(obj._meta, 'auto_author'):
