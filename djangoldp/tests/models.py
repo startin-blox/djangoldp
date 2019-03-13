@@ -1,17 +1,31 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 from djangoldp.models import Model
 
 
-class Skill(models.Model):
+class Skill(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     obligatoire = models.CharField(max_length=255)
+    slug = models.SlugField(blank=True, null=True, unique=True)
 
 
-class JobOffer(models.Model):
+    class Meta:
+        serializer_fields=["@id", "title"]
+        lookup_field = 'slug'
+
+
+class JobOffer(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     skills = models.ManyToManyField(Skill, blank=True)
+    slug = models.SlugField(blank=True, null=True, unique=True)
+
+    class Meta:
+        nested_fields=["skills"]
+        container_path="job-offers/"
+        lookup_field = 'slug'
 
 
 class Thread(models.Model):
@@ -27,6 +41,7 @@ class Message(models.Model):
 
 class Dummy(models.Model):
     some = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(blank=True, null=True, unique=True)
 
 
 class LDPDummy(Model):
@@ -51,3 +66,6 @@ class Task(models.Model):
 
     class Meta:
         serializer_fields = ['@id', 'title', 'batch']
+
+
+
