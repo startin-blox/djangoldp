@@ -46,7 +46,8 @@ class LDListMixin:
 
     def get_value(self, dictionary):
         try:
-            object_list = dictionary["@graph"]
+            object_list = dictionary['@graph']
+
             if self.parent.instance is None:
                 obj = next(filter(
                     lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.parent.url_field_name],
@@ -88,7 +89,14 @@ class LDListMixin:
 
             return ret
         except KeyError:
-            return super().get_value(dictionary)
+            obj = super().get_value(dictionary)
+            if isinstance(obj, dict) and self.parent.url_field_name in obj:
+                resource_id = obj[self.parent.url_field_name]
+                if isinstance(resource_id, str) and resource_id.startswith("_:"):
+                    object_list = self.root.initial_data['@graph']
+                    obj = [next(filter(lambda o: resource_id in o[self.parent.url_field_name], object_list))]
+
+            return obj
 
 
 class ContainerSerializer(LDListMixin, ListSerializer):

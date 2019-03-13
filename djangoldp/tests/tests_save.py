@@ -38,7 +38,7 @@ class Save(TestCase):
         self.assertIs(result.batches.count(), 1)
         self.assertEquals(result.batches.all()[0].title, "Batch 1")
         self.assertIs(result.batches.all()[0].tasks.count(), 1)
-        #self.assertEquals(result.batches.all()[0].tasks.all()[0].title, "Tache 1")
+        self.assertEquals(result.batches.all()[0].tasks.all()[0].title, "Tache 1")
 
     def test_save_m2m(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
