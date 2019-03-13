@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice
+from djangoldp.tests.models import Skill, JobOffer, Invoice, Dummy
 
 
 class Save(TestCase):
@@ -144,3 +144,4 @@ class Save(TestCase):
         self.assertIs(result.joboffer_set.count(), 1)
         self.assertEquals(result.joboffer_set.get(), job)
         self.assertIs(result.joboffer_set.get().skills.count(), 1)
+

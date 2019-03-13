@@ -4,14 +4,23 @@ from django.db import models
 from djangoldp.models import Model
 
 
-class Skill(models.Model):
+class Skill(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     obligatoire = models.CharField(max_length=255)
 
+    class Meta:
+        serializer_fields=["@id", "title"]
+        lookup_field = 'title'
 
-class JobOffer(models.Model):
+
+class JobOffer(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     skills = models.ManyToManyField(Skill, blank=True)
+
+    class Meta:
+        nested_fields=["skills"]
+        container_path="job-offers/"
+        lookup_field = 'title'
 
 
 class Thread(models.Model):
@@ -27,6 +36,7 @@ class Message(models.Model):
 
 class Dummy(models.Model):
     some = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(blank=True, null=True, unique=True)
 
 
 class LDPDummy(Model):
