@@ -225,6 +225,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         return data
 
+    def build_field(self, field_name, info, model_class, nested_depth):
+        nested_depth = self.compute_depth(nested_depth, model_class)
+
+        return super().build_field(field_name, info, model_class, nested_depth)
+
     def build_standard_field(self, field_name, model_field):
         class JSonLDStandardField:
             parent_view_name = None
@@ -253,6 +258,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class), {}), field_kwargs
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
+        nested_depth = self.compute_depth(nested_depth, self.Meta.model)
+
         class NestedLDPSerializer(self.__class__):
 
             class Meta:
@@ -322,10 +329,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return NestedLDPSerializer, kwargs
 
     @classmethod
+    def compute_depth(cls, depth, model_class, name='depth'):
+        try:
+            model_depth = getattr(model_class._meta, 'depth', getattr(model_class.Meta, 'depth', 10))
+            depth = min(depth, int(model_depth))
+        except AttributeError:
+            depth = min(depth, int(getattr(model_class._meta, 'depth', 1)))
+
+        return depth
+
+    @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls(**kwargs)
         try:
-            cls.Meta.depth = kwargs['context']['view'].many_depth
+            cls.Meta.depth = cls.compute_depth(kwargs['context']['view'].many_depth, cls.Meta.model, 'many_depth')
         except KeyError:
             pass
         return ContainerSerializer(*args, **kwargs)
@@ -359,9 +376,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return instance
 
     def attach_related_object(self, instance, validated_data):
-        ModelClass = self.Meta.model
+        model_class = self.Meta.model
 
-        info = model_meta.get_field_info(ModelClass)
+        info = model_meta.get_field_info(model_class)
         many_to_many = {}
         for field_name, relation_info in info.relations.items():
             if relation_info.to_many and relation_info.reverse and not (field_name in validated_data) and not field_name is None:

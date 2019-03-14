@@ -53,7 +53,7 @@ class Save(TestCase):
                    ]}
                }
 
-        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills", "slug")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -73,7 +73,7 @@ class Save(TestCase):
              },
         ]}
 
-        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -95,7 +95,7 @@ class Save(TestCase):
             {"@id": "_.123", "title": "skill3 NEW", "obligatoire": "obligatoire"},
         ]}
 
-        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -112,7 +112,7 @@ class Save(TestCase):
         skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
         job = {"title": "job test"}
 
-        meta_args = {'model': JobOffer, 'depth': 1, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -130,7 +130,7 @@ class Save(TestCase):
         job = JobOffer.objects.create(title="job test")
         skill = {"title": "new SKILL"}
 
-        meta_args = {'model': Skill, 'depth': 1, 'fields': ("@id", "title")}
+        meta_args = {'model': Skill, 'depth': 2, 'fields': ("@id", "title")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('SkillSerializer', (LDPSerializer,), {'Meta': meta_class})

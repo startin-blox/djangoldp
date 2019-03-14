@@ -1,7 +1,5 @@
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import pre_save
-from django.dispatch import receiver
 
 from djangoldp.models import Model
 
@@ -11,9 +9,8 @@ class Skill(Model):
     obligatoire = models.CharField(max_length=255)
     slug = models.SlugField(blank=True, null=True, unique=True)
 
-
     class Meta:
-        serializer_fields=["@id", "title"]
+        serializer_fields = ["@id", "title"]
         lookup_field = 'slug'
 
 
@@ -23,8 +20,8 @@ class JobOffer(Model):
     slug = models.SlugField(blank=True, null=True, unique=True)
 
     class Meta:
-        nested_fields=["skills"]
-        container_path="job-offers/"
+        nested_fields = ["skills"]
+        container_path = "job-offers/"
         lookup_field = 'slug'
 
 
@@ -51,6 +48,10 @@ class LDPDummy(Model):
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
 
+    class Meta:
+        depth = 2
+        nested_fields = ["batches"]
+
 
 class Batch(Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='batches')
@@ -58,6 +59,7 @@ class Batch(Model):
 
     class Meta:
         serializer_fields = ['@id', 'title', 'invoice', 'tasks']
+        nested_fields = ["tasks"]
 
 
 class Task(models.Model):
@@ -66,6 +68,3 @@ class Task(models.Model):
 
     class Meta:
         serializer_fields = ['@id', 'title', 'batch']
-
-
-
