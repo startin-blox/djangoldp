@@ -364,7 +364,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(ModelClass)
         many_to_many = {}
         for field_name, relation_info in info.relations.items():
-            if relation_info.to_many and relation_info.reverse and not (field_name in validated_data):
+            if relation_info.to_many and relation_info.reverse and not (field_name in validated_data) and not field_name is None:
                 rel = getattr(instance._meta.model, field_name).rel
                 if rel.name in validated_data:
                     related = validated_data[rel.name]
