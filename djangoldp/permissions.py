@@ -1,6 +1,6 @@
-from rest_framework import permissions
-from rest_framework import filters
 from guardian.shortcuts import get_objects_for_user
+from rest_framework import filters
+from rest_framework import permissions
 
 """
 Liste des actions passées dans views selon le protocole REST :
@@ -15,6 +15,7 @@ Pour chacune de ces actions, on va définir si on accepte la requête (True) ou 
     The instance-level has_object_permission method will only be called if the view-level has_permission 
     checks have already passed
 """
+
 
 class WACPermissions(permissions.DjangoObjectPermissions):
     perms_map = {
@@ -43,8 +44,10 @@ class ObjectFilter(filters.BaseFilterBackend):
         objects = get_objects_for_user(request.user, perm, klass=queryset)
         return objects
 
+
 class ObjectPermission(WACPermissions):
     filter_class = ObjectFilter
+
 
 class InboxPermissions(WACPermissions):
     """
@@ -53,6 +56,7 @@ class InboxPermissions(WACPermissions):
         Inbox owners: can read + update all notifications
     """
     filter_class = ObjectFilter
+
     def has_permission(self, request, view):
         if view.action in ['create', 'retrieve', 'update', 'partial_update', 'destroy']:
             return True
@@ -66,6 +70,7 @@ class InboxPermissions(WACPermissions):
             if request.user == getattr(obj, obj._meta.auto_author):
                 return True
         return super().has_object_permission(request, view)
+
 
 class AnonymousReadOnly(WACPermissions):
     """

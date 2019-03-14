@@ -86,6 +86,14 @@ class Model(models.Model):
             path = "{}/".format(path)
         return path
 
+    @classmethod
+    def get_permission_classes(cls, related_model, default_permissions_classes):
+        try:
+            return getattr(related_model._meta, 'permission_classes',
+                           getattr(related_model.Meta, 'permission_classes', default_permissions_classes))
+        except AttributeError:
+            return default_permissions_classes
+
 
 class LDPSource(models.Model):
     container = models.URLField()
