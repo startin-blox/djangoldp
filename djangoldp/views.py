@@ -89,8 +89,8 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    depth = 1
-    many_depth = 0
+    depth = 2
+    many_depth = 1
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
