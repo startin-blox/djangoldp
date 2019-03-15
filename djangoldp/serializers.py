@@ -207,8 +207,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def get_permissions(self, obj):
         permissions = ['view', 'add', 'change', 'control', 'delete']
 
-        for permission_class in obj._meta.permission_classes:
-            permissions = permission_class().filter_user_perms(self.context['request'], obj, permissions)
+        if obj._meta.permission_classes:
+            for permission_class in obj._meta.permission_classes:
+                permissions = permission_class().filter_user_perms(self.context['request'], obj, permissions)
 
         permissions += get_perms(self.context['request'].user, obj)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
