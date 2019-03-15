@@ -17,6 +17,7 @@ from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
+from djangoldp import permissions
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
 
@@ -29,7 +30,7 @@ class LDListMixin:
             pass
         if isinstance(data, dict):
             data = [data]
-        if isinstance(data, str) and str.startswith("http"):
+        if isinstance(data, str) and data.startswith("http"):
             data = [{'@id': data}]
         return [self.child.to_internal_value(item) for item in data]
 
@@ -45,7 +46,8 @@ class LDListMixin:
 
     def get_value(self, dictionary):
         try:
-            object_list = dictionary["@graph"]
+            object_list = dictionary['@graph']
+
             if self.parent.instance is None:
                 obj = next(filter(
                     lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.parent.url_field_name],
@@ -87,7 +89,14 @@ class LDListMixin:
 
             return ret
         except KeyError:
-            return super().get_value(dictionary)
+            obj = super().get_value(dictionary)
+            if isinstance(obj, dict) and self.parent.url_field_name in obj:
+                resource_id = obj[self.parent.url_field_name]
+                if isinstance(resource_id, str) and resource_id.startswith("_:"):
+                    object_list = self.root.initial_data['@graph']
+                    obj = [next(filter(lambda o: resource_id in o[self.parent.url_field_name], object_list))]
+
+            return obj
 
 
 class ContainerSerializer(LDListMixin, ListSerializer):
@@ -216,6 +225,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
         
         return data
 
+    def build_field(self, field_name, info, model_class, nested_depth):
+        nested_depth = self.compute_depth(nested_depth, model_class)
+
+        return super().build_field(field_name, info, model_class, nested_depth)
+
     def build_standard_field(self, field_name, model_field):
         class JSonLDStandardField:
             parent_view_name = None
@@ -244,6 +258,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class), {}), field_kwargs
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
+        nested_depth = self.compute_depth(nested_depth, self.Meta.model)
+
         class NestedLDPSerializer(self.__class__):
 
             class Meta:
@@ -298,7 +314,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     try:
                         match = resolve(uri_to_iri(uri))
-                        ret['pk'] = match.kwargs['pk']
+                        slug_field = Model.slug_field(self.__class__.Meta.model)
+                        ret[slug_field] = match.kwargs[slug_field]
                     except Resolver404:
                         pass
 
@@ -312,10 +329,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return NestedLDPSerializer, kwargs
 
     @classmethod
+    def compute_depth(cls, depth, model_class, name='depth'):
+        try:
+            model_depth = getattr(model_class._meta, 'depth', getattr(model_class.Meta, 'depth', 10))
+            depth = min(depth, int(model_depth))
+        except AttributeError:
+            depth = min(depth, int(getattr(model_class._meta, 'depth', 1)))
+
+        return depth
+
+    @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls(**kwargs)
         try:
-            cls.Meta.depth = kwargs['context']['view'].many_depth
+            cls.Meta.depth = cls.compute_depth(kwargs['context']['view'].many_depth, cls.Meta.model, 'many_depth')
         except KeyError:
             pass
         return ContainerSerializer(*args, **kwargs)
@@ -323,7 +350,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            container_id = Model.container_path(self.parent.instance)
+            container_id = Model.container_id(self.parent.instance)
             obj = next(filter(lambda o: container_id in o[self.url_field_name], object_list))
             item = super().get_value(obj)
             full_item = None
@@ -349,12 +376,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return instance
 
     def attach_related_object(self, instance, validated_data):
-        ModelClass = self.Meta.model
+        model_class = self.Meta.model
 
-        info = model_meta.get_field_info(ModelClass)
+        info = model_meta.get_field_info(model_class)
         many_to_many = {}
         for field_name, relation_info in info.relations.items():
-            if relation_info.to_many and relation_info.reverse and not (field_name in validated_data):
+            if relation_info.to_many and relation_info.reverse and not (field_name in validated_data) and not field_name is None:
                 rel = getattr(instance._meta.model, field_name).rel
                 if rel.name in validated_data:
                     related = validated_data[rel.name]
@@ -380,9 +407,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         for attr, value in validated_data.items():
             if isinstance(value, dict):
+                slug_field = Model.slug_field(instance)
                 manager = getattr(instance, attr)
-                if 'pk' in value:
-                    oldObj = manager._meta.model.objects.get(pk=value['pk'])
+                if slug_field in value:
+                    kwargs = {slug_field: value[slug_field]}
+                    oldObj = manager._meta.model.objects.get(**kwargs)
                     value = self.update(instance=oldObj, validated_data=value)
                 else:
                     value = self.internal_create(validated_data=value, model=manager._meta.model)
@@ -397,18 +426,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def save_or_update_nested_list(self, instance, nested_fields):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
+            slug_field = Model.slug_field(instance)
 
-            item_pk_to_keep = list(map(lambda e: int(e['pk']), filter(lambda x: 'pk' in x, data)))
+            item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
             for item in list(manager.all()):
-                if not item.pk in item_pk_to_keep:
+                if not str(getattr(item, slug_field)) in item_pk_to_keep:
                     if getattr(manager, 'through', None) is None:
                         item.delete()
                     else:
                         manager.remove(item)
 
             for item in data:
-                if 'pk' in item:
-                    oldObj = manager.model.objects.get(pk=item['pk'])
+                if slug_field in item:
+                    kwargs = {slug_field: item[slug_field]}
+                    oldObj = manager.model.objects.get(**kwargs)
                     savedItem = self.update(instance=oldObj, validated_data=item)
                 else:
                     rel = getattr(instance._meta.model, field_name).rel

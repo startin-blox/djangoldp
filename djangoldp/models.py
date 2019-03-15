@@ -7,7 +7,7 @@ class Model(models.Model):
 
     @classmethod
     def get_view_set(cls):
-        view_set = getattr(cls._meta, 'view_set', None)
+        view_set = getattr(cls._meta, 'view_set', getattr(cls.Meta, 'view_set', None))
         if view_set is None:
             from djangoldp.views import LDPViewSet
             view_set = LDPViewSet
@@ -15,7 +15,7 @@ class Model(models.Model):
 
     @classmethod
     def get_container_path(cls):
-        path = getattr(cls._meta, 'container_path', None)
+        path = getattr(cls._meta, 'container_path', getattr(cls.Meta, 'container_path', None))
         if path is None:
             path = "{}s".format(cls._meta.object_name.lower())
 
@@ -29,11 +29,15 @@ class Model(models.Model):
 
     @classmethod
     def resource_id(cls, instance):
+        return "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance)))
+
+    @classmethod
+    def slug_field(cls, instance):
         view_name = '{}-detail'.format(instance._meta.object_name.lower())
         slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
-        return "{}{}".format(cls.container_id(instance), getattr(instance, slug_field))
+        return slug_field
 
     @classmethod
     def container_id(cls, instance):
@@ -50,6 +54,8 @@ class Model(models.Model):
     class Meta:
         default_permissions = ('add', 'change', 'delete', 'view', 'control')
         abstract = True
+        depth = 1
+        many_depth = 0
 
     @classmethod
     def resolve_id(cls, id):
@@ -79,6 +85,14 @@ class Model(models.Model):
         if not path.endswith("/"):
             path = "{}/".format(path)
         return path
+
+    @classmethod
+    def get_permission_classes(cls, related_model, default_permissions_classes):
+        try:
+            return getattr(related_model._meta, 'permission_classes',
+                           getattr(related_model.Meta, 'permission_classes', default_permissions_classes))
+        except AttributeError:
+            return default_permissions_classes
 
 
 class LDPSource(models.Model):
