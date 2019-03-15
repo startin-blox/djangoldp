@@ -70,7 +70,7 @@ class InboxPermissions(WACPermissions):
             return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-        if view.action == ['update', 'partial_update', 'destroy']:
+        if view.action in ['update', 'partial_update', 'destroy']:
             return False
         else:
             return super().has_object_permission(request, view)
@@ -106,7 +106,7 @@ class AnonymousReadOnly(WACPermissions):
     def has_object_permission(self, request, view, obj):
         if view.action == "create" and request.user.is_authenticated():
             return True
-        elif view.action == ["list", "retrieve"]:
+        elif view.action in ["list", "retrieve"]:
             return True
         elif view.action in ['update', 'partial_update', 'destroy']:
             if hasattr(obj._meta, 'auto_author'):
