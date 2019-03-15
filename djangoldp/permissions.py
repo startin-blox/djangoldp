@@ -37,6 +37,9 @@ class WACPermissions(permissions.DjangoObjectPermissions):
     def user_permissions(self, request, view, obj):
         return []
 
+    def filter_user_perms(self, request, obj, permissions):
+        return [perm for perm in permissions if perm in self.user_permissions(request, obj)]
+
 
 class ObjectFilter(filters.BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
@@ -78,9 +81,9 @@ class AnonymousReadOnly(WACPermissions):
         Author: can read all posts + create new posts + update their own
     """
 
-    anonymous_perms = [{'mode': {'@type': 'view'}}]
-    authenticated_perms = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}]
-    author_perms = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}, {'mode': {'@type': 'change'}}]
+    anonymous_perms = ['view']
+    authenticated_perms = ['view','add']
+    author_perms = ['view', 'add', 'change']
 
     def has_permission(self, request, view):
         if view.action in ['list', 'retrieve']:
@@ -111,12 +114,3 @@ class AnonymousReadOnly(WACPermissions):
                 return self.author_perms
             else:
                 return self.authenticated_perms
-
-    def filter_user_perms(self, request, obj, permissions):
-        if request.user.is_anonymous:
-            return [perm for perm in permissions if perm in self.anonymous_perms]
-        else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, obj._meta.auto_author) == request.user:
-                return [perm for perm in permissions if perm in self.author_perms]
-            else:
-                return [perm for perm in permissions if perm in self.authenticated_perms]
