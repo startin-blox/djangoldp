@@ -34,7 +34,7 @@ class WACPermissions(permissions.DjangoObjectPermissions):
             return super().has_permission(request, view)
 
     # This method should be overriden by other permission classes
-    def user_permissions(self, request, view, obj):
+    def user_permissions(self, request, obj):
         return []
 
     def filter_user_perms(self, request, obj, permissions):
@@ -53,26 +53,36 @@ class ObjectFilter(filters.BaseFilterBackend):
 class ObjectPermission(WACPermissions):
     filter_class = ObjectFilter
 
+
 class InboxPermissions(WACPermissions):
     """
-        Anonymous users: can create notifications but can't read
-        Logged in users: can create notifications but can't read
-        Inbox owners: can read + update all notifications
+        Everybody can create
+        Author can edit
     """
-    filter_class = ObjectFilter
+    anonymous_perms = ['view', 'create']
+    authenticated_perms = ['view','create']
+    author_perms = ['view']
+
     def has_permission(self, request, view):
-        if view.action in ['create', 'retrieve', 'update', 'partial_update', 'destroy']:
+        if view.action in ['create', 'list', 'retrieve']:
             return True
         else:
             return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-        if view.action == "create":
-            return True
-        if hasattr(obj._meta, 'auto_author'):
-            if request.user == getattr(obj, obj._meta.auto_author):
-                return True
-        return super().has_object_permission(request, view)
+        if view.action == ['update', 'partial_update', 'destroy']:
+            return False
+        else:
+            return super().has_object_permission(request, view)
+
+    def user_permissions(self, request, obj):
+        if request.user.is_anonymous:
+            return self.anonymous_perms
+        else:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, obj._meta.auto_author) == request.user:
+                return self.author_perms
+            else:
+                return self.authenticated_perms
 
 class AnonymousReadOnly(WACPermissions):
     """
@@ -83,7 +93,7 @@ class AnonymousReadOnly(WACPermissions):
 
     anonymous_perms = ['view']
     authenticated_perms = ['view','add']
-    author_perms = ['view', 'add', 'change']
+    author_perms = ['view', 'add', 'change', 'control', 'delete']
 
     def has_permission(self, request, view):
         if view.action in ['list', 'retrieve']:
@@ -106,7 +116,7 @@ class AnonymousReadOnly(WACPermissions):
         else:
             return super().has_object_permission(request, view, obj)
 
-    def user_permissions(self, request, view, obj):
+    def user_permissions(self, request, obj):
         if request.user.is_anonymous:
             return self.anonymous_perms
         else:

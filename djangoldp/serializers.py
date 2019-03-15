@@ -196,25 +196,23 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
     def get_permissions(self, obj):
-        permissions = []
+        permissions = ['view', 'add', 'change', 'control', 'delete']
 
         for permission_class in obj._meta.permission_classes:
-            perms = permission_class().filter_user_perms(self.context['request'], obj, permissions)
-        
-        permissions = get_perms(self.context['request'].user, obj)
-        
+            permissions = permission_class().filter_user_perms(self.context['request'], obj, permissions)
+
+        permissions += get_perms(self.context['request'].user, obj)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        permissions = ['view', 'add', 'change', 'control', 'delete']
 
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context
         
-        data['permissions'] self.get_permissions(obj)
+        data['permissions'] = self.get_permissions(obj)
         
         return data
 
