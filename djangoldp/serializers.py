@@ -350,7 +350,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            container_id = Model.get_container_path(self.parent.instance)
+            container_id = Model.container_id(self.parent.instance)
             obj = next(filter(lambda o: container_id in o[self.url_field_name], object_list))
             item = super().get_value(obj)
             full_item = None
