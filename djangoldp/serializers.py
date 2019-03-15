@@ -19,7 +19,6 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
-from djangoldp import permissions
 
 
 class LDListMixin:
@@ -198,20 +197,17 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
+        permissions = [{'mode': {'@type': 'view'}}, {'mode': {'@type': 'add'}}, {'mode': {'@type': 'change'}}, {'mode': {'@type': ''}}]
 
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
+
         data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
                                get_perms(self.context['request'].user, obj)]
 
-        if self.context['request'].user.is_anonymous:
-            data['permissions'] += permissions.AnonymousReadOnly.anonymous_perms
-        if hasattr(obj._meta, 'auto_author'):
-            author = getattr(obj, obj._meta.auto_author)
-            if author == self.context['request'].user:
-                data['permissions'] += permissions.AnonymousReadOnly.author_perms
-        else:
-            data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms
+        for permission_class in obj._meta.permission_classes:
+            perms = permission_class().filter_user_perms(self.context['request'], obj, permissions)
+        data['permissions'] += perms
 
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context

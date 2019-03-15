@@ -33,6 +33,10 @@ class WACPermissions(permissions.DjangoObjectPermissions):
         else:
             return super().has_permission(request, view)
 
+    # This method should be overriden by other permission classes
+    def user_permissions(self, request, view, obj):
+        return []
+
 
 class ObjectFilter(filters.BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
@@ -98,3 +102,21 @@ class AnonymousReadOnly(WACPermissions):
                     return True
         else:
             return super().has_object_permission(request, view, obj)
+
+    def user_permissions(self, request, view, obj):
+        if request.user.is_anonymous:
+            return self.anonymous_perms
+        else:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, obj._meta.auto_author) == request.user:
+                return self.author_perms
+            else:
+                return self.authenticated_perms
+
+    def filter_user_perms(self, request, obj, permissions):
+        if request.user.is_anonymous:
+            return [perm for perm in permissions if perm in self.anonymous_perms]
+        else:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, obj._meta.auto_author) == request.user:
+                return [perm for perm in permissions if perm in self.author_perms]
+            else:
+                return [perm for perm in permissions if perm in self.authenticated_perms]
