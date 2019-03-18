@@ -68,3 +68,11 @@ class Task(models.Model):
 
     class Meta:
         serializer_fields = ['@id', 'title', 'batch']
+
+
+class Post(Model):
+    content = models.CharField(max_length=255)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True)
+
+    class Meta:
+        auto_author = 'author'
