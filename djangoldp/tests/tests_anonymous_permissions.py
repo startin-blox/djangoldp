@@ -10,6 +10,7 @@ from djangoldp.views import LDPViewSet
 
 import json
 
+
 class TestAnonymousUserPermissions(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
