@@ -16,7 +16,6 @@ class TestAutoAuthor(APITestCase):
 
     def test_save_with_anonymous_user(self):
         post = {
-            '@context': "http://owl.openinitiative.com/oicontext.jsonld",
             '@graph': [{'http://happy-dev.fr/owl/#content': "post content"}]}
 
         response = self.client.post('/posts/', data=json.dumps(post), content_type='application/ld+json')
