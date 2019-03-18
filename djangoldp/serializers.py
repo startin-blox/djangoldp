@@ -204,25 +204,26 @@ class LDPSerializer(HyperlinkedModelSerializer):
             pass
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
+    def get_permissions(self, obj):
+        permissions = ['view', 'add', 'change', 'control', 'delete']
+
+        if hasattr(obj._meta, 'permission_classes'):
+            for permission_class in obj._meta.permission_classes:
+                permissions = permission_class().filter_user_perms(self.context['request'], obj, permissions)
+
+        permissions += get_perms(self.context['request'].user, obj)
+        return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
+
     def to_representation(self, obj):
         data = super().to_representation(obj)
 
         if hasattr(obj._meta, 'rdf_type'):
             data['@type'] = obj._meta.rdf_type
-        data['permissions'] = [{'mode': {'@type': name.split('_')[0]}} for name in
-                               get_perms(self.context['request'].user, obj)]
-
-        if self.context['request'].user.is_anonymous:
-            data['permissions'] += permissions.AnonymousReadOnly.anonymous_perms
-        elif self.context['request'].user.is_authenticated:
-            if hasattr(obj._meta, 'auto_author'):
-                data['permissions'] += permissions.AnonymousReadOnly.author_perms
-            else:
-                data['permissions'] += permissions.AnonymousReadOnly.authenticated_perms
-
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context
-
+        
+        data['permissions'] = self.get_permissions(obj)
+        
         return data
 
     def build_field(self, field_name, info, model_class, nested_depth):

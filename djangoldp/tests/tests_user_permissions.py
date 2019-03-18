@@ -7,6 +7,7 @@ from djangoldp.views import LDPViewSet
 
 import json
 
+
 class TestUserPermissions(APITestCase):
 
     def setUp(self):
