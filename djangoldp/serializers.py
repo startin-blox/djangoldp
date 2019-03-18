@@ -59,7 +59,7 @@ class LDListMixin:
             try:
                 list = next(
                     filter(lambda o: list[self.parent.url_field_name] == o[self.parent.url_field_name], object_list))
-            except (KeyError, TypeError):
+            except (KeyError, TypeError, StopIteration):
                 pass
 
             try:
@@ -350,8 +350,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def get_value(self, dictionary):
         try:
             object_list = dictionary["@graph"]
-            container_id = Model.container_id(self.parent.instance)
-            obj = next(filter(lambda o: container_id in o[self.url_field_name], object_list))
+            if self.parent.instance is None:
+                obj = next(filter(
+                    lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.url_field_name],
+                    object_list))
+            else:
+                container_id = Model.container_id(self.parent.instance)
+                obj = next(filter(lambda o: container_id in o[self.url_field_name], object_list))
             item = super().get_value(obj)
             full_item = None
             if item is empty:
