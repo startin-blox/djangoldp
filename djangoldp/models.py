@@ -29,7 +29,8 @@ class Model(models.Model):
 
     @classmethod
     def resource_id(cls, instance):
-        return "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance)))
+        r_id = "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance)))
+        return cls.__clean_path(r_id)
 
     @classmethod
     def slug_field(cls, instance):

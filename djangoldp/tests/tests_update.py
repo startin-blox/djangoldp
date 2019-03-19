@@ -215,17 +215,17 @@ class Update(TestCase):
                 }
             },
             {
-                '@id': "https://happy-dev.fr/threads/{}".format(thread.pk),
+                '@id': "https://happy-dev.fr/threads/{}/".format(thread.pk),
                 "author_user": {
                     '@id': "https://happy-dev.fr/users/{}/".format(user1.pk)
                 },
                 'description': "Thread 1 UP",
                 'message_set': {
-                    "@id": "https://happy-dev.fr/threads/{}/message_set".format(thread.pk)
+                    "@id": "https://happy-dev.fr/threads/{}/message_set/".format(thread.pk)
                 }
             },
             {
-                '@id': "https://happy-dev.fr/threads/{}/message_set".format(thread.pk),
+                '@id': "https://happy-dev.fr/threads/{}/message_set/".format(thread.pk),
                 "ldp:contains": [
                     {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
                     {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
