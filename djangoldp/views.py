@@ -4,7 +4,7 @@ from django.conf.urls import url, include
 from django.contrib.auth.models import User
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
-from django.db.utils import OperationalError
+from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
 from guardian.shortcuts import get_objects_for_user
@@ -209,7 +209,7 @@ class LDPSourceViewSet(LDPViewSet):
         try:
             return include([url(name + '/', super(LDPSourceViewSet, cls).urls(federation=name, **kwargs))
                             for name in LDPSource.objects.order_by().values_list('federation', flat=True).distinct()])
-        except OperationalError:  # for the case where the table doesn't exist
+        except (OperationalError, ProgrammingError):  # for the case where the table doesn't exist
             return include([])
 
     def get_queryset(self, *args, **kwargs):
