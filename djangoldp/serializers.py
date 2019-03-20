@@ -1,6 +1,7 @@
 from collections import OrderedDict, Mapping
 from urllib import parse
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
@@ -211,7 +212,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
             for permission_class in obj._meta.permission_classes:
                 permissions = permission_class().filter_user_perms(self.context['request'], obj, permissions)
 
-        permissions += get_perms(self.context['request'].user, obj)
+        if not isinstance(self.context['request'].user, AnonymousUser):
+            permissions += get_perms(self.context['request'].user, obj)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
     def to_representation(self, obj):
