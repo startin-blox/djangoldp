@@ -17,7 +17,6 @@ from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import ReturnDict
 
-from djangoldp import permissions
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
 
@@ -196,12 +195,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
             fields = list(self.Meta.model._meta.serializer_fields)
         except AttributeError:
             fields = super().get_default_field_names(declared_fields, model_info)
-        try:
-            fields.remove(self.Meta.model._meta.auto_author)
-        except ValueError:
-            pass
-        except AttributeError:
-            pass
+        if 'request' in self._context and not self._context['request']._request.method == 'GET':
+            try:
+                fields.remove(self.Meta.model._meta.auto_author)
+            except ValueError:
+                pass
+            except AttributeError:
+                pass
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
     def get_permissions(self, obj):
@@ -221,9 +221,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@type'] = obj._meta.rdf_type
         if hasattr(obj._meta, 'rdf_context'):
             data['@context'] = obj._meta.rdf_context
-        
+
         data['permissions'] = self.get_permissions(obj)
-        
+
         return data
 
     def build_field(self, field_name, info, model_class, nested_depth):
@@ -387,7 +387,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(model_class)
         many_to_many = {}
         for field_name, relation_info in info.relations.items():
-            if relation_info.to_many and relation_info.reverse and not (field_name in validated_data) and not field_name is None:
+            if relation_info.to_many and relation_info.reverse and not (
+                    field_name in validated_data) and not field_name is None:
                 rel = getattr(instance._meta.model, field_name).rel
                 if rel.name in validated_data:
                     related = validated_data[rel.name]
