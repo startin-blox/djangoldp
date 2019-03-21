@@ -2,6 +2,8 @@ from guardian.shortcuts import get_objects_for_user
 from rest_framework import filters
 from rest_framework import permissions
 
+from djangoldp.models import Model
+
 """
 Liste des actions passées dans views selon le protocole REST :
     list
@@ -35,11 +37,11 @@ class WACPermissions(permissions.DjangoObjectPermissions):
             return super().has_permission(request, view)
 
     # This method should be overriden by other permission classes
-    def user_permissions(self, request, obj):
+    def user_permissions(self, user, obj):
         return []
 
-    def filter_user_perms(self, request, obj, permissions):
-        return [perm for perm in permissions if perm in self.user_permissions(request, obj)]
+    def filter_user_perms(self, user_or_group, obj, permissions):
+        return [perm for perm in permissions if perm in self.user_permissions(user_or_group, obj)]
 
 
 class ObjectFilter(filters.BaseFilterBackend):
@@ -77,11 +79,11 @@ class InboxPermissions(WACPermissions):
         else:
             return super().has_object_permission(request, view)
 
-    def user_permissions(self, request, obj):
-        if request.user.is_anonymous:
+    def user_permissions(self, user, obj):
+        if user.is_anonymous:
             return self.anonymous_perms
         else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, obj._meta.auto_author) == request.user:
+            if Model.get_meta(obj, 'auto_author') == user:
                 return self.author_perms
             else:
                 return self.authenticated_perms
@@ -119,11 +121,11 @@ class AnonymousReadOnly(WACPermissions):
         else:
             return super().has_object_permission(request, view, obj)
 
-    def user_permissions(self, request, obj):
-        if request.user.is_anonymous:
+    def user_permissions(self, user, obj):
+        if user.is_anonymous:
             return self.anonymous_perms
         else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, obj._meta.auto_author) == request.user:
+            if Model.get_meta(obj, 'auto_author') == user:
                 return self.author_perms
             else:
                 return self.authenticated_perms

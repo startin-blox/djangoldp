@@ -1,6 +1,9 @@
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 from django.db import models
 from django.urls import get_resolver
+from django.utils.decorators import classonlymethod
+from guardian.shortcuts import get_perms
 
 
 class Model(models.Model):
@@ -27,12 +30,12 @@ class Model(models.Model):
     def get_container_id(self):
         return Model.container_id(self)
 
-    @classmethod
+    @classonlymethod
     def resource_id(cls, instance):
         r_id = "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance)))
         return cls.__clean_path(r_id)
 
-    @classmethod
+    @classonlymethod
     def slug_field(cls, instance):
         view_name = '{}-detail'.format(instance._meta.object_name.lower())
         slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
@@ -40,7 +43,7 @@ class Model(models.Model):
             slug_field = slug_field[1:]
         return slug_field
 
-    @classmethod
+    @classonlymethod
     def container_id(cls, instance):
         if isinstance(instance, cls):
             path = instance.get_container_path()
@@ -58,19 +61,19 @@ class Model(models.Model):
         depth = 1
         many_depth = 0
 
-    @classmethod
+    @classonlymethod
     def resolve_id(cls, id):
         id = cls.__clean_path(id)
         view, args, kwargs = get_resolver().resolve(id)
         return view.initkwargs['model'].objects.get(**kwargs)
 
-    @classmethod
+    @classonlymethod
     def resolve_container(cls, path):
         path = cls.__clean_path(path)
         view, args, kwargs = get_resolver().resolve(path)
         return view.initkwargs['model']
 
-    @classmethod
+    @classonlymethod
     def resolve(cls, path):
         container = cls.resolve_container(path)
         try:
@@ -79,7 +82,7 @@ class Model(models.Model):
             resolve_id = None
         return container, resolve_id
 
-    @classmethod
+    @classonlymethod
     def __clean_path(cls, path):
         if not path.startswith("/"):
             path = "/{}".format(path)
@@ -87,13 +90,28 @@ class Model(models.Model):
             path = "{}/".format(path)
         return path
 
-    @classmethod
+    @classonlymethod
     def get_permission_classes(cls, related_model, default_permissions_classes):
-        try:
-            return getattr(related_model._meta, 'permission_classes',
-                           getattr(related_model.Meta, 'permission_classes', default_permissions_classes))
-        except AttributeError:
-            return default_permissions_classes
+        return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
+
+    @classonlymethod
+    def get_meta(cls, model_class, meta_name, default=None):
+        if hasattr(model_class, 'Meta'):
+            meta = getattr(model_class.Meta, meta_name, default)
+        else:
+            meta = default
+        return getattr(model_class._meta, meta_name, meta)
+
+    @staticmethod
+    def get_permissions(obj_or_model, user_or_group, filter):
+        permissions = filter
+        for permission_class in Model.get_permission_classes(obj_or_model, []):
+            permissions = permission_class().filter_user_perms(user_or_group, obj_or_model, permissions)
+
+        if not isinstance(user_or_group, AnonymousUser):
+            permissions += get_perms(user_or_group, obj_or_model)
+        return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
+
 
 
 class LDPSource(models.Model):

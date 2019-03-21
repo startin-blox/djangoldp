@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from djangoldp.models import Model
+from djangoldp.permissions import AnonymousReadOnly
 
 
 class Skill(Model):
@@ -50,6 +51,7 @@ class Invoice(Model):
 
     class Meta:
         depth = 2
+        permission_classes = [AnonymousReadOnly]
         nested_fields = ["batches"]
 
 
