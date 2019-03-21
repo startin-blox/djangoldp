@@ -1,13 +1,11 @@
 from collections import OrderedDict, Mapping
 from urllib import parse
 
-from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
-from guardian.shortcuts import get_perms
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty
 from rest_framework.fields import get_error_detail, set_value
@@ -35,7 +33,11 @@ class LDListMixin:
         return [self.child.to_internal_value(item) for item in data]
 
     def to_representation(self, value):
-        return {'@id': self.id, '@type': 'ldp:Container', 'ldp:contains': super().to_representation(value)}
+        return {'@id': self.id,
+                '@type': 'ldp:Container',
+                'ldp:contains': super().to_representation(value),
+                'permissions': Model.get_permissions(value.model, self.context['request'].user, ['view', 'add'])
+                }
 
     def get_attribute(self, instance):
         parent_id_field = self.parent.fields[self.parent.url_field_name]
@@ -205,26 +207,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 pass
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
-    def get_permissions(self, obj):
-        permissions = ['view', 'add', 'change', 'control', 'delete']
-
-        if hasattr(obj._meta, 'permission_classes'):
-            for permission_class in obj._meta.permission_classes:
-                permissions = permission_class().filter_user_perms(self.context['request'], obj, permissions)
-
-        if not isinstance(self.context['request'].user, AnonymousUser):
-            permissions += get_perms(self.context['request'].user, obj)
-        return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
-
     def to_representation(self, obj):
         data = super().to_representation(obj)
 
-        if hasattr(obj._meta, 'rdf_type'):
-            data['@type'] = obj._meta.rdf_type
-        if hasattr(obj._meta, 'rdf_context'):
-            data['@context'] = obj._meta.rdf_context
-
-        data['permissions'] = self.get_permissions(obj)
+        data['@type'] = Model.get_meta(obj, 'rdf_type', None)
+        data['@context'] = Model.get_meta(obj, 'rdf_context', None)
+        data['permissions'] = Model.get_permissions(obj, self.context['request'].user,
+                                                    ['view', 'change', 'control', 'delete'])
 
         return data
 
