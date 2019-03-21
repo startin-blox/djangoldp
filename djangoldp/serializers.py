@@ -210,8 +210,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def to_representation(self, obj):
         data = super().to_representation(obj)
 
-        data['@type'] = Model.get_meta(obj, 'rdf_type', None)
-        data['@context'] = Model.get_meta(obj, 'rdf_context', None)
+        rdf_type = Model.get_meta(obj, 'rdf_type', None)
+        rdf_context = Model.get_meta(obj, 'rdf_context', None)
+        if rdf_type is not None:
+            data['@type'] = rdf_type
+        if rdf_context is not None:
+            data['@context'] = rdf_context
         data['permissions'] = Model.get_permissions(obj, self.context['request'].user,
                                                     ['view', 'change', 'control', 'delete'])
 
