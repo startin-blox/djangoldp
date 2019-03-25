@@ -35,3 +35,8 @@ class TestGET(APITestCase):
         self.assertIn('permissions', response.data)
         self.assertEquals(1, len(response.data['permissions'])) # read only
 
+    def test_get_empty_container(self):
+        Post.objects.all().delete()
+        response = self.client.get('/posts/', content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+
