@@ -129,3 +129,31 @@ class AnonymousReadOnly(WACPermissions):
                 return self.author_perms
             else:
                 return self.authenticated_perms
+
+
+class LoggedReadOnly(WACPermissions):
+    """
+        Anonymous users: Nothing
+        Logged in users: can read all posts
+    """
+
+    anonymous_perms = []
+    authenticated_perms = ['view']
+
+    def has_permission(self, request, view):
+        if view.action in ['list', 'retrieve'] and request.user.is_authenticated():
+            return True
+        else:
+            return super().has_permission(request, view)
+
+    def has_object_permission(self, request, view, obj):
+        if view.action in ["list", "retrieve"] and request.user.is_authenticated():
+            return True
+        else:
+            return super().has_object_permission(request, view, obj)
+
+    def user_permissions(self, user, obj):
+        if user.is_anonymous:
+            return self.anonymous_perms
+        else:
+            return self.authenticated_perms
