@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice
+from djangoldp.tests.models import Skill, JobOffer, Invoice, Message
 
 
 class Save(TestCase):
@@ -144,3 +144,26 @@ class Save(TestCase):
         self.assertIs(result.joboffer_set.count(), 1)
         self.assertEquals(result.joboffer_set.get(), job)
         self.assertIs(result.joboffer_set.get().skills.count(), 1)
+
+    def test_save_fk_graph_with_nested(self):
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
+
+        message = {"@graph": [
+            {"text": "message test",
+             "thread": {"@id": "_.123"}
+             },
+            {"@id": "_.123", "description": "thread"},
+        ]}
+
+        meta_args = {'model': Message, 'depth': 2, 'fields': ("@id", "text", "thread")}
+
+        meta_class = type('Meta', (), meta_args)
+        serializer_class = type(LDPSerializer)('MessageSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=message)
+        serializer.is_valid()
+        result = serializer.save()
+
+        self.assertEquals(result.text, "message test")
+        self.assertIsNotNone(result.thread)
+        self.assertEquals(result.thread.description, "thread")

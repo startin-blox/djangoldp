@@ -391,8 +391,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def internal_create(self, validated_data, model):
         nested_fields = []
-        nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
-        for field_name in nested_fields_name:
+        nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
+        # TODO replace fk_fields_name by the instance in validated_data
+
+        nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
+        for field_name in nested_list_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
 
         instance = model.objects.create(**validated_data)
