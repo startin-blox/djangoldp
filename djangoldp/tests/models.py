@@ -61,7 +61,7 @@ class Batch(Model):
 
     class Meta:
         serializer_fields = ['@id', 'title', 'invoice', 'tasks']
-        nested_fields = ["tasks"]
+        nested_fields = ["tasks", 'invoice']
 
 
 class Task(models.Model):

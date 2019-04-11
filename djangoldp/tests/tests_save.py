@@ -1,7 +1,9 @@
 from django.test import TestCase
+from rest_framework.utils import json
 
+from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice
+from djangoldp.tests.models import Skill, JobOffer, Invoice, Message
 
 
 class Save(TestCase):
@@ -144,3 +146,44 @@ class Save(TestCase):
         self.assertIs(result.joboffer_set.count(), 1)
         self.assertEquals(result.joboffer_set.get(), job)
         self.assertIs(result.joboffer_set.get().skills.count(), 1)
+
+    def test_save_fk_graph_with_nested(self):
+        post = {
+            '@graph': [
+                {
+                    'http://happy-dev.fr/owl/#title': "title",
+                    'http://happy-dev.fr/owl/#invoice': {
+                        '@id': "_.123"
+                    }
+                },
+                {
+                    '@id': "_.123",
+                    'http://happy-dev.fr/owl/#title': "title 2"
+                }
+            ]
+        }
+
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('author', response.data)
+        self.assertEquals(response.data['title'], "title")
+        self.assertEquals(response.data['invoice']['title'], "title 2")
+
+    def test_save_fk_graph_with_existing_nested(self):
+        invoice = Invoice.objects.create(title="title 3")
+        post = {
+            '@graph': [
+                {
+                    'http://happy-dev.fr/owl/#title': "title",
+                    'http://happy-dev.fr/owl/#invoice': {
+                        '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)
+                    }
+                }
+            ]
+        }
+
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('author', response.data)
+        self.assertEquals(response.data['title'], "title")
+        self.assertEquals(response.data['invoice']['title'], "title 3")
