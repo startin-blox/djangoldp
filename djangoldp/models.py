@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.db import models
+from django.db.models.base import ModelBase
 from django.urls import get_resolver
 from django.utils.decorators import classonlymethod
 from guardian.shortcuts import get_perms
@@ -36,8 +37,12 @@ class Model(models.Model):
         return cls.__clean_path(r_id)
 
     @classonlymethod
-    def slug_field(cls, instance):
-        view_name = '{}-detail'.format(instance._meta.object_name.lower())
+    def slug_field(cls, instance_or_model):
+        if isinstance(instance_or_model, ModelBase):
+            object_name = instance_or_model.__name__.lower()
+        else:
+            object_name = instance_or_model._meta.object_name.lower()
+        view_name = '{}-detail'.format(object_name)
         slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
@@ -111,7 +116,6 @@ class Model(models.Model):
         if not isinstance(user_or_group, AnonymousUser):
             permissions += get_perms(user_or_group, obj_or_model)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
-
 
 
 class LDPSource(models.Model):

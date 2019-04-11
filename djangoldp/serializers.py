@@ -358,7 +358,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             if item is empty:
                 return empty
             try:
-                full_item = next(filter(lambda o: item[self.url_field_name] == o[self.url_field_name], object_list))
+                full_item = next(filter(lambda o: self.url_field_name in o and (item[self.url_field_name] == o[self.url_field_name]), object_list))
             except StopIteration:
                 pass
             if full_item is None:
@@ -390,10 +390,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     getattr(instance, field_name).add(related)
 
     def internal_create(self, validated_data, model):
-        nested_fields = []
-        nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
-        # TODO replace fk_fields_name by the instance in validated_data
 
+        nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
+        for field_name in nested_fk_fields_name:
+            field_dict = validated_data[field_name]
+            field_model = getattr(model, field_name).field.rel.model
+            slug_field = Model.slug_field(field_model)
+            if slug_field in field_dict:
+                kwargs = {slug_field: field_dict[slug_field]}
+                sub_inst = field_model.objects.get(**kwargs)
+            else:
+                sub_inst = self.internal_create(field_dict, field_model )
+            validated_data[field_name] = sub_inst
+
+        nested_fields = []
         nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_list_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))

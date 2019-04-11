@@ -1,5 +1,7 @@
 from django.test import TestCase
+from rest_framework.utils import json
 
+from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
 from djangoldp.tests.models import Skill, JobOffer, Invoice, Message
 
@@ -146,24 +148,42 @@ class Save(TestCase):
         self.assertIs(result.joboffer_set.get().skills.count(), 1)
 
     def test_save_fk_graph_with_nested(self):
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
+        post = {
+            '@graph': [
+                {
+                    'http://happy-dev.fr/owl/#title': "title",
+                    'http://happy-dev.fr/owl/#invoice': {
+                        '@id': "_.123"
+                    }
+                },
+                {
+                    '@id': "_.123",
+                    'http://happy-dev.fr/owl/#title': "title 2"
+                }
+            ]
+        }
 
-        message = {"@graph": [
-            {"text": "message test",
-             "thread": {"@id": "_.123"}
-             },
-            {"@id": "_.123", "description": "thread"},
-        ]}
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('author', response.data)
+        self.assertEquals(response.data['title'], "title")
+        self.assertEquals(response.data['invoice']['title'], "title 2")
 
-        meta_args = {'model': Message, 'depth': 2, 'fields': ("@id", "text", "thread")}
+    def test_save_fk_graph_with_existing_nested(self):
+        invoice = Invoice.objects.create(title="title 3")
+        post = {
+            '@graph': [
+                {
+                    'http://happy-dev.fr/owl/#title': "title",
+                    'http://happy-dev.fr/owl/#invoice': {
+                        '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)
+                    }
+                }
+            ]
+        }
 
-        meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('MessageSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=message)
-        serializer.is_valid()
-        result = serializer.save()
-
-        self.assertEquals(result.text, "message test")
-        self.assertIsNotNone(result.thread)
-        self.assertEquals(result.thread.description, "thread")
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('author', response.data)
+        self.assertEquals(response.data['title'], "title")
+        self.assertEquals(response.data['invoice']['title'], "title 3")
