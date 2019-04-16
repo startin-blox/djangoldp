@@ -37,3 +37,9 @@ for class_name in model_classes:
                  permission_classes=Model.get_meta(model_class, 'permission_classes', []),
                  fields=Model.get_meta(model_class, 'serializer_fields', []),
                  nested_fields=Model.get_meta(model_class, 'nested_fields', [])))))
+
+for package in settings.DJANGOLDP_PACKAGES:
+    try:
+        urlpatterns.append(url(r'^', include('{}.urls'.format(package))))
+    except ModuleNotFoundError:
+        pass

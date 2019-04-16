@@ -35,7 +35,7 @@ settings.configure(DEBUG=True,
                        }
                    }
                    ,
-                   ROOT_URLCONF='djangoldp.tests.urls',
+                   ROOT_URLCONF='djangoldp.urls',
                    DJANGOLDP_PACKAGES=['djangoldp.tests'],
                    INSTALLED_APPS=('django.contrib.auth',
                                    'django.contrib.contenttypes',
