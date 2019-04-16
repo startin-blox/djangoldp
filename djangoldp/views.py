@@ -151,7 +151,10 @@ class LDPViewSet(LDPViewSetGenerator):
 
 
 class LDPNestedViewSet(LDPViewSet):
-    """A special case of LDPViewSet serving objects of a relation of a given object (e.g. members of a group, or skills of a user)"""
+    """
+    A special case of LDPViewSet serving objects of a relation of a given object
+    (e.g. members of a group, or skills of a user)
+    """
     parent_model = None
     parent_lookup_field = None
     related_field = None
