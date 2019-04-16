@@ -20,7 +20,10 @@ urlpatterns = [
 ]
 
 for package in settings.DJANGOLDP_PACKAGES:
-    import_module('{}.models'.format(package))
+    try:
+        import_module('{}.models'.format(package))
+    except ModuleNotFoundError:
+        pass
 
 model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
 
