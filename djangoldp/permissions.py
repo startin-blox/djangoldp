@@ -77,7 +77,7 @@ class InboxPermissions(WACPermissions):
         if view.action in ['update', 'partial_update', 'destroy']:
             return False
         else:
-            return super().has_object_permission(request, view)
+            return super().has_object_permission(request, view, obj)
 
     def user_permissions(self, user, obj):
         if user.is_anonymous:
