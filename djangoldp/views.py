@@ -1,7 +1,6 @@
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
-from django.contrib.auth.models import User
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
 from django.db.utils import OperationalError, ProgrammingError
@@ -120,7 +119,7 @@ class LDPViewSet(LDPViewSetGenerator):
         return type(LDPSerializer)(model_name + 'Serializer', (LDPSerializer,), {'Meta': meta_class})
 
     def perform_create(self, serializer, **kwargs):
-        if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, User):
+        if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, settings.AUTH_USER_MODEL):
             kwargs[self.model._meta.auto_author] = self.request.user
         serializer.save(**kwargs)
 
