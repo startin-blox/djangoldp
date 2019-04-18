@@ -63,12 +63,12 @@ class InboxPermissions(WACPermissions):
         Everybody can create
         Author can edit
     """
-    anonymous_perms = ['view', 'create']
-    authenticated_perms = ['view', 'create']
-    author_perms = ['view']
+    anonymous_perms = ['create']
+    authenticated_perms = ['create']
+    author_perms = ['view', 'update']
 
     def has_permission(self, request, view):
-        if view.action in ['create', 'list', 'retrieve']:
+        if view.action in ['create']:
             return True
         else:
             return super().has_permission(request, view)
