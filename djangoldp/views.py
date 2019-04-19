@@ -143,6 +143,11 @@ class LDPViewSet(LDPViewSetGenerator):
         if response.status_code == 201 and '@id' in response.data:
             response["Location"] = response.data['@id']
         response["Accept-Post"] = "application/ld+json"
+        if request.user.is_authenticated():
+            try:
+                response['User'] = request.user.webid()
+            except AttributeError:
+                pass
         return response
 
     def update(self, request, *args, **kwargs):
