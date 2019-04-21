@@ -40,6 +40,6 @@ for class_name in model_classes:
 
 for package in settings.DJANGOLDP_PACKAGES:
     try:
-        urlpatterns.append(url(r'^', include('{}.urls'.format(package))))
+        urlpatterns.append(url(r'^', include('{}.djangoldp_urls'.format(package))))
     except ModuleNotFoundError:
         pass
