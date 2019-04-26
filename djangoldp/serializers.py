@@ -1,4 +1,5 @@
 from collections import OrderedDict, Mapping
+from typing import Any
 from urllib import parse
 
 from django.core.exceptions import ImproperlyConfigured
@@ -9,7 +10,7 @@ from django.utils.encoding import uri_to_iri
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty
 from rest_framework.fields import get_error_detail, set_value
-from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS
+from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS, Hyperlink
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
@@ -181,6 +182,12 @@ class JsonLdIdentityField(JsonLdField):
 
     def get_value(self, dictionary):
         return super().get_value(dictionary)
+
+    def to_representation(self, value: Any) -> Any:
+        try:
+            return Hyperlink(value.webid(), value)
+        except AttributeError:
+            return super().to_representation(value)
 
 
 class LDPSerializer(HyperlinkedModelSerializer):
