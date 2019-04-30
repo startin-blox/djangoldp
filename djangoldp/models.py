@@ -135,7 +135,7 @@ class LDPSource(models.Model):
 
 
 class LDNotification(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.deletion.CASCADE)
     author = models.URLField()
     object = models.URLField()
     type = models.CharField(max_length=255)
