@@ -135,8 +135,8 @@ class LDPViewSet(LDPViewSetGenerator):
     def dispatch(self, request, *args, **kwargs):
         response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
         response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
-        response["Access-Control-Allow-Methods"] = "POST,PUT, PATCH"
-        response["Access-Control-Allow-Headers"] = "Content-Type, if-match"
+        response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH"
+        response["Access-Control-Allow-Headers"] = "authorization, Content-Type, if-match"
         response["Access-Control-Expose-Headers"] = "Location"
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
