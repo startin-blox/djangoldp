@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Thread, Message
+from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
 class Update(TestCase):
@@ -147,9 +147,9 @@ class Update(TestCase):
 
     def test_update_list_with_reverse_relation(self):
         user1 = User.objects.create()
-        thread = Thread.objects.create(description="Thread 1", author_user=user1)
-        message1 = Message.objects.create(text="Message 1", thread=thread, author_user=user1)
-        message2 = Message.objects.create(text="Message 2", thread=thread, author_user=user1)
+        conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
+        message1 = Message.objects.create(text="Message 1", conversation=conversation, author_user=user1)
+        message2 = Message.objects.create(text="Message 2", conversation=conversation, author_user=user1)
 
         json = {"@graph": [
             {
@@ -161,8 +161,8 @@ class Update(TestCase):
                 "text": "Message 2 UP"
             },
             {
-                '@id': "https://happy-dev.fr/threads/{}/".format(thread.pk),
-                'description': "Thread 1 UP",
+                '@id': "https://happy-dev.fr/conversations/{}/".format(conversation.pk),
+                'description': "Conversation 1 UP",
                 "message_set": [
                     {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
                     {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
@@ -171,26 +171,26 @@ class Update(TestCase):
         ]
         }
 
-        meta_args = {'model': Thread, 'depth': 2, 'fields': ("@id", "description", "message_set")}
+        meta_args = {'model': Conversation, 'depth': 2, 'fields': ("@id", "description", "message_set")}
 
         meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('ThreadSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=json, instance=thread)
+        serializer_class = type(LDPSerializer)('ConversationSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=json, instance=conversation)
         serializer.is_valid()
         result = serializer.save()
 
         messages = result.message_set.all().order_by('text')
 
-        self.assertEquals(result.description, "Thread 1 UP")
+        self.assertEquals(result.description, "Conversation 1 UP")
         self.assertIs(result.message_set.count(), 2)
         self.assertEquals(messages[0].text, "Message 1 UP")
         self.assertEquals(messages[1].text, "Message 2 UP")
 
     def test_add_new_element_with_foreign_key_id(self):
         user1 = User.objects.create()
-        thread = Thread.objects.create(description="Thread 1", author_user=user1)
-        message1 = Message.objects.create(text="Message 1", thread=thread, author_user=user1)
-        message2 = Message.objects.create(text="Message 2", thread=thread, author_user=user1)
+        conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
+        message1 = Message.objects.create(text="Message 1", conversation=conversation, author_user=user1)
+        message2 = Message.objects.create(text="Message 2", conversation=conversation, author_user=user1)
 
         json = {"@graph": [
             {
@@ -215,17 +215,17 @@ class Update(TestCase):
                 }
             },
             {
-                '@id': "https://happy-dev.fr/threads/{}/".format(thread.pk),
+                '@id': "https://happy-dev.fr/conversations/{}/".format(conversation.pk),
                 "author_user": {
                     '@id': "https://happy-dev.fr/users/{}/".format(user1.pk)
                 },
-                'description': "Thread 1 UP",
+                'description': "Conversation 1 UP",
                 'message_set': {
-                    "@id": "https://happy-dev.fr/threads/{}/message_set/".format(thread.pk)
+                    "@id": "https://happy-dev.fr/conversations/{}/message_set/".format(conversation.pk)
                 }
             },
             {
-                '@id': "https://happy-dev.fr/threads/{}/message_set/".format(thread.pk),
+                '@id': "https://happy-dev.fr/conversations/{}/message_set/".format(conversation.pk),
                 "ldp:contains": [
                     {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
                     {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
@@ -235,17 +235,17 @@ class Update(TestCase):
         ]
         }
 
-        meta_args = {'model': Thread, 'depth': 2, 'fields': ("@id", "description", "message_set")}
+        meta_args = {'model': Conversation, 'depth': 2, 'fields': ("@id", "description", "message_set")}
 
         meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('ThreadSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=json, instance=thread)
+        serializer_class = type(LDPSerializer)('ConversationSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=json, instance=conversation)
         serializer.is_valid()
         result = serializer.save()
 
         messages = result.message_set.all().order_by('text')
 
-        self.assertEquals(result.description, "Thread 1 UP")
+        self.assertEquals(result.description, "Conversation 1 UP")
         self.assertIs(result.message_set.count(), 3)
         self.assertEquals(messages[0].text, "Message 1 UP")
         self.assertEquals(messages[1].text, "Message 2 UP")

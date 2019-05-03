@@ -26,14 +26,14 @@ class JobOffer(Model):
         lookup_field = 'slug'
 
 
-class Thread(models.Model):
+class Conversation(models.Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
 
 class Message(models.Model):
     text = models.CharField(max_length=255, blank=True, null=True)
-    thread = models.ForeignKey(Thread, on_delete=models.DO_NOTHING)
+    conversation = models.ForeignKey(Conversation, on_delete=models.DO_NOTHING)
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
 
