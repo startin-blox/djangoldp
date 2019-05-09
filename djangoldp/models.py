@@ -1,10 +1,12 @@
 from django.conf import settings
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, User
 from django.db import models
 from django.db.models.base import ModelBase
 from django.urls import get_resolver
 from django.utils.decorators import classonlymethod
 from guardian.shortcuts import get_perms
+
+User._meta.rdf_type = "foaf:user"
 
 
 class Model(models.Model):
@@ -147,3 +149,4 @@ class LDNotification(models.Model):
             ('view_todo', 'Read'),
             ('control_todo', 'Control'),
         )
+
