@@ -22,6 +22,8 @@ from djangoldp.models import Model
 
 
 class LDListMixin:
+    child_attr = 'child'
+
     def to_internal_value(self, data):
         try:
             data = data['ldp:contains']
@@ -31,7 +33,8 @@ class LDListMixin:
             data = [data]
         if isinstance(data, str) and data.startswith("http"):
             data = [{'@id': data}]
-        return [self.child.to_internal_value(item) for item in data]
+
+        return [getattr(self, self.child_attr).to_internal_value(item) for item in data]
 
     def to_representation(self, value):
         return {'@id': self.id,
@@ -120,7 +123,9 @@ class ContainerSerializer(LDListMixin, ListSerializer):
 
 
 class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
-    pass
+    child_attr = 'child_relation'
+    url_field_name = "@id"
+
 
 
 class JsonLdField(HyperlinkedRelatedField):
@@ -449,8 +454,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
             slug_field = Model.slug_field(instance)
+            try:
+                item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
+            except TypeError:
+                item_pk_to_keep = list(map(lambda e: getattr(e, slug_field), filter(lambda x: hasattr(x, slug_field), data)))
 
-            item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
             for item in list(manager.all()):
                 if not str(getattr(item, slug_field)) in item_pk_to_keep:
                     if getattr(manager, 'through', None) is None:
@@ -459,10 +467,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         manager.remove(item)
 
             for item in data:
-                if slug_field in item:
+                if not isinstance(item, dict):
+                    item.save()
+                    saved_item = item
+                elif slug_field in item:
                     kwargs = {slug_field: item[slug_field]}
-                    oldObj = manager.model.objects.get(**kwargs)
-                    savedItem = self.update(instance=oldObj, validated_data=item)
+                    old_obj = manager.model.objects.get(**kwargs)
+                    saved_item = self.update(instance=old_obj, validated_data=item)
                 else:
                     rel = getattr(instance._meta.model, field_name).rel
                     try:
@@ -471,7 +482,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                             item[reverse_id] = instance.pk
                     except AttributeError:
                         pass
-                    savedItem = self.internal_create(validated_data=item, model=manager.model)
+                    saved_item = self.internal_create(validated_data=item, model=manager.model)
 
                 if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
-                    manager.add(savedItem)
+                    manager.add(saved_item)
