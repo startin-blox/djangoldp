@@ -140,8 +140,10 @@ class LDPViewSet(LDPViewSetGenerator):
         response["Access-Control-Expose-Headers"] = "Location"
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
-        if response.status_code == 201 and '@id' in response.data:
+        if response.status_code in [201, 200] and '@id' in response.data:
             response["Location"] = response.data['@id']
+        else:
+            pass
         response["Accept-Post"] = "application/ld+json"
         if request.user.is_authenticated():
             try:
