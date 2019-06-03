@@ -1,5 +1,4 @@
 from django.contrib import admin
-from .models import LDPSource, LDNotification
+from .models import LDPSource
 
 admin.site.register(LDPSource)
-admin.site.register(LDNotification)
