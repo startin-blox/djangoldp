@@ -22,7 +22,8 @@ class JSONLDRenderer(JSONRenderer):
     media_type = 'application/ld+json'
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
-        data["@context"] = settings.LDP_RDF_CONTEXT
+        if data is not None:
+            data["@context"] = settings.LDP_RDF_CONTEXT
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
 
