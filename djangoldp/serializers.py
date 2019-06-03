@@ -60,7 +60,7 @@ class LDListMixin:
                     object_list))
             else:
                 container_id = Model.container_id(self.parent.instance)
-                obj = next(filter(lambda o: container_id in o[self.parent.url_field_name], object_list))
+                obj = next(filter(lambda o: container_id.lstrip('/') in o[self.parent.url_field_name], object_list))
             list = super().get_value(obj)
             try:
                 list = next(
@@ -256,7 +256,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         return super().get_value(obj)
                     else:
                         resource_id = Model.resource_id(self.parent.instance)
-                        obj = next(filter(lambda o: resource_id in o[self.parent.url_field_name], object_list))
+                        obj = next(filter(lambda o: resource_id.lstrip('/') in o[self.parent.url_field_name], object_list))
                         return super().get_value(obj)
                 except KeyError:
                     return super().get_value(dictionary)
