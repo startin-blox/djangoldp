@@ -1,11 +1,21 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer
+from djangoldp.tests.models import Post
 from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
 class Update(TestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.client = APIClient()
+
+    def tearDown(self):
+        pass
 
     def test_update(self):
         skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug1")
@@ -250,3 +260,13 @@ class Update(TestCase):
         self.assertEquals(messages[0].text, "Message 1 UP")
         self.assertEquals(messages[1].text, "Message 2 UP")
         self.assertEquals(messages[2].text, "Message 3 NEW")
+
+    def test_put_resource(self):
+        post = Post.objects.create(content="content")
+        body = [{
+            '@id': '/posts/{}/'.format(post.pk),
+            'http://happy-dev.fr/owl/#content': "post content"}]
+        response = self.client.put('/posts/{}/'.format(post.pk), data=json.dumps(body), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEquals(response.data['content'], "post content")
+        self.assertIn('location', response._headers)
