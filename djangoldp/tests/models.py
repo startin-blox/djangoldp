@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from djangoldp.models import Model
@@ -78,3 +79,6 @@ class Post(Model):
 
     class Meta:
         auto_author = 'author'
+
+
+get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'conversation_set']

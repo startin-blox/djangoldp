@@ -266,7 +266,28 @@ class Update(TestCase):
         body = [{
             '@id': '/posts/{}/'.format(post.pk),
             'http://happy-dev.fr/owl/#content': "post content"}]
-        response = self.client.put('/posts/{}/'.format(post.pk), data=json.dumps(body), content_type='application/ld+json')
+        response = self.client.put('/posts/{}/'.format(post.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "post content")
         self.assertIn('location', response._headers)
+
+    def test_create_sub_object_in_existing_object_with_reverse_relation(self):
+        user = User.objects.create(username="alex", password="test")
+        body = [
+            {
+                '@id': "_:b975",
+                'http://happy-dev.fr/owl/#description': "conversation description"
+            },
+            {
+                '@id': '/users/{}/'.format(user.pk),
+                "http://happy-dev.fr/owl/#first_name": "Alexandre",
+                "http://happy-dev.fr/owl/#last_name": "Bourlier",
+                "http://happy-dev.fr/owl/#username": "alex",
+                'http://happy-dev.fr/owl/#conversation_set': {'@id': "_:b975"}
+            }
+        ]
+        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('conversation_set', response.data)
