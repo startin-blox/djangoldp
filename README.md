@@ -243,6 +243,9 @@ class Todo(Model):
 ```
 Only `name` will be serialized
 
+## Custom urls
+To add customs urls who can not be add through the `Model` class, it's possible de create a file named `djangoldp_urls.py`. It will be executed like an `urls.py` file
+
 ## License
 
 Licence MIT
