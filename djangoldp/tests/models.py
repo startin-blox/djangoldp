@@ -32,6 +32,11 @@ class Conversation(models.Model):
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
 
+class UserProfile(Model):
+    description = models.CharField(max_length=255, blank=True, null=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL)
+
+
 class Message(models.Model):
     text = models.CharField(max_length=255, blank=True, null=True)
     conversation = models.ForeignKey(Conversation, on_delete=models.DO_NOTHING)
@@ -81,4 +86,4 @@ class Post(Model):
         auto_author = 'author'
 
 
-get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'conversation_set']
+get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile']

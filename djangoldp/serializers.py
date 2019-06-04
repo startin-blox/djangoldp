@@ -364,7 +364,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     object_list))
             else:
                 container_id = Model.container_id(self.parent.instance)
-                obj = next(filter(lambda o: container_id in o[self.url_field_name], object_list))
+                obj = next(filter(lambda o: container_id.lstrip('/') in o[self.url_field_name], object_list))
             item = super().get_value(obj)
             full_item = None
             if item is empty:
@@ -432,16 +432,23 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field_name in nested_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
 
+        info = model_meta.get_field_info(instance)
         for attr, value in validated_data.items():
             if isinstance(value, dict):
                 slug_field = Model.slug_field(instance)
-                manager = getattr(instance, attr)
+                relation_info = info.relations.get(attr)
                 if slug_field in value:
                     kwargs = {slug_field: value[slug_field]}
-                    oldObj = manager._meta.model.objects.get(**kwargs)
+                    if relation_info.to_many:
+                        manager = getattr(instance, attr)
+                        oldObj = manager._meta.model.objects.get(**kwargs)
+                    else:
+                        oldObj = getattr(instance, attr)
                     value = self.update(instance=oldObj, validated_data=value)
                 else:
-                    value = self.internal_create(validated_data=value, model=manager._meta.model)
+                    if not relation_info.to_many:
+                        value[instance._meta.fields_map[attr].remote_field.name] = instance
+                    value = self.internal_create(validated_data=value, model=relation_info.related_model)
             setattr(instance, attr, value)
 
         instance.save()

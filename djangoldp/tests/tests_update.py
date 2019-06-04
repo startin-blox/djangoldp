@@ -284,10 +284,10 @@ class Update(TestCase):
                 "http://happy-dev.fr/owl/#first_name": "Alexandre",
                 "http://happy-dev.fr/owl/#last_name": "Bourlier",
                 "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#conversation_set': {'@id': "_:b975"}
+                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b975"}
             }
         ]
         response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('conversation_set', response.data)
+        self.assertIn('userprofile', response.data)
