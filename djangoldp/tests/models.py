@@ -36,6 +36,9 @@ class UserProfile(Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL)
 
+    class Meta:
+        depth = 1
+
 
 class Message(models.Model):
     text = models.CharField(max_length=255, blank=True, null=True)

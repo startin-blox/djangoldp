@@ -272,7 +272,11 @@ class Update(TestCase):
         self.assertEquals(response.data['content'], "post content")
         self.assertIn('location', response._headers)
 
+
     def test_create_sub_object_in_existing_object_with_reverse_relation(self):
+        """
+        Doesn't work with depth = 0 on UserProfile Model. Should it be ?
+        """
         user = User.objects.create(username="alex", password="test")
         body = [
             {
