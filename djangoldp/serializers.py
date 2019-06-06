@@ -432,23 +432,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field_name in nested_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
 
-        info = model_meta.get_field_info(instance)
         for attr, value in validated_data.items():
             if isinstance(value, dict):
-                slug_field = Model.slug_field(instance)
-                relation_info = info.relations.get(attr)
-                if slug_field in value:
-                    kwargs = {slug_field: value[slug_field]}
-                    if relation_info.to_many:
-                        manager = getattr(instance, attr)
-                        oldObj = manager._meta.model.objects.get(**kwargs)
-                    else:
-                        oldObj = getattr(instance, attr)
-                    value = self.update(instance=oldObj, validated_data=value)
-                else:
-                    if not relation_info.to_many:
-                        value[instance._meta.fields_map[attr].remote_field.name] = instance
-                    value = self.internal_create(validated_data=value, model=relation_info.related_model)
+                value = self.update_dict_value(attr, instance, value)
             setattr(instance, attr, value)
 
         instance.save()
@@ -456,6 +442,39 @@ class LDPSerializer(HyperlinkedModelSerializer):
         self.save_or_update_nested_list(instance, nested_fields)
 
         return instance
+
+    def update_dict_value(self, attr, instance, value):
+        info = model_meta.get_field_info(instance)
+        slug_field = Model.slug_field(instance)
+        relation_info = info.relations.get(attr)
+        if slug_field in value:
+            value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
+        else:
+            value = self.update_dict_value_without_slug_field(attr, instance, relation_info, value)
+        return value
+
+    def update_dict_value_without_slug_field(self, attr, instance, relation_info, value):
+        if relation_info.to_many:
+            value = self.internal_create(validated_data=value, model=relation_info.related_model)
+        else:
+            value[instance._meta.fields_map[attr].remote_field.name] = instance
+            oldObj = getattr(instance, attr, None)
+            if oldObj is None:
+                value = self.internal_create(validated_data=value, model=relation_info.related_model)
+            else:
+                value = self.update(instance=oldObj, validated_data=value)
+        return value
+
+    def update_dict_value_when_id_is_provided(self, attr, instance, relation_info, slug_field, value):
+        kwargs = {slug_field: value[slug_field]}
+        if relation_info.to_many:
+            manager = getattr(instance, attr)
+            oldObj = manager._meta.model.objects.get(**kwargs)
+        else:
+            oldObj = getattr(instance, attr)
+
+        value = self.update(instance=oldObj, validated_data=value)
+        return value
 
     def save_or_update_nested_list(self, instance, nested_fields):
         for (field_name, data) in nested_fields:

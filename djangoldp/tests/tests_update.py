@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Post
+from djangoldp.tests.models import Post, UserProfile
 from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
@@ -272,8 +272,51 @@ class Update(TestCase):
         self.assertEquals(response.data['content'], "post content")
         self.assertIn('location', response._headers)
 
+    def test_create_sub_object_in_existing_object_with_reverse_1to1_relation(self):
+        """
+        Doesn't work with depth = 0 on UserProfile Model. Should it be ?
+        """
+        user = User.objects.create(username="alex", password="test")
+        body = [
+            {
+                '@id': "_:b975",
+                'http://happy-dev.fr/owl/#description': "user description"
+            },
+            {
+                '@id': '/users/{}/'.format(user.pk),
+                "http://happy-dev.fr/owl/#first_name": "Alexandre",
+                "http://happy-dev.fr/owl/#last_name": "Bourlier",
+                "http://happy-dev.fr/owl/#username": "alex",
+                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b975"}
+            }
+        ]
+        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('userprofile', response.data)
 
-    def test_create_sub_object_in_existing_object_with_reverse_relation(self):
+    def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
+        user = User.objects.create(username="alex", password="test")
+        profile = UserProfile.objects.create(user=user, description="user description")
+        body = [
+            {
+                '@id': "/userprofiles/{}/".format(profile.pk),
+                'http://happy-dev.fr/owl/#description': "user update"
+            },
+            {
+                '@id': '/users/{}/'.format(user.pk),
+                "http://happy-dev.fr/owl/#first_name": "Alexandre",
+                "http://happy-dev.fr/owl/#last_name": "Bourlier",
+                "http://happy-dev.fr/owl/#username": "alex",
+                'http://happy-dev.fr/owl/#userprofile': {'@id': "/userprofiles/{}/".format(profile.pk)}
+            }
+        ]
+        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('userprofile', response.data)
+
+    def test_create_sub_object_in_existing_object_with_reverse_fk_relation(self):
         """
         Doesn't work with depth = 0 on UserProfile Model. Should it be ?
         """
@@ -288,10 +331,31 @@ class Update(TestCase):
                 "http://happy-dev.fr/owl/#first_name": "Alexandre",
                 "http://happy-dev.fr/owl/#last_name": "Bourlier",
                 "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b975"}
+                'http://happy-dev.fr/owl/#conversation_set': {'@id': "_:b975"}
             }
         ]
         response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('userprofile', response.data)
+        self.assertIn('conversation_set', response.data)
+
+    def test_create_sub_object_in_existing_object_with_existing_reverse_fk_relation(self):
+        user = User.objects.create(username="alex", password="test")
+        conversation = Conversation.objects.create(author_user=user, description="conversation description")
+        body = [
+            {
+                '@id': "/conversations/{}/".format(conversation.pk),
+                'http://happy-dev.fr/owl/#description': "conversation update"
+            },
+            {
+                '@id': '/users/{}/'.format(user.pk),
+                "http://happy-dev.fr/owl/#first_name": "Alexandre",
+                "http://happy-dev.fr/owl/#last_name": "Bourlier",
+                "http://happy-dev.fr/owl/#username": "alex",
+                'http://happy-dev.fr/owl/#conversation_set': {'@id': "/conversations/{}/".format(conversation.pk)}
+            }
+        ]
+        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('conversation_set', response.data)
