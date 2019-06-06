@@ -89,4 +89,4 @@ class Post(Model):
         auto_author = 'author'
 
 
-get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile']
+get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set']
