@@ -80,10 +80,10 @@ class InboxPermissions(WACPermissions):
             return super().has_object_permission(request, view, obj)
 
     def user_permissions(self, user, obj):
-        if user.is_anonymous:
+        if user.is_anonymous():
             return self.anonymous_perms
         else:
-            if Model.get_meta(obj, 'auto_author') == user:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == user:
                 return self.author_perms
             else:
                 return self.authenticated_perms
@@ -114,18 +114,15 @@ class AnonymousReadOnly(WACPermissions):
         elif view.action in ["list", "retrieve"]:
             return True
         elif view.action in ['update', 'partial_update', 'destroy']:
-            if hasattr(obj._meta, 'auto_author'):
-                author = getattr(obj, obj._meta.auto_author)
-                if author == request.user:
-                    return True
-        else:
-            return super().has_object_permission(request, view, obj)
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == request.user:
+                return True
+        return super().has_object_permission(request, view, obj)
 
     def user_permissions(self, user, obj):
-        if user.is_anonymous:
+        if user.is_anonymous():
             return self.anonymous_perms
         else:
-            if Model.get_meta(obj, 'auto_author') == user:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == user:
                 return self.author_perms
             else:
                 return self.authenticated_perms
@@ -153,7 +150,7 @@ class LoggedReadOnly(WACPermissions):
             return super().has_object_permission(request, view, obj)
 
     def user_permissions(self, user, obj):
-        if user.is_anonymous:
+        if user.is_anonymous():
             return self.anonymous_perms
         else:
             return self.authenticated_perms
