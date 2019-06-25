@@ -15,6 +15,7 @@ class Save(TestCase):
                     "@id": "./",
                     "batches": {"@id": "_:b381"},
                     "title": "Nouvelle facture",
+                    "date": ""
                 },
                 {
                     "@id": "_:b381",
@@ -28,7 +29,7 @@ class Save(TestCase):
             ]
         }
 
-        meta_args = {'model': Invoice, 'depth': 2, 'fields': ("@id", "title", "batches")}
+        meta_args = {'model': Invoice, 'depth': 2, 'fields': ("@id", "title", "batches", "date")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('InvoiceSerializer', (LDPSerializer,), {'Meta': meta_class})

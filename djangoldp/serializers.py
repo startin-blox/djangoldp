@@ -253,13 +253,26 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         obj = next(filter(
                             lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.url_field_name],
                             object_list))
-                        return super().get_value(obj)
+                        value = super().get_value(obj)
                     else:
                         resource_id = Model.resource_id(self.parent.instance)
                         obj = next(filter(lambda o: resource_id.lstrip('/') in o[self.parent.url_field_name], object_list))
-                        return super().get_value(obj)
+                        value= super().get_value(obj)
                 except KeyError:
-                    return super().get_value(dictionary)
+                    value = super().get_value(dictionary)
+
+                return self.manage_empty(value)
+
+            def manage_empty(self, value):
+                if value == '' and self.allow_null:
+                    # If the field is blank, and null is a valid value then
+                    # determine if we should use null instead.
+                    return '' if getattr(self, 'allow_blank', False) else None
+                elif value == '' and not self.required:
+                    # If the field is blank, and emptiness is valid then
+                    # determine if we should use emptiness instead.
+                    return '' if getattr(self, 'allow_blank', False) else empty
+                return value
 
         field_class, field_kwargs = super().build_standard_field(field_name, model_field)
         field_kwargs['parent_view_name'] = '{}-list'.format(model_field.model._meta.object_name.lower())

@@ -57,6 +57,8 @@ class LDPDummy(Model):
 
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
+    date = models.DateField(blank=True, null=True)
+
 
     class Meta:
         depth = 2
