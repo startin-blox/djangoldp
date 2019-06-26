@@ -127,7 +127,6 @@ class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
     url_field_name = "@id"
 
 
-
 class JsonLdField(HyperlinkedRelatedField):
     def __init__(self, view_name=None, **kwargs):
         super().__init__(view_name, **kwargs)
@@ -256,8 +255,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         value = super().get_value(obj)
                     else:
                         resource_id = Model.resource_id(self.parent.instance)
-                        obj = next(filter(lambda o: resource_id.lstrip('/') in o[self.parent.url_field_name], object_list))
-                        value= super().get_value(obj)
+                        obj = next(
+                            filter(lambda o: resource_id.lstrip('/') in o[self.parent.url_field_name], object_list))
+                        value = super().get_value(obj)
                 except KeyError:
                     value = super().get_value(dictionary)
 
@@ -383,7 +383,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             if item is empty:
                 return empty
             try:
-                full_item = next(filter(lambda o: self.url_field_name in o and (item[self.url_field_name] == o[self.url_field_name]), object_list))
+                full_item = next(
+                    filter(lambda o: self.url_field_name in o and (item[self.url_field_name] == o[self.url_field_name]),
+                           object_list))
             except StopIteration:
                 pass
             if full_item is None:
@@ -425,7 +427,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 kwargs = {slug_field: field_dict[slug_field]}
                 sub_inst = field_model.objects.get(**kwargs)
             else:
-                sub_inst = self.internal_create(field_dict, field_model )
+                sub_inst = self.internal_create(field_dict, field_model)
             validated_data[field_name] = sub_inst
 
         nested_fields = []
@@ -496,7 +498,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
             try:
                 item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
             except TypeError:
-                item_pk_to_keep = list(map(lambda e: getattr(e, slug_field), filter(lambda x: hasattr(x, slug_field), data)))
+                item_pk_to_keep = list(
+                    map(lambda e: getattr(e, slug_field), filter(lambda x: hasattr(x, slug_field), data)))
 
             for item in list(manager.all()):
                 if not str(getattr(item, slug_field)) in item_pk_to_keep:
