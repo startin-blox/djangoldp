@@ -128,8 +128,6 @@ class LDPViewSet(LDPViewSetGenerator):
     def get_queryset(self, *args, **kwargs):
         if self.model:
             return self.model.objects.all()
-            perm = "view_{}".format(self.model._meta.model_name.lower())
-            return get_objects_for_user(self.request.user, perm, klass=self.model)
         else:
             return super(LDPView, self).get_queryset(*args, **kwargs)
 
