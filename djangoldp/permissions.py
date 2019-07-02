@@ -65,7 +65,7 @@ class InboxPermissions(WACPermissions):
     """
     anonymous_perms = ['create']
     authenticated_perms = ['create']
-    author_perms = ['view', 'update']
+    author_perms = ['view', 'update', 'partial_update']
 
     def has_permission(self, request, view):
         if view.action in ['create']:
@@ -103,7 +103,7 @@ class AnonymousReadOnly(WACPermissions):
     def has_permission(self, request, view):
         if view.action in ['list', 'retrieve']:
             return True
-        elif view.action in ['create', 'update'] and request.user.is_authenticated():
+        elif view.action in ['create', 'update', 'partial_update'] and request.user.is_authenticated():
             return True
         else:
             return super().has_permission(request, view)
