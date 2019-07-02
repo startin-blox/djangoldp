@@ -30,6 +30,7 @@ class JobOffer(Model):
 class Conversation(models.Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_conv")
 
 
 class UserProfile(Model):
@@ -58,7 +59,6 @@ class LDPDummy(Model):
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     date = models.DateField(blank=True, null=True)
-
 
     class Meta:
         depth = 2

@@ -359,3 +359,35 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('conversation_set', response.data)
+
+    def test_missing_field_should_not_be_removed_with_fk_relation(self):
+        user = User.objects.create(username="alex", password="test")
+        peer = User.objects.create(username="sylvain", password="test2")
+        conversation = Conversation.objects.create(author_user=user, peer_user=peer, description="conversation description")
+        body = [
+            {
+                '@id': "/conversations/{}/".format(conversation.pk),
+                'http://happy-dev.fr/owl/#description': "conversation update",
+            }
+        ]
+        response = self.client.put('/conversations/{}/'.format(conversation.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('peer_user', response.data)
+
+    def test_empty_field_should_be_removed_with_fk_relation(self):
+        user = User.objects.create(username="alex", password="test")
+        peer = User.objects.create(username="sylvain", password="test2")
+        conversation = Conversation.objects.create(author_user=user, peer_user=peer, description="conversation description")
+        body = [
+            {
+                '@id': "/conversations/{}/".format(conversation.pk),
+                'http://happy-dev.fr/owl/#description': "conversation update",
+                'http://happy-dev.fr/owl/#peer_user': ""
+            }
+        ]
+        response = self.client.put('/conversations/{}/'.format(conversation.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['peer_user'], None)
+

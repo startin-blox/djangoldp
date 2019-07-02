@@ -292,6 +292,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
+                if data is '':
+                    return ''
                 if self.url_field_name in data:
                     if not isinstance(data, Mapping):
                         message = self.error_messages['invalid'].format(
@@ -450,7 +452,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for attr, value in validated_data.items():
             if isinstance(value, dict):
                 value = self.update_dict_value(attr, instance, value)
-            setattr(instance, attr, value)
+            if value is '' and not isinstance(getattr(instance, attr), str):
+                setattr(instance, attr, None)
+            else:
+                setattr(instance, attr, value)
 
         instance.save()
 

@@ -59,9 +59,10 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_anonymous_permissions',
     'djangoldp.tests.tests_update',
     'djangoldp.tests.tests_auto_author',
-    # 'djangoldp.tests.tests_temp'
     'djangoldp.tests.tests_get',
-    'djangoldp.tests.tests_delete'
+    'djangoldp.tests.tests_delete',
+    # 'djangoldp.tests.tests_temp'
+
 ])
 if failures:
     sys.exit(failures)
