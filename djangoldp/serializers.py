@@ -5,10 +5,11 @@ from urllib import parse
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
+from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import SkipField, empty
+from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS, Hyperlink
 from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
@@ -236,6 +237,40 @@ class LDPSerializer(HyperlinkedModelSerializer):
         nested_depth = self.compute_depth(nested_depth, model_class)
 
         return super().build_field(field_name, info, model_class, nested_depth)
+
+    def build_property_field(self, field_name, model_class):
+        class JSonLDPropertyField(ReadOnlyField):
+            def to_representation(self, instance):
+                if isinstance(instance, QuerySet):
+                    data = list(instance)
+                    model_class = instance.model
+                    from djangoldp.views import LDPViewSet
+
+                    serializer_generator = LDPViewSet(model=model_class,
+                                            lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
+                                            permission_classes=Model.get_meta(model_class, 'permission_classes', []),
+                                            fields=Model.get_meta(model_class, 'serializer_fields', []),
+                                            nested_fields=Model.get_meta(model_class, 'nested_fields', []))
+                    parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
+                    serializer_generator.depth = parent_depth
+                    serializer_generator.many_depth = max(getattr(self.parent.Meta, "many_depth", 0) - 1, 0)
+                    serializer = serializer_generator.build_serializer()(context=self.parent.context)
+                    if parent_depth is 0:
+                        serializer.Meta.fields=["@id"]
+                    return {'@id': '',
+                            '@type': 'ldp:Container',
+                            'ldp:contains': [serializer.to_representation(item) if item is not None else None for item
+                                             in data],
+                            'permissions': Model.get_permissions(self.parent.Meta.model, self.context['request'].user,
+                                                                 ['view', 'add'])
+                            }
+                else:
+                    return instance
+
+        field_class = JSonLDPropertyField
+        field_kwargs = {}
+
+        return field_class, field_kwargs
 
     def build_standard_field(self, field_name, model_field):
         class JSonLDStandardField:

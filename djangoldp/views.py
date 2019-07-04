@@ -15,7 +15,6 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.viewsets import ModelViewSet
 
 from djangoldp.models import LDPSource, Model
-from .serializers import LDPSerializer
 
 
 class JSONLDRenderer(JSONRenderer):
@@ -118,6 +117,7 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             meta_args['exclude'] = self.exclude or ()
         meta_class = type('Meta', (), meta_args)
+        from djangoldp.serializers import LDPSerializer
         return type(LDPSerializer)(model_name + 'Serializer', (LDPSerializer,), {'Meta': meta_class})
 
     def perform_create(self, serializer, **kwargs):
@@ -196,6 +196,7 @@ class LDPNestedViewSet(LDPViewSet):
             nested_related_name = related_field.remote_field.name
 
         return cls.urls(
+            lookup_field= Model.get_meta(related_field.related_model, 'lookup_field', 'pk'),
             model=related_field.related_model,
             exclude=(nested_related_name,) if related_field.one_to_many else (),
             parent_model=cls.get_model(**kwargs),
