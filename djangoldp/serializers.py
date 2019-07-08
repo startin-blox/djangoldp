@@ -471,12 +471,18 @@ class LDPSerializer(HyperlinkedModelSerializer):
         nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_list_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
-
+        validated_data = self.remove_empty_value(validated_data)
         instance = model.objects.create(**validated_data)
 
         self.save_or_update_nested_list(instance, nested_fields)
 
         return instance
+
+    def remove_empty_value(self, validated_data):
+        for attr, value in validated_data.items():
+            if value is '':
+                validated_data[attr] = None
+        return validated_data
 
     def update(self, instance, validated_data):
         nested_fields = []

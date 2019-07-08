@@ -188,3 +188,29 @@ class Save(TestCase):
         self.assertNotIn('author', response.data)
         self.assertEquals(response.data['title'], "title")
         self.assertEquals(response.data['invoice']['title'], "title 3")
+
+    def test_post_should_accept_missing_field_id_nullable(self):
+        body = [
+            {
+                '@id': "./",
+                'http://happy-dev.fr/owl/#content': "post update",
+            }
+        ]
+        response = self.client.post('/posts/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('peer_user', response.data)
+
+    def test_post_should_accept_empty_field_if_nullable(self):
+        body = [
+            {
+                '@id': "./",
+                'http://happy-dev.fr/owl/#content': "post update",
+                'http://happy-dev.fr/owl/#peer_user': ""
+            }
+        ]
+        response = self.client.post('/posts/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['peer_user'], None)
+
