@@ -285,7 +285,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     object_list = dictionary["@graph"]
                     if self.parent.instance is None:
                         obj = next(filter(
-                            lambda o: not hasattr(o, self.parent.url_field_name) or "./" in o[self.url_field_name],
+                            lambda o: not self.parent.url_field_name in o or "./" in o[self.parent.url_field_name],
                             object_list))
                         value = super().get_value(obj)
                     else:

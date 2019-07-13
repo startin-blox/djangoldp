@@ -33,8 +33,8 @@ settings.configure(DEBUG=True,
                            "delete": "acl:Delete",
                            "control": "acl:Control"
                        }
-                   }
-                   ,
+                   },
+                   AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend'),
                    ROOT_URLCONF='djangoldp.urls',
                    DJANGOLDP_PACKAGES=['djangoldp.tests'],
                    INSTALLED_APPS=('django.contrib.auth',

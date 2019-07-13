@@ -280,7 +280,10 @@ class Update(TestCase):
         body = [
             {
                 '@id': "_:b975",
-                'http://happy-dev.fr/owl/#description': "user description"
+                'http://happy-dev.fr/owl/#description': "user description",
+                'http://happy-dev.fr/owl/#dummy':  {
+                    '@id' : './'
+                }
             },
             {
                 '@id': '/users/{}/'.format(user.pk),
