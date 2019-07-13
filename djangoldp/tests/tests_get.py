@@ -50,6 +50,7 @@ class TestGET(APITestCase):
         response = self.client.get('/job-offers/{}/'.format(job.slug), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('recent_skills', response.data)
+        self.assertEqual(response.data['recent_skills']['@id'], "http://happy-dev.fr/job-offers/1/recent_skills/")
 
     def test_get_reverse_filtered_fields(self):
         skill = Skill.objects.create(title="Java", obligatoire="ok", slug="1")
@@ -59,3 +60,5 @@ class TestGET(APITestCase):
         response = self.client.get('/skills/{}/'.format(skill.slug), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('recent_jobs', response.data)
+        self.assertEqual(response.data['recent_jobs']['@id'], "http://happy-dev.fr/skills/1/recent_jobs/")
+
