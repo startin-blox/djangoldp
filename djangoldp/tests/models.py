@@ -98,9 +98,8 @@ class Post(Model):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post")
 
-
     class Meta:
         auto_author = 'author'
 
 
-get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set']
+get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set',]

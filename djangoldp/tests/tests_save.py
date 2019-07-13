@@ -3,7 +3,7 @@ from rest_framework.utils import json
 
 from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice, Message
+from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy
 
 
 class Save(TestCase):
@@ -214,3 +214,26 @@ class Save(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['peer_user'], None)
 
+    def test_save_sub_object_in_new_object_with_reverse_1to1_relation(self):
+        dummy = LDPDummy.objects.create(some="foo")
+
+        body = [
+            {
+                '@id': "_:b216",
+                'http://happy-dev.fr/owl/#description': "user update",
+                'http://happy-dev.fr/owl/#ddummy': {
+                    "@id": "https://happy-dev.fr{}{}/".format(Model.container_id(dummy), dummy.id)
+                }
+            },
+            {
+                '@id': './',
+                "http://happy-dev.fr/owl/#first_name": "Alexandre",
+                "http://happy-dev.fr/owl/#last_name": "Bourlier",
+                "http://happy-dev.fr/owl/#username": "alex",
+                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b216"}
+            }
+        ]
+        response = self.client.post('/users/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('userprofile', response.data)
