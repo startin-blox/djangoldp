@@ -44,7 +44,9 @@ settings.configure(DEBUG=True,
                                    'guardian',
                                    'djangoldp',
                                    'djangoldp.tests',
-                                   ))
+                                   ),
+                   SITE_URL = 'http://happy-dev.fr',
+                   )
 
 
 django.setup()

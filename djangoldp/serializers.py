@@ -2,6 +2,7 @@ from collections import OrderedDict, Mapping
 from typing import Any
 from urllib import parse
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
@@ -221,7 +222,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-
+        slug_field = Model.slug_field(obj)
+        for field in data:
+            if isinstance(data[field], dict) and'@id' in data[field]:
+                data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
         rdf_type = Model.get_meta(obj, 'rdf_type', None)
         rdf_context = Model.get_meta(obj, 'rdf_context', None)
         if rdf_type is not None:
@@ -247,17 +251,18 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     from djangoldp.views import LDPViewSet
 
                     serializer_generator = LDPViewSet(model=model_class,
-                                            lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
-                                            permission_classes=Model.get_meta(model_class, 'permission_classes', []),
-                                            fields=Model.get_meta(model_class, 'serializer_fields', []),
-                                            nested_fields=Model.get_meta(model_class, 'nested_fields', []))
+                                                      lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
+                                                      permission_classes=Model.get_meta(model_class,
+                                                                                        'permission_classes', []),
+                                                      fields=Model.get_meta(model_class, 'serializer_fields', []),
+                                                      nested_fields=Model.get_meta(model_class, 'nested_fields', []))
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
                     serializer_generator.depth = parent_depth
                     serializer_generator.many_depth = max(getattr(self.parent.Meta, "many_depth", 0) - 1, 0)
                     serializer = serializer_generator.build_serializer()(context=self.parent.context)
                     if parent_depth is 0:
-                        serializer.Meta.fields=["@id"]
-                    return {'@id': '',
+                        serializer.Meta.fields = ["@id"]
+                    return {'@id': '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source),
                             '@type': 'ldp:Container',
                             'ldp:contains': [serializer.to_representation(item) if item is not None else None for item
                                              in data],
