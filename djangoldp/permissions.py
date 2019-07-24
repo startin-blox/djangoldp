@@ -1,156 +1,103 @@
-from guardian.shortcuts import get_objects_for_user
-from rest_framework import filters
-from rest_framework import permissions
+from rest_framework.permissions import DjangoObjectPermissions
+from django.core.exceptions import PermissionDenied
 
-from djangoldp.models import Model
+class LDPPermissions(DjangoObjectPermissions):
 
-"""
-Liste des actions passées dans views selon le protocole REST :
-    list
-    create
-    retrieve
-    update, partial update
-    destroy
-Pour chacune de ces actions, on va définir si on accepte la requête (True) ou non (False)
-"""
-"""
-    The instance-level has_object_permission method will only be called if the view-level has_permission 
-    checks have already passed
-"""
+    """
+        Default permissions
+        Anon: None
+        Auth: None but herit from Anon
+        Ownr: None but herit from Auth 
+    """
+    anonymous_perms = []
+    authenticated_perms = ['inherit']
+    owner_perms = ['inherit']
+
+    def user_permissions(self, user, obj):
+        """
+            Filter user permissions for a given object
+        """
+        # Get Anonymous permissions from Model's Meta. If not found use default
+        anonymous_perms = getattr(obj._meta, 'anonymous_perms', self.anonymous_perms)
+
+        # Get Auth permissions from Model's Meta. If not found use default
+        authenticated_perms = getattr(obj._meta, 'authenticated_perms', self.authenticated_perms)
+        # Extend Auth if inherit is given
+        if 'inherit' in authenticated_perms:
+            authenticated_perms = authenticated_perms + list(set(anonymous_perms) - set(authenticated_perms))
+
+        # Get Owner permissions from Model's Meta. If not found use default
+        owner_perms = getattr(obj._meta, 'owner_perms', self.owner_perms)
+        # Extend Owner if inherit is given
+        if 'inherit' in owner_perms:
+            owner_perms = owner_perms + list(set(authenticated_perms) - set(owner_perms))
+
+        if user.is_anonymous():
+            return anonymous_perms
+
+        else:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == user:
+                return owner_perms
+
+            else:
+                return authenticated_perms
+
+    def filter_user_perms(self, user_or_group, obj, permissions):
+        # Only used on Model.get_permissions to translate permissions to LDP
+        return [perm for perm in permissions if perm in self.user_permissions(user_or_group, obj)]
 
 
-class WACPermissions(permissions.DjangoObjectPermissions):
     perms_map = {
         'GET': ['%(app_label)s.view_%(model_name)s'],
         'OPTIONS': [],
-        'HEAD': ['%(app_label)s.view_%(model_name)s'],
+        'HEAD': [],
         'POST': ['%(app_label)s.add_%(model_name)s'],
         'PUT': ['%(app_label)s.change_%(model_name)s'],
         'PATCH': ['%(app_label)s.change_%(model_name)s'],
         'DELETE': ['%(app_label)s.delete_%(model_name)s'],
     }
 
-    def has_permission(self, request, view):
-        if request.method == 'OPTIONS':
-            return True
-        else:
-            return super().has_permission(request, view)
-
-    # This method should be overriden by other permission classes
-    def user_permissions(self, user, obj):
-        return []
-
-    def filter_user_perms(self, user_or_group, obj, permissions):
-        return [perm for perm in permissions if perm in self.user_permissions(user_or_group, obj)]
-
-
-class ObjectFilter(filters.BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
+    def get_permissions(self, method, obj):
         """
-            Ensure that queryset only contains objects visible by current user
+            Translate perms_map to request
         """
-        perm = "view_{}".format(queryset.model._meta.model_name.lower())
-        objects = get_objects_for_user(request.user, perm, klass=queryset)
-        return objects
+        kwargs = {
+            'app_label': obj._meta.app_label,
+            'model_name': obj._meta.model_name
+        }
 
+        # Only allows methods that are on perms_map
+        if method not in self.perms_map:
+            raise PermissionDenied
 
-class ObjectPermission(WACPermissions):
-    filter_class = ObjectFilter
-
-
-class InboxPermissions(WACPermissions):
-    """
-        Everybody can create
-        Author can edit
-    """
-    anonymous_perms = ['create']
-    authenticated_perms = ['create']
-    author_perms = ['view', 'update', 'partial_update']
+        return [perm % kwargs for perm in self.perms_map[method]]
 
     def has_permission(self, request, view):
-        if view.action in ['create']:
-            return True
-        else:
-            return super().has_permission(request, view)
+        """
+            Access to containers
+        """
+        perms = self.get_permissions(request.method, view.model)
 
-    def has_object_permission(self, request, view, obj):
-        if view.action in ['update', 'partial_update', 'destroy']:
+        # A bit tricky, but feels redondant to redeclarate perms_map
+        requested = self.get_permissions(request.method, view.model)[0].split('.')[1].split('_')[0]
+
+        if not requested in self.user_permissions(request.user, view.model):
             return False
-        else:
-            return super().has_object_permission(request, view, obj)
 
-    def user_permissions(self, user, obj):
-        if user.is_anonymous():
-            return self.anonymous_perms
-        else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == user:
-                return self.author_perms
-            else:
-                return self.authenticated_perms
+        return True
 
-
-class AnonymousReadOnly(WACPermissions):
-    """
-        Anonymous users: can read all posts
-        Logged in users: can read all posts + create new posts
-        Author: can read all posts + create new posts + update their own
-    """
-
-    anonymous_perms = ['view']
-    authenticated_perms = ['view', 'add']
-    author_perms = ['view', 'add', 'change', 'control', 'delete']
-
-    def has_permission(self, request, view):
-        if view.action in ['list', 'retrieve']:
-            return True
-        elif view.action in ['create', 'update', 'partial_update'] and request.user.is_authenticated():
-            return True
-        else:
-            return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-        if view.action == "create" and request.user.is_authenticated():
-            return True
-        elif view.action in ["list", "retrieve"]:
-            return True
-        elif view.action in ['update', 'partial_update', 'destroy']:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == request.user:
-                return True
-        return super().has_object_permission(request, view, obj)
+        """
+            Access to objects
+            User have permission on request: Continue
+            User does not have permission:   403
+        """
+        perms = self.get_permissions(request.method, obj)
 
-    def user_permissions(self, user, obj):
-        if user.is_anonymous():
-            return self.anonymous_perms
-        else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == user:
-                return self.author_perms
-            else:
-                return self.authenticated_perms
+        if not request.user.has_perms(perms, obj):
 
+            read_perms = self.get_permissions('GET', obj)
+            return PermissionDenied
 
-class LoggedReadOnly(WACPermissions):
-    """
-        Anonymous users: Nothing
-        Logged in users: can read all posts
-    """
-
-    anonymous_perms = []
-    authenticated_perms = ['view']
-
-    def has_permission(self, request, view):
-        if view.action in ['list', 'retrieve'] and request.user.is_authenticated():
-            return True
-        else:
-            return super().has_permission(request, view)
-
-    def has_object_permission(self, request, view, obj):
-        if view.action in ["list", "retrieve"] and request.user.is_authenticated():
-            return True
-        else:
-            return super().has_object_permission(request, view, obj)
-
-    def user_permissions(self, user, obj):
-        if user.is_anonymous():
-            return self.anonymous_perms
-        else:
-            return self.authenticated_perms
+        return True
