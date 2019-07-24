@@ -5,6 +5,7 @@ from django.conf.urls import url, include
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.views import LDPSourceViewSet
+from djangoldp.permissions import LDPPermissions
 
 
 def __clean_path(path):
@@ -34,7 +35,7 @@ for class_name in model_classes:
     urlpatterns.append(url(r'^' + path, include(
         urls_fct(model=model_class,
                  lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
-                 permission_classes=Model.get_meta(model_class, 'permission_classes', []),
+                 permission_classes=Model.get_meta(model_class, 'permission_classes', [LDPPermissions]),
                  fields=Model.get_meta(model_class, 'serializer_fields', []),
                  nested_fields=Model.get_meta(model_class, 'nested_fields', [])))))
 

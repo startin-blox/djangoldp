@@ -4,7 +4,6 @@ from rest_framework.test import APIRequestFactory
 
 from guardian.shortcuts import get_anonymous_user
 
-from djangoldp.permissions import AnonymousReadOnly
 from djangoldp.tests.models import JobOffer
 from djangoldp.views import LDPViewSet
 
@@ -22,15 +21,14 @@ class TestAnonymousUserPermissions(TestCase):
         request.user = self.user
         my_view = LDPViewSet.as_view({'get': 'list'},
                                      model=JobOffer,
-                                     nested_fields=["skills"],
-                                     permission_classes=[AnonymousReadOnly])
+                                     nested_fields=["skills"])
         response = my_view(request)
         self.assertEqual(response.status_code, 200)
 
     def test_post_request_for_anonymousUser(self):
         data = {'title': 'new idea'}
         request = self.factory.post('/job-offers/', json.dumps(data), content_type='application/ld+json')
-        my_view = LDPViewSet.as_view({'post': 'create'}, model=JobOffer, nested_fields=["skills"], permission_classes=[AnonymousReadOnly])
+        my_view = LDPViewSet.as_view({'post': 'create'}, model=JobOffer, nested_fields=["skills"])
         response = my_view(request, pk=1)
         self.assertEqual(response.status_code, 403)
 
@@ -38,8 +36,7 @@ class TestAnonymousUserPermissions(TestCase):
         request = self.factory.put("/job-offers/")
         my_view = LDPViewSet.as_view({'put': 'update'},
                                      model=JobOffer,
-                                     nested_fields=["skills"],
-                                     permission_classes=[AnonymousReadOnly])
+                                     nested_fields=["skills"])
         response = my_view(request, pk=self.job.pk)
         self.assertEqual(response.status_code, 403)
 
@@ -47,7 +44,6 @@ class TestAnonymousUserPermissions(TestCase):
         request = self.factory.patch("/job-offers/")
         my_view = LDPViewSet.as_view({'patch': 'partial_update'},
                                      model=JobOffer,
-                                     nested_fields=["skills"],
-                                     permission_classes=[AnonymousReadOnly])
+                                     nested_fields=["skills"])
         response = my_view(request, pk=self.job.pk)
         self.assertEqual(response.status_code, 403)
