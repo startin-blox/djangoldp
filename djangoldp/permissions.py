@@ -1,13 +1,14 @@
 from rest_framework.permissions import DjangoObjectPermissions
 from django.core.exceptions import PermissionDenied
 
+
 class LDPPermissions(DjangoObjectPermissions):
 
     """
         Default permissions
         Anon: None
         Auth: None but herit from Anon
-        Ownr: None but herit from Auth 
+        Ownr: None but herit from Auth
     """
     anonymous_perms = []
     authenticated_perms = ['inherit']
@@ -85,7 +86,6 @@ class LDPPermissions(DjangoObjectPermissions):
             return False
 
         return True
-
 
     def has_object_permission(self, request, view, obj):
         """

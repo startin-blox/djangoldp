@@ -1,13 +1,12 @@
-from django.contrib.auth.models import AnonymousUser
+import json
+
 from django.test import TestCase
+from guardian.shortcuts import get_anonymous_user
 from rest_framework.test import APIRequestFactory
 
-from guardian.shortcuts import get_anonymous_user
-
+from djangoldp.permissions import LDPPermissions
 from djangoldp.tests.models import JobOffer
 from djangoldp.views import LDPViewSet
-
-import json
 
 
 class TestAnonymousUserPermissions(TestCase):
@@ -22,6 +21,8 @@ class TestAnonymousUserPermissions(TestCase):
         my_view = LDPViewSet.as_view({'get': 'list'},
                                      model=JobOffer,
                                      nested_fields=["skills"])
+        my_view.cls.permission_classes = [LDPPermissions]
+
         response = my_view(request)
         self.assertEqual(response.status_code, 200)
 
@@ -29,6 +30,8 @@ class TestAnonymousUserPermissions(TestCase):
         data = {'title': 'new idea'}
         request = self.factory.post('/job-offers/', json.dumps(data), content_type='application/ld+json')
         my_view = LDPViewSet.as_view({'post': 'create'}, model=JobOffer, nested_fields=["skills"])
+        my_view.cls.permission_classes = [LDPPermissions]
+
         response = my_view(request, pk=1)
         self.assertEqual(response.status_code, 403)
 
@@ -37,6 +40,8 @@ class TestAnonymousUserPermissions(TestCase):
         my_view = LDPViewSet.as_view({'put': 'update'},
                                      model=JobOffer,
                                      nested_fields=["skills"])
+        my_view.cls.permission_classes = [LDPPermissions]
+
         response = my_view(request, pk=self.job.pk)
         self.assertEqual(response.status_code, 403)
 
@@ -45,5 +50,6 @@ class TestAnonymousUserPermissions(TestCase):
         my_view = LDPViewSet.as_view({'patch': 'partial_update'},
                                      model=JobOffer,
                                      nested_fields=["skills"])
+        my_view.cls.permission_classes = [LDPPermissions]
         response = my_view(request, pk=self.job.pk)
         self.assertEqual(response.status_code, 403)
