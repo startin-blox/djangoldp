@@ -2,7 +2,8 @@ import django
 import sys
 from django.conf import settings
 
-settings.configure(DEBUG=True,
+settings.configure(DEBUG=False,
+                   ALLOWED_HOSTS = ["*"],
                    DATABASES={
                        'default': {
                            'ENGINE': 'django.db.backends.sqlite3',

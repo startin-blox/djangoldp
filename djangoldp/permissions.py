@@ -3,7 +3,6 @@ from django.core.exceptions import PermissionDenied
 
 
 class LDPPermissions(BasePermission):
-
     """
         Default permissions
         Anon: None
@@ -78,7 +77,6 @@ class LDPPermissions(BasePermission):
             Access to containers
         """
         perms = self.get_permissions(request.method, view.model)
-
         # A bit tricky, but feels redondant to redeclarate perms_map
         for perm in perms:
             if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, view.model):

@@ -1,8 +1,7 @@
 import json
 
 from django.test import TestCase
-from guardian.shortcuts import get_anonymous_user
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIClient
 
 from djangoldp.permissions import LDPPermissions
 from djangoldp.tests.models import JobOffer
@@ -11,45 +10,29 @@ from djangoldp.views import LDPViewSet
 
 class TestAnonymousUserPermissions(TestCase):
     def setUp(self):
-        self.factory = APIRequestFactory()
-        self.user = get_anonymous_user()
-        self.job = JobOffer.objects.create(title="job")
+        self.client = APIClient(enforce_csrf_checks=True)
+        self.job = JobOffer.objects.create(title="job", slug=1)
 
     def test_get_request_for_anonymousUser(self):
-        request = self.factory.get("/job-offers/")
-        request.user = self.user
-        my_view = LDPViewSet.as_view({'get': 'list'},
-                                     model=JobOffer,
-                                     nested_fields=["skills"])
-        my_view.cls.permission_classes = [LDPPermissions]
+        response = self.client.get('/job-offers/')
+        self.assertEqual(response.status_code, 200)
 
-        response = my_view(request)
+    def test_get_1_request_for_anonymousUser(self):
+        response = self.client.get('/job-offers/1/')
         self.assertEqual(response.status_code, 200)
 
     def test_post_request_for_anonymousUser(self):
-        data = {'title': 'new idea'}
-        request = self.factory.post('/job-offers/', json.dumps(data), content_type='application/ld+json')
-        my_view = LDPViewSet.as_view({'post': 'create'}, model=JobOffer, nested_fields=["skills"])
-        my_view.cls.permission_classes = [LDPPermissions]
-
-        response = my_view(request, pk=1)
+        post = {'title': "job_created"}
+        response = self.client.post('/job-offers/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 403)
 
     def test_put_request_for_anonymousUser(self):
-        request = self.factory.put("/job-offers/")
-        my_view = LDPViewSet.as_view({'put': 'update'},
-                                     model=JobOffer,
-                                     nested_fields=["skills"])
-        my_view.cls.permission_classes = [LDPPermissions]
-
-        response = my_view(request, pk=self.job.pk)
+        body = {'title':"job_updated"}
+        response = self.client.put('/job-offers/{}/'.format(self.job.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
         self.assertEqual(response.status_code, 403)
-
+    
     def test_patch_request_for_anonymousUser(self):
-        request = self.factory.patch("/job-offers/")
-        my_view = LDPViewSet.as_view({'patch': 'partial_update'},
-                                     model=JobOffer,
-                                     nested_fields=["skills"])
-        my_view.cls.permission_classes = [LDPPermissions]
-        response = my_view(request, pk=self.job.pk)
+        response = self.client.patch('/job-offers/' + str(self.job.pk) + "/",
+                                   content_type='application/ld+json')
         self.assertEqual(response.status_code, 403)

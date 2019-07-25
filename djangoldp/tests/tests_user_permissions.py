@@ -7,17 +7,20 @@ from djangoldp.views import LDPViewSet
 
 import json
 
-
 class TestUserPermissions(APITestCase):
 
     def setUp(self):
         user = User.objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
         self.client = APIClient(enforce_csrf_checks=True)
         self.client.force_authenticate(user=user)
-        self.job = JobOffer.objects.create(title="job")
+        self.job = JobOffer.objects.create(title="job", slug=1)
 
     def test_get_for_authenticated_user(self):
         response = self.client.get('/job-offers/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_1_for_authenticated_user(self):
+        response = self.client.get('/job-offers/1/')
         self.assertEqual(response.status_code, 200)
 
     def test_post_request_for_authenticated_user(self):
