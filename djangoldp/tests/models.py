@@ -34,8 +34,8 @@ class JobOffer(Model):
 
     class Meta:
         anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        authenticated_perms = ['inherit', 'change', 'add']
+        owner_perms = ['inherit', 'delete', 'control']
         nested_fields = ["skills"]
         serializer_fields = ["@id", "title", "skills", "recent_skills"]
         container_path = "job-offers/"

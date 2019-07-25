@@ -1,8 +1,8 @@
-from rest_framework.permissions import DjangoObjectPermissions
+from rest_framework.permissions import BasePermission
 from django.core.exceptions import PermissionDenied
 
 
-class LDPPermissions(DjangoObjectPermissions):
+class LDPPermissions(BasePermission):
 
     """
         Default permissions
@@ -50,8 +50,8 @@ class LDPPermissions(DjangoObjectPermissions):
 
     perms_map = {
         'GET': ['%(app_label)s.view_%(model_name)s'],
-        'OPTIONS': [],
-        'HEAD': [],
+        'OPTIONS': ['%(app_label)s.view_%(model_name)s'],
+        'HEAD': ['%(app_label)s.view_%(model_name)s'],
         'POST': ['%(app_label)s.add_%(model_name)s'],
         'PUT': ['%(app_label)s.change_%(model_name)s'],
         'PATCH': ['%(app_label)s.change_%(model_name)s'],
@@ -80,10 +80,9 @@ class LDPPermissions(DjangoObjectPermissions):
         perms = self.get_permissions(request.method, view.model)
 
         # A bit tricky, but feels redondant to redeclarate perms_map
-        requested = self.get_permissions(request.method, view.model)[0].split('.')[1].split('_')[0]
-
-        if not requested in self.user_permissions(request.user, view.model):
-            return False
+        for perm in perms:
+            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, view.model):
+                return False
 
         return True
 
@@ -95,9 +94,9 @@ class LDPPermissions(DjangoObjectPermissions):
         """
         perms = self.get_permissions(request.method, obj)
 
-        if not request.user.has_perms(perms, obj):
-
-            read_perms = self.get_permissions('GET', obj)
-            return PermissionDenied
+        # A bit tricky, but feels redondant to redeclarate perms_map
+        for perm in perms:
+            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, obj):
+                return False
 
         return True
