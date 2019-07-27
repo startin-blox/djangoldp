@@ -238,8 +238,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return data
 
     def build_field(self, field_name, info, model_class, nested_depth):
-        nested_depth = self.compute_depth(nested_depth, model_class)
-
         return super().build_field(field_name, info, model_class, nested_depth)
 
     def build_property_field(self, field_name, model_class):
@@ -318,7 +316,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class), {}), field_kwargs
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
-        nested_depth = self.compute_depth(nested_depth, self.Meta.model)
 
         class NestedLDPSerializer(self.__class__):
 
@@ -390,23 +387,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         kwargs['required'] = False
         return NestedLDPSerializer, kwargs
 
-    @classmethod
-    def compute_depth(cls, depth, model_class, name='depth'):
-        try:
-            model_depth = getattr(model_class._meta, 'depth', getattr(model_class.Meta, 'depth', 10))
-            depth = min(depth, int(model_depth))
-        except AttributeError:
-            depth = min(depth, int(getattr(model_class._meta, 'depth', 1)))
-
-        return depth
 
     @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls(**kwargs)
-        try:
-            cls.Meta.depth = cls.compute_depth(kwargs['context']['view'].depth, cls.Meta.model, 'depth')
-        except KeyError:
-            pass
         return ContainerSerializer(*args, **kwargs)
 
     def get_value(self, dictionary):

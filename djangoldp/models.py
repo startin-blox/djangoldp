@@ -65,7 +65,7 @@ class Model(models.Model):
     class Meta:
         default_permissions = ('add', 'change', 'delete', 'view', 'control')
         abstract = True
-        depth = 1
+        depth = 0
 
     @classonlymethod
     def resolve_id(cls, id):
