@@ -258,8 +258,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                       nested_fields=Model.get_meta(model_class, 'nested_fields', []))
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
                     serializer_generator.depth = parent_depth
-                    serializer_generator.many_depth = max(getattr(self.parent.Meta, "many_depth", 0) - 1, 0)
-                    serializer = serializer_generator.build_serializer()(context=self.parent.context)
+                    serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
                     if parent_depth is 0:
                         serializer.Meta.fields = ["@id"]
                     return {'@id': '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source),
@@ -405,7 +404,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls(**kwargs)
         try:
-            cls.Meta.depth = cls.compute_depth(kwargs['context']['view'].many_depth, cls.Meta.model, 'many_depth')
+            cls.Meta.depth = cls.compute_depth(kwargs['context']['view'].depth, cls.Meta.model, 'depth')
         except KeyError:
             pass
         return ContainerSerializer(*args, **kwargs)

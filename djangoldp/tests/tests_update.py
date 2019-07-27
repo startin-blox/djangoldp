@@ -281,8 +281,8 @@ class Update(TestCase):
             {
                 '@id': "_:b975",
                 'http://happy-dev.fr/owl/#description': "user description",
-                'http://happy-dev.fr/owl/#dummy':  {
-                    '@id' : './'
+                'http://happy-dev.fr/owl/#dummy': {
+                    '@id': './'
                 }
             },
             {
@@ -366,7 +366,8 @@ class Update(TestCase):
     def test_missing_field_should_not_be_removed_with_fk_relation(self):
         user = User.objects.create(username="alex", password="test")
         peer = User.objects.create(username="sylvain", password="test2")
-        conversation = Conversation.objects.create(author_user=user, peer_user=peer, description="conversation description")
+        conversation = Conversation.objects.create(author_user=user, peer_user=peer,
+                                                   description="conversation description")
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
@@ -381,7 +382,8 @@ class Update(TestCase):
     def test_empty_field_should_be_removed_with_fk_relation(self):
         user = User.objects.create(username="alex", password="test")
         peer = User.objects.create(username="sylvain", password="test2")
-        conversation = Conversation.objects.create(author_user=user, peer_user=peer, description="conversation description")
+        conversation = Conversation.objects.create(author_user=user, peer_user=peer,
+                                                   description="conversation description")
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
@@ -393,4 +395,3 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['peer_user'], None)
-
