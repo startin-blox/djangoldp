@@ -9,10 +9,13 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
 from guardian.shortcuts import get_objects_for_user
 from pyld import jsonld
+from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.response import Response
+
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
@@ -91,8 +94,7 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    depth = 2
-    many_depth = 1
+    depth = 1
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
@@ -104,22 +106,69 @@ class LDPViewSet(LDPViewSetGenerator):
                 if hasattr(p, 'filter_class') and p.filter_class:
                     self.filter_backends = p.filter_class
 
-        self.serializer_class = self.build_serializer()
+        self.serializer_class = self.build_read_serializer()
+        self.write_serializer_class = self.build_write_serializer()
 
-    def build_serializer(self):
+    def build_read_serializer(self):
         model_name = self.model._meta.object_name.lower()
         lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
                      'depth': self.depth,
                      'extra_fields': self.nested_fields}
+        return self.build_serializer(meta_args, 'Read')
+
+    def build_write_serializer(self):
+        model_name = self.model._meta.object_name.lower()
+        lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        meta_args = {'model': self.model, 'extra_kwargs': {
+            '@id': {'lookup_field': lookup_field}},
+                     'depth': 10,
+                     'extra_fields': self.nested_fields}
+        return self.build_serializer(meta_args, 'Write')
+
+    def build_serializer(self, meta_args, name_prefix):
         if self.fields:
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = self.exclude or ()
         meta_class = type('Meta', (), meta_args)
         from djangoldp.serializers import LDPSerializer
-        return type(LDPSerializer)(model_name + 'Serializer', (LDPSerializer,), {'Meta': meta_class})
+        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,), {'Meta': meta_class})
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_write_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def get_write_serializer(self, *args, **kwargs):
+        """
+        Return the serializer instance that should be used for validating and
+        deserializing input, and for serializing output.
+        """
+        serializer_class = self.get_write_serializer_class()
+        kwargs['context'] = self.get_serializer_context()
+        return serializer_class(*args, **kwargs)
+
+    def get_write_serializer_class(self):
+        """
+        Return the class to use for the serializer.
+        Defaults to using `self.write_serializer_class`.
+
+        You may want to override this if you need to provide different
+        serializations depending on the incoming request.
+
+        (Eg. admins get full serialization, others get basic serialization)
+        """
+        assert self.write_serializer_class is not None, (
+                "'%s' should either include a `write_serializer_class` attribute, "
+                "or override the `get_write_serializer_class()` method."
+                % self.__class__.__name__
+        )
+
+        return self.write_serializer_class
 
     def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, get_user_model()):
