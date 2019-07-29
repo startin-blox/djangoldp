@@ -9,7 +9,7 @@ class LDPPermissions(BasePermission):
         Auth: None but herit from Anon
         Ownr: None but herit from Auth
     """
-    anonymous_perms = []
+    anonymous_perms = ['view']
     authenticated_perms = ['inherit']
     owner_perms = ['inherit']
 
