@@ -36,7 +36,7 @@ class LDPPermissions(BasePermission):
             return anonymous_perms
 
         else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, Model.get_meta(obj, 'auto_author')) == user:
+            if hasattr(obj._meta, 'auto_author') and getattr(obj, getattr(obj, 'auto_author')) == user:
                 return owner_perms
 
             else:
