@@ -21,6 +21,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
+from djangoldp.permissions import LDPPermissions
 
 
 class LDListMixin:
@@ -251,7 +252,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     serializer_generator = LDPViewSet(model=model_class,
                                                       lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
                                                       permission_classes=Model.get_meta(model_class,
-                                                                                        'permission_classes', []),
+                                                                                        'permission_classes', [LDPPermissions]),
                                                       fields=Model.get_meta(model_class, 'serializer_fields', []),
                                                       nested_fields=Model.get_meta(model_class, 'nested_fields', []))
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)

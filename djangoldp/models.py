@@ -5,6 +5,7 @@ from django.db.models.base import ModelBase
 from django.urls import get_resolver
 from django.utils.decorators import classonlymethod
 from guardian.shortcuts import get_perms
+from djangoldp.permissions import LDPPermissions
 
 User._meta.rdf_type = "foaf:user"
 
@@ -111,11 +112,8 @@ class Model(models.Model):
     @staticmethod
     def get_permissions(obj_or_model, user_or_group, filter):
         permissions = filter
-        for permission_class in Model.get_permission_classes(obj_or_model, []):
+        for permission_class in Model.get_permission_classes(obj_or_model, [LDPPermissions]):
             permissions = permission_class().filter_user_perms(user_or_group, obj_or_model, permissions)
-
-        if not isinstance(user_or_group, AnonymousUser):
-            permissions += get_perms(user_or_group, obj_or_model)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
 

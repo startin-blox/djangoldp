@@ -18,6 +18,7 @@ from rest_framework.response import Response
 
 
 from djangoldp.models import LDPSource, Model
+from djangoldp.permissions import LDPPermissions
 
 
 class JSONLDRenderer(JSONRenderer):
@@ -255,7 +256,7 @@ class LDPNestedViewSet(LDPViewSet):
             parent_lookup_field=cls.get_lookup_arg(**kwargs),
             model_prefix=cls.get_model(**kwargs)._meta.object_name.lower(),
             permission_classes=Model.get_permission_classes(related_field.related_model,
-                                                            kwargs.get('permission_classes', ())),
+                                                            kwargs.get('permission_classes', [LDPPermissions])),
             lookup_url_kwarg=related_field.related_model._meta.object_name.lower() + '_id')
 
 
