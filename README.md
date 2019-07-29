@@ -139,12 +139,6 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
    <Model>._meta.nested_fields=["skills"]
 ```
 
-From the 0.5 we added permissions check by default on every route, so you may encounter 400 errors code on your POST requests. You can disable those checks by specifying the permission_classes as an empty array in our URLs files.
-
-
-```
-   <Model>.permissions_classes=[]
-```
 
 ## Custom Meta options on models
 
@@ -162,51 +156,39 @@ class MyModel(models.Model):
 Now when an instance of `MyModel` is saved, its `author_user` property will be set to the current user. 
 
 ## permissions_classes
-This allows you to add permissions for AnonymousUser, logged in user, author ... in the url:
-Currently, there are 3 choices :
-* ObjectPermission
-* AnonymousReadOnly
-* InboxPermissions
+This allows you to add permissions for anonymous, logged in user, author ... in the url:
+By default `LDPPermissions` is used.
 Specific permissin classes can be developed to fit special needs.
 
-ObjectPermission give permissions assign in the administration
+## anonymous_perms, user_perms, author_perms
 
-AnonymousReadOnly gives these permissions: 
-* Anonymous users: can read all posts
-* Logged in users: can read all posts + create new posts
-* Author: can read all posts + create new posts + update their own
+Those allow you to set permissions from your model's meta.
+
+You can give the following permission to them:
+* `view`
+* `add`
+* `change`
+* `control`
+* `delete`
+* `inherit`
+
+With inherit, Users can herit from Anons. Also Owners can herit from Users.
+
+Eg. with this model Anons can view, Auths can add & Owners can edit & delete.
 
 ```python
 from djangoldp.models import Model
-from djangoldp.permissions import AnonymousReadonly
 
 class Todo(Model):
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
     
     class Meta:
-        permission_classes =  AnonymousReadonly
-
+        anonymous_perms = ['view']
+        authenticated_perms = ['inherit', 'add']
+        owner_perms = ['inherit', 'change', 'control', 'delete']
 ```
 
-InboxPermissions is used for, well, notifications:
-* Anonymous users: can create notifications but can't read
-* Logged in users: can create notifications but can't read
-* Inbox owners: can read + update all notifications 
-
-```
-from django.conf.urls import url
-from djangoldp.views import LDPViewSet
-from djangoldp.permissions import NotificationsPermissions
-
-class Project(Model):
-    name = models.CharField(max_length=255)
-    deadline = models.DateTimeField()
-    
-    class Meta:
-        permission_classes =  InbcxPermissions
-
-```
 
 Important note:
 If you need to give permissions to owner's object, don't forget to add auto_author in model's meta
