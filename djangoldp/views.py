@@ -94,7 +94,6 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    depth = 1
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
@@ -114,7 +113,7 @@ class LDPViewSet(LDPViewSetGenerator):
         lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
-                     'depth': self.depth,
+                     'depth': getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0)),
                      'extra_fields': self.nested_fields}
         return self.build_serializer(meta_args, 'Read')
 
@@ -142,6 +141,20 @@ class LDPViewSet(LDPViewSetGenerator):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_write_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
     def get_write_serializer(self, *args, **kwargs):
         """
@@ -199,10 +212,6 @@ class LDPViewSet(LDPViewSetGenerator):
                 response['User'] = request.user.webid()
             except AttributeError:
                 pass
-        return response
-
-    def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)
         return response
 
 
