@@ -160,7 +160,7 @@ This allows you to add permissions for anonymous, logged in user, author ... in 
 By default `LDPPermissions` is used.
 Specific permissin classes can be developed to fit special needs.
 
-## anonymous_perms, user_perms, author_perms
+## anonymous_perms, user_perms, owner_perms
 
 Those allow you to set permissions from your model's meta.
 
