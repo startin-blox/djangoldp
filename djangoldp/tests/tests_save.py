@@ -237,3 +237,34 @@ class Save(TestCase):
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         self.assertIn('userprofile', response.data)
+
+    def test_embedded_context(self):
+        body = {
+            '@graph': [
+                {
+                    '@id': "./",
+                    'content': "post update",
+                    'peer_user': ""
+                }
+            ],
+            '@context': {
+                "@vocab": "http://happy-dev.fr/owl/#",
+            }
+        }
+        response = self.client.post('/posts/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+
+    def test_embedded_context_2(self):
+        body = {
+            '@id': "./",
+            'content': "post update",
+            'peer_user': "",
+            '@context': {
+                "@vocab": "http://happy-dev.fr/owl/#",
+            }
+        }
+
+        response = self.client.post('/posts/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
