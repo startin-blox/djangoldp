@@ -1,10 +1,9 @@
-from django.conf import settings
-from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.base import ModelBase
 from django.urls import get_resolver
 from django.utils.decorators import classonlymethod
-from guardian.shortcuts import get_perms
+
 from djangoldp.permissions import LDPPermissions
 
 User._meta.rdf_type = "foaf:user"
