@@ -1,15 +1,16 @@
-import django
 import sys
+
+import django
 from django.conf import settings
 
 settings.configure(DEBUG=False,
-                   ALLOWED_HOSTS = ["*"],
+                   ALLOWED_HOSTS=["*"],
                    DATABASES={
                        'default': {
                            'ENGINE': 'django.db.backends.sqlite3',
                        }
                    },
-                   LDP_RDF_CONTEXT = {
+                   LDP_RDF_CONTEXT={
                        "@context": {
                            "@vocab": "http://happy-dev.fr/owl/#",
                            "foaf": "http://xmlns.com/foaf/0.1/",
@@ -35,7 +36,8 @@ settings.configure(DEBUG=False,
                            "control": "acl:Control"
                        }
                    },
-                   AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend'),
+                   AUTHENTICATION_BACKENDS=(
+                   'django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend'),
                    ROOT_URLCONF='djangoldp.urls',
                    DJANGOLDP_PACKAGES=['djangoldp.tests'],
                    INSTALLED_APPS=('django.contrib.auth',
@@ -46,9 +48,8 @@ settings.configure(DEBUG=False,
                                    'djangoldp',
                                    'djangoldp.tests',
                                    ),
-                   SITE_URL = 'http://happy-dev.fr',
+                   SITE_URL='http://happy-dev.fr',
                    )
-
 
 django.setup()
 from django.test.runner import DiscoverRunner
@@ -64,9 +65,9 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_auto_author',
     'djangoldp.tests.tests_get',
     'djangoldp.tests.tests_delete',
+    'djangoldp.tests.tests_sources',
     # 'djangoldp.tests.tests_temp'
 
 ])
 if failures:
     sys.exit(failures)
-

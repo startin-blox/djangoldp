@@ -1,21 +1,25 @@
+import sys
+from importlib import reload
+
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
+from django.db.models.signals import post_save, post_delete
 from django.db.utils import OperationalError, ProgrammingError
+from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
+from django.urls import clear_url_caches
 from django.utils.decorators import classonlymethod
-from guardian.shortcuts import get_objects_for_user
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
-from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-
+from rest_framework.viewsets import ModelViewSet
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
@@ -133,7 +137,8 @@ class LDPViewSet(LDPViewSetGenerator):
             meta_args['exclude'] = self.exclude or ()
         meta_class = type('Meta', (), meta_args)
         from djangoldp.serializers import LDPSerializer
-        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,), {'Meta': meta_class})
+        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,),
+                                   {'Meta': meta_class})
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)
@@ -255,7 +260,7 @@ class LDPNestedViewSet(LDPViewSet):
             nested_related_name = related_field.remote_field.name
 
         return cls.urls(
-            lookup_field= Model.get_meta(related_field.related_model, 'lookup_field', 'pk'),
+            lookup_field=Model.get_meta(related_field.related_model, 'lookup_field', 'pk'),
             model=related_field.related_model,
             exclude=(nested_related_name,) if related_field.one_to_many else (),
             parent_model=cls.get_model(**kwargs),
@@ -283,3 +288,14 @@ class LDPSourceViewSet(LDPViewSet):
 
     def get_queryset(self, *args, **kwargs):
         return super().get_queryset(*args, **kwargs).filter(federation=self.federation)
+
+
+@receiver([post_save, post_delete], sender=LDPSource)
+def reload_sources_module(sender, instance, **kwargs):
+    urlconf = settings.ROOT_URLCONF
+    clear_url_caches()
+
+    if 'djangoldp.urls' in sys.modules:
+        reload(sys.modules['djangoldp.urls'])
+    if urlconf in sys.modules:
+        reload(sys.modules[urlconf])
