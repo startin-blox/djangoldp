@@ -228,6 +228,16 @@ Only `name` will be serialized
 ## Custom urls
 To add customs urls who can not be add through the `Model` class, it's possible de create a file named `djangoldp_urls.py`. It will be executed like an `urls.py` file
 
+## Pagination
+To enable pagination feature just add this configuration to the server `settings.py` :
+
+```
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 20
+}
+```
+ 
 ## License
 
 Licence MIT

@@ -40,10 +40,14 @@ class LDListMixin:
         return [getattr(self, self.child_attr).to_internal_value(item) for item in data]
 
     def to_representation(self, value):
+        try:
+            model = getattr(self, self.child_attr).Meta.model
+        except AttributeError:
+            model = value.model
         return {'@id': self.id,
                 '@type': 'ldp:Container',
                 'ldp:contains': super().to_representation(value),
-                'permissions': Model.get_permissions(value.model, self.context['request'].user, ['view', 'add'])
+                'permissions': Model.get_permissions(model, self.context['request'].user, ['view', 'add'])
                 }
 
     def get_attribute(self, instance):
