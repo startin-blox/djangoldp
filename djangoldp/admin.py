@@ -23,4 +23,4 @@ for class_name in model_classes:
     if not admin.site.is_registered(model_class):
         admin.site.register(model_class)
 
-admin.site.register(LDPSource)
+# admin.site.register(LDPSource)

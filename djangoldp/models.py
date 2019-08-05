@@ -116,7 +116,7 @@ class Model(models.Model):
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
 
-class LDPSource(models.Model):
+class LDPSource(Model):
     container = models.URLField()
     federation = models.CharField(max_length=255)
 

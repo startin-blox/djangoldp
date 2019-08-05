@@ -278,24 +278,5 @@ class LDPSourceViewSet(LDPViewSet):
     model = LDPSource
     federation = None
 
-    @classonlymethod
-    def urls(cls, **kwargs):
-        try:
-            return include([url(name + '/', super(LDPSourceViewSet, cls).urls(federation=name, **kwargs))
-                            for name in LDPSource.objects.order_by().values_list('federation', flat=True).distinct()])
-        except (OperationalError, ProgrammingError):  # for the case where the table doesn't exist
-            return include([])
-
     def get_queryset(self, *args, **kwargs):
-        return super().get_queryset(*args, **kwargs).filter(federation=self.federation)
-
-
-@receiver([post_save, post_delete], sender=LDPSource)
-def reload_sources_module(sender, instance, **kwargs):
-    urlconf = settings.ROOT_URLCONF
-    clear_url_caches()
-
-    if 'djangoldp.urls' in sys.modules:
-        reload(sys.modules['djangoldp.urls'])
-    if urlconf in sys.modules:
-        reload(sys.modules[urlconf])
+        return super().get_queryset(*args, **kwargs).filter(federation=self.kwargs['federation'])
