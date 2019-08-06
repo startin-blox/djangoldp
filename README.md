@@ -233,7 +233,7 @@ To enable pagination feature just add this configuration to the server `settings
 
 ```
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'DEFAULT_PAGINATION_CLASS': 'djangoldp.pagination.LDPPagination',
     'PAGE_SIZE': 20
 }
 ```

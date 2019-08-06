@@ -49,6 +49,10 @@ settings.configure(DEBUG=False,
                                    'djangoldp.tests',
                                    ),
                    SITE_URL='http://happy-dev.fr',
+                   REST_FRAMEWORK = {
+                       'DEFAULT_PAGINATION_CLASS': 'djangoldp.pagination.LDPPagination',
+                       'PAGE_SIZE': 5
+                   },
                    )
 
 django.setup()
@@ -66,6 +70,7 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_get',
     'djangoldp.tests.tests_delete',
     'djangoldp.tests.tests_sources',
+    'djangoldp.tests.tests_pagination',
     # 'djangoldp.tests.tests_temp'
 
 ])
