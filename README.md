@@ -176,17 +176,21 @@ With inherit, Users can herit from Anons. Also Owners can herit from Users.
 
 Eg. with this model Anons can view, Auths can add & Owners can edit & delete.
 
+Note that `owner_perms` need a `owner_field` meta that point the field with owner user.
+
 ```python
 from djangoldp.models import Model
 
 class Todo(Model):
     name = models.CharField(max_length=255)
     deadline = models.DateTimeField()
-    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL)
+
     class Meta:
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'control', 'delete']
+        owner_field = 'user'
 ```
 
 

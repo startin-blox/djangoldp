@@ -13,21 +13,21 @@ class LDPPermissions(BasePermission):
     authenticated_perms = ['inherit']
     owner_perms = ['inherit']
 
-    def user_permissions(self, user, obj):
+    def user_permissions(self, user, model, obj=None):
         """
-            Filter user permissions for a given object
+            Filter user permissions for a model class
         """
         # Get Anonymous permissions from Model's Meta. If not found use default
-        anonymous_perms = getattr(obj._meta, 'anonymous_perms', self.anonymous_perms)
+        anonymous_perms = getattr(model._meta, 'anonymous_perms', self.anonymous_perms)
 
         # Get Auth permissions from Model's Meta. If not found use default
-        authenticated_perms = getattr(obj._meta, 'authenticated_perms', self.authenticated_perms)
+        authenticated_perms = getattr(model._meta, 'authenticated_perms', self.authenticated_perms)
         # Extend Auth if inherit is given
         if 'inherit' in authenticated_perms:
             authenticated_perms = authenticated_perms + list(set(anonymous_perms) - set(authenticated_perms))
 
         # Get Owner permissions from Model's Meta. If not found use default
-        owner_perms = getattr(obj._meta, 'owner_perms', self.owner_perms)
+        owner_perms = getattr(model._meta, 'owner_perms', self.owner_perms)
         # Extend Owner if inherit is given
         if 'inherit' in owner_perms:
             owner_perms = owner_perms + list(set(authenticated_perms) - set(owner_perms))
@@ -36,7 +36,7 @@ class LDPPermissions(BasePermission):
             return anonymous_perms
 
         else:
-            if hasattr(obj._meta, 'auto_author') and getattr(obj, getattr(obj._meta, 'auto_author')) == user:
+            if obj and hasattr(model._meta, 'owner_field') and getattr(obj, getattr(model._meta, 'owner_field')) == user:
                 return owner_perms
 
             else:
@@ -76,10 +76,15 @@ class LDPPermissions(BasePermission):
         """
             Access to containers
         """
-        perms = self.get_permissions(request.method, view.model)
-        # A bit tricky, but feels redondant to redeclarate perms_map
+        model = view.model
+        perms = self.get_permissions(request.method, model)
+        try:
+            obj = view.model.resolve_id(request._request.path)
+        except:
+            obj = None
+
         for perm in perms:
-            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, view.model):
+            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
                 return False
 
         return True
@@ -91,10 +96,10 @@ class LDPPermissions(BasePermission):
             User does not have permission:   403
         """
         perms = self.get_permissions(request.method, obj)
+        model = obj
 
-        # A bit tricky, but feels redondant to redeclarate perms_map
         for perm in perms:
-            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, obj):
+            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
                 return False
 
         return True
