@@ -7,6 +7,7 @@ from django.utils.decorators import classonlymethod
 from djangoldp.permissions import LDPPermissions
 
 User._meta.rdf_type = "foaf:user"
+User._meta.owner_field = "id"
 
 
 class Model(models.Model):

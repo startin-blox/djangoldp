@@ -36,7 +36,7 @@ class LDPPermissions(BasePermission):
             return anonymous_perms
 
         else:
-            if obj and hasattr(model._meta, 'owner_field') and getattr(obj, getattr(model._meta, 'owner_field')) == user:
+            if obj and hasattr(model._meta, 'owner_field') and (getattr(obj, getattr(model._meta, 'owner_field')) == user or getattr(obj, getattr(model._meta, 'owner_field')) == user.id):
                 return owner_perms
 
             else:
@@ -82,6 +82,7 @@ class LDPPermissions(BasePermission):
         """
         model = view.model
         perms = self.get_permissions(request.method, model)
+
         try:
             obj = view.model.resolve_id(request._request.path)
         except:
