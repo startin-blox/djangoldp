@@ -42,9 +42,13 @@ class LDPPermissions(BasePermission):
             else:
                 return authenticated_perms
 
-    def filter_user_perms(self, user_or_group, obj, permissions):
+    def filter_user_perms(self, user, model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
-        return [perm for perm in permissions if perm in self.user_permissions(user_or_group, obj)]
+        if hasattr(model._meta, 'owner_field'):
+            obj = model
+        else:
+            obj = None
+        return [perm for perm in permissions if perm in self.user_permissions(user, model, obj)]
 
 
     perms_map = {
