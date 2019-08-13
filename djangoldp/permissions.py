@@ -80,6 +80,7 @@ class LDPPermissions(BasePermission):
         """
             Access to containers
         """
+        
         model = view.model
         perms = self.get_permissions(request.method, model)
 
