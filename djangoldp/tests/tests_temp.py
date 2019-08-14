@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
 
-from djangoldp.tests.models import Skill, JobOffer
+from djangoldp.tests.models import Skill, JobOffer, Post
 
 
 class TestTemp(TestCase):
@@ -16,5 +16,6 @@ class TestTemp(TestCase):
 
     def tearDown(self):
         pass
+
 
 

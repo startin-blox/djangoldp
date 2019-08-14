@@ -1,4 +1,4 @@
-from collections import OrderedDict, Mapping
+from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
 
@@ -40,14 +40,39 @@ class LDListMixin:
         return [getattr(self, self.child_attr).to_internal_value(item) for item in data]
 
     def to_representation(self, value):
+        '''
+        Permission on container :
+         - Can Add if add permission on contained object's type
+         - Can view the container is view permission on container model : container obj are filtered by view permission
+        '''
         try:
-            model = getattr(self, self.child_attr).Meta.model
+            child_model = getattr(self, self.child_attr).Meta.model
         except AttributeError:
-            model = value.model
+            child_model = value.model
+        parent_model = None
+        if isinstance(value, QuerySet):
+            value = list(value)
+
+        if not isinstance(value, Iterable):
+            filtered_values = value
+            container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['view', 'add'])
+        else:
+            try:
+                parent_model = Model.resolve_parent(self.context['request'].path)
+            except:
+                parent_model = child_model
+
+            filtered_values = list(
+                filter(lambda v: Model.get_permission_classes(v, [LDPPermissions])[0]().has_object_permission(
+                    self.context['request'], self.context['view'], v), value))
+            container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['add'])
+            container_permissions.extend(
+                Model.get_permissions(parent_model, self.context['request'].user,
+                                      ['view']))
         return {'@id': self.id,
                 '@type': 'ldp:Container',
-                'ldp:contains': super().to_representation(value),
-                'permissions': Model.get_permissions(model, self.context['request'].user, ['view', 'add'])
+                'ldp:contains': super().to_representation(filtered_values),
+                'permissions': container_permissions
                 }
 
     def get_attribute(self, instance):
@@ -225,7 +250,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         data = super().to_representation(obj)
         slug_field = Model.slug_field(obj)
         for field in data:
-            if isinstance(data[field], dict) and'@id' in data[field]:
+            if isinstance(data[field], dict) and '@id' in data[field]:
                 data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
         rdf_type = Model.get_meta(obj, 'rdf_type', None)
         rdf_context = Model.get_meta(obj, 'rdf_context', None)
@@ -252,7 +277,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     serializer_generator = LDPViewSet(model=model_class,
                                                       lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
                                                       permission_classes=Model.get_meta(model_class,
-                                                                                        'permission_classes', [LDPPermissions]),
+                                                                                        'permission_classes',
+                                                                                        [LDPPermissions]),
                                                       fields=Model.get_meta(model_class, 'serializer_fields', []),
                                                       nested_fields=Model.get_meta(model_class, 'nested_fields', []))
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
@@ -387,7 +413,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
         kwargs['read_only'] = False
         kwargs['required'] = False
         return NestedLDPSerializer, kwargs
-
 
     @classmethod
     def many_init(cls, *args, **kwargs):
