@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission
 from django.core.exceptions import PermissionDenied
+from django.db.models.base import ModelBase
 
 
 class LDPPermissions(BasePermission):
@@ -42,9 +43,15 @@ class LDPPermissions(BasePermission):
             else:
                 return authenticated_perms
 
-    def filter_user_perms(self, user, model, permissions):
+    def filter_user_perms(self, user, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
-        return [perm for perm in permissions if perm in self.user_permissions(user, model)]
+        if isinstance(obj_or_model, ModelBase):
+            model = obj_or_model
+            obj = None
+        else:
+            obj = obj_or_model
+            model = obj_or_model.__class__  
+        return [perm for perm in permissions if perm in self.user_permissions(user, model, obj)]
 
 
     perms_map = {
