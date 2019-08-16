@@ -207,10 +207,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
-    @property
-    def data(self):
-        return super().data
-
     def get_default_field_names(self, declared_fields, model_info):
         try:
             fields = list(self.Meta.model._meta.serializer_fields)

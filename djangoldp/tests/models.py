@@ -116,6 +116,7 @@ class Batch(Model):
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
         nested_fields = ["tasks", 'invoice']
+        depth = 1
 
 
 class Task(models.Model):
@@ -141,4 +142,5 @@ class Post(Model):
         owner_perms = ['inherit']
 
 
-get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set',]
+get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
+                                            'conversation_set', ]
