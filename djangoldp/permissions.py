@@ -1,6 +1,5 @@
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
-from django.urls import Resolver404
 from rest_framework.permissions import BasePermission
 
 
@@ -93,7 +92,7 @@ class LDPPermissions(BasePermission):
             try:
                 obj = Model.resolve_parent(request.path)
                 model = view.parent_model
-            except Resolver404:
+            except:
                 obj = None
                 model = view.model
         else:
