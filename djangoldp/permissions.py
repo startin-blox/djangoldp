@@ -1,6 +1,7 @@
-from rest_framework.permissions import BasePermission
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
+from django.urls import Resolver404
+from rest_framework.permissions import BasePermission
 
 
 class LDPPermissions(BasePermission):
@@ -14,10 +15,18 @@ class LDPPermissions(BasePermission):
     authenticated_perms = ['inherit']
     owner_perms = ['inherit']
 
-    def user_permissions(self, user, model, obj=None):
+    def user_permissions(self, user, obj_or_model, obj=None):
         """
             Filter user permissions for a model class
         """
+
+        # sorted out param mess
+        if isinstance(obj_or_model, ModelBase):
+            model = obj_or_model
+        else:
+            obj = obj_or_model
+            model = obj_or_model.__class__
+
         # Get Anonymous permissions from Model's Meta. If not found use default
         anonymous_perms = getattr(model._meta, 'anonymous_perms', self.anonymous_perms)
 
@@ -37,7 +46,9 @@ class LDPPermissions(BasePermission):
             return anonymous_perms
 
         else:
-            if obj and hasattr(model._meta, 'owner_field') and (getattr(obj, getattr(model._meta, 'owner_field')) == user or getattr(obj, getattr(model._meta, 'owner_field')) == user.id):
+            if obj and hasattr(model._meta, 'owner_field') and (
+                    getattr(obj, getattr(model._meta, 'owner_field')) == user or getattr(obj, getattr(model._meta,
+                                                                                                      'owner_field')) == user.id):
                 return owner_perms
 
             else:
@@ -45,14 +56,7 @@ class LDPPermissions(BasePermission):
 
     def filter_user_perms(self, user, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
-        if isinstance(obj_or_model, ModelBase):
-            model = obj_or_model
-            obj = None
-        else:
-            obj = obj_or_model
-            model = obj_or_model.__class__  
-        return [perm for perm in permissions if perm in self.user_permissions(user, model, obj)]
-
+        return [perm for perm in permissions if perm in self.user_permissions(user, obj_or_model)]
 
     perms_map = {
         'GET': ['%(app_label)s.view_%(model_name)s'],
@@ -83,20 +87,31 @@ class LDPPermissions(BasePermission):
         """
             Access to containers
         """
-        
-        model = view.model
-        perms = self.get_permissions(request.method, model)
+        from djangoldp.models import Model
 
-        try:
-            obj = view.model.resolve_id(request._request.path)
-        except:
-            obj = None
+        if self.is_a_container(request._request.path):
+            try:
+                obj = Model.resolve_parent(request.path)
+                model = view.parent_model
+            except Resolver404:
+                obj = None
+                model = view.model
+        else:
+            obj = Model.resolve_id(request._request.path)
+            model = view.model
+
+        perms = self.get_permissions(request.method, model)
 
         for perm in perms:
             if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
                 return False
 
         return True
+
+    def is_a_container(self, path):
+        from djangoldp.models import Model
+        container, id = Model.resolve(path)
+        return id is None
 
     def has_object_permission(self, request, view, obj):
         """

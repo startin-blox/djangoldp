@@ -75,6 +75,12 @@ class Model(models.Model):
         return view.initkwargs['model'].objects.get(**kwargs)
 
     @classonlymethod
+    def resolve_parent(cls, path):
+        split = path.strip('/').split('/')
+        parent_path = "/".join(split[0:len(split) - 1])
+        return Model.resolve_id(parent_path)
+
+    @classonlymethod
     def resolve_container(cls, path):
         path = cls.__clean_path(path)
         view, args, kwargs = get_resolver().resolve(path)
