@@ -1,17 +1,10 @@
-import sys
-from importlib import reload
-
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
-from django.db.models.signals import post_save, post_delete
-from django.db.utils import OperationalError, ProgrammingError
-from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
-from django.urls import clear_url_caches
 from django.utils.decorators import classonlymethod
 from pyld import jsonld
 from rest_framework import status
@@ -161,7 +154,10 @@ class LDPViewSet(LDPViewSetGenerator):
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
-        return Response(serializer.data)
+        response_serializer = self.get_serializer()
+        data = response_serializer.to_representation(serializer.instance)
+
+        return Response(data)
 
     def get_write_serializer(self, *args, **kwargs):
         """
