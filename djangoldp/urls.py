@@ -5,7 +5,7 @@ from django.conf.urls import url, include
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
-from djangoldp.views import LDPSourceViewSet
+from djangoldp.views import LDPSourceViewSet, WebFingerView
 
 
 def __clean_path(path):
@@ -19,6 +19,7 @@ def __clean_path(path):
 urlpatterns = [
     url(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'container'],
                                                                 permission_classes=[LDPPermissions], )),
+    url(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
 ]
 
 for package in settings.DJANGOLDP_PACKAGES:

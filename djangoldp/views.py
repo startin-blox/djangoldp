@@ -4,8 +4,10 @@ from django.conf.urls import url, include
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
+from django.views import View
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -14,6 +16,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
 
@@ -278,3 +281,24 @@ class LDPSourceViewSet(LDPViewSet):
 
     def get_queryset(self, *args, **kwargs):
         return super().get_queryset(*args, **kwargs).filter(federation=self.kwargs['federation'])
+
+
+class WebFingerView(View):
+    endpoint_class = WebFingerEndpoint
+
+    def get(self, request, *args, **kwargs):
+        return self.on_request(request)
+
+    def on_request(self, request):
+        endpoint = self.endpoint_class(request)
+        try:
+            endpoint.validate_params()
+
+            return JsonResponse(endpoint.response())
+
+        except WebFingerError as error:
+            return JsonResponse(error.create_dict(), status=400)
+
+    def post(self, request, *args, **kwargs):
+        return self.on_request(request)
+
