@@ -26,7 +26,7 @@ class Model(models.Model):
         if path is None:
             path = "{}s".format(cls._meta.object_name.lower())
 
-        return path
+        return cls.__clean_path(path)
 
     def get_absolute_url(self):
         return Model.resource_id(self)

@@ -5,6 +5,11 @@ from django.conf import settings
 
 
 class WebFinger(object):
+
+    def uri(self, name, *args):
+        domain = settings.BASE_URL
+        return "{domain}{name}".format(domain=domain, name=name)
+
     def response(self, response_dict, rel, acct):
         return response_dict
 
@@ -51,7 +56,7 @@ class WebFingerEndpoint(object):
                       else self.request.GET)
 
         self.params['resource'] = query_dict.get('resource', None)
-        self.params['rel'] = query_dict.get('rel', '')
+        self.params['rel'] = query_dict.get('rel', None)
 
     def validate_params(self):
         """
@@ -74,6 +79,7 @@ class WebFingerEndpoint(object):
 
         dict = {
             'subject': self.params['resource'],
+            'aliases': [],
             'links': []
         }
 
