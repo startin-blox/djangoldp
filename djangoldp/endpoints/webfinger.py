@@ -78,7 +78,8 @@ class WebFingerEndpoint(object):
         }
 
         for class_name in model_classes:
-            webfinger = class_name()
+            model_class = model_classes[class_name]
+            webfinger = model_class()
             dict = webfinger.response(dict, self.params['rel'], self.acct)
 
         return dict
