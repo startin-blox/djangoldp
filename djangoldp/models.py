@@ -35,8 +35,15 @@ class Model(models.Model):
         return Model.container_id(self)
 
     @classonlymethod
+    def resource(cls, instance_or_model):
+        if isinstance(instance_or_model, ModelBase):
+            return cls.container_id(instance_or_model)
+        else:
+            return cls.resource_id(instance_or_model)
+
+    @classonlymethod
     def resource_id(cls, instance):
-        r_id = "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance)))
+        r_id = "{}{}".format(cls.container_id(instance), getattr(instance, cls.slug_field(instance), ""))
         return cls.__clean_path(r_id)
 
     @classonlymethod
