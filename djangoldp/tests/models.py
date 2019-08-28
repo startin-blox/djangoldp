@@ -37,7 +37,7 @@ class JobOffer(Model):
         authenticated_perms = ['inherit', 'change', 'add']
         owner_perms = ['inherit', 'delete', 'control']
         nested_fields = ["skills"]
-        serializer_fields = ["@id", "title", "skills", "recent_skills"]
+        serializer_fields = ["@id", "title", "skills", "recent_skills", "resources"]
         container_path = "job-offers/"
         lookup_field = 'slug'
 
@@ -51,6 +51,17 @@ class Conversation(models.Model):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
+
+
+class Resource(Model):
+    joboffers = models.ManyToManyField(JobOffer, blank=True, related_name='resources')
+
+    class Meta:
+        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
+        authenticated_perms = ['inherit']
+        owner_perms = ['inherit']
+        serializer_fields = ["@id", "joboffers"]
+        nested_fields = ["joboffers"]
 
 
 class UserProfile(Model):

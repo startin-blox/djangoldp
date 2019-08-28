@@ -460,8 +460,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(model_class)
         many_to_many = {}
         for field_name, relation_info in info.relations.items():
-            if relation_info.to_many and relation_info.reverse and not (
-                    field_name in validated_data) and not field_name is None:
+            if relation_info.to_many and relation_info.reverse and not field_name is None:
                 rel = getattr(instance._meta.model, field_name).rel
                 if rel.name in validated_data:
                     related = validated_data[rel.name]
@@ -485,8 +484,18 @@ class LDPSerializer(HyperlinkedModelSerializer):
         nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_list_fields_name:
             nested_fields.append((field_name, validated_data.pop(field_name)))
+
+        info = model_meta.get_field_info(model)
+        many_to_many = []
+        for field_name, relation_info in info.relations.items():
+            if relation_info.to_many and relation_info.reverse and (
+                    field_name in validated_data) and not field_name is None:
+                many_to_many.append((field_name, validated_data.pop(field_name)))
         validated_data = self.remove_empty_value(validated_data)
         instance = model.objects.create(**validated_data)
+
+        for field_name, value in many_to_many:
+            validated_data[field_name] = value
 
         self.save_or_update_nested_list(instance, nested_fields)
 

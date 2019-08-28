@@ -3,7 +3,7 @@ from rest_framework.utils import json
 
 from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy
+from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource
 
 
 class Save(TestCase):
@@ -254,6 +254,18 @@ class Save(TestCase):
         response = self.client.post('/posts/', data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
+
+    def test_nested_container(self):
+        resource = Resource.objects.create()
+        body = {
+            'title': "new job",
+        }
+
+        response = self.client.post('/resources/{}/joboffers/'.format(resource.pk),
+                                    data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], "http://testserver/resources/{}/".format(resource.pk))
 
     def test_embedded_context_2(self):
         body = {
