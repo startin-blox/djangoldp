@@ -258,7 +258,7 @@ class Save(TestCase):
     def test_nested_container(self):
         resource = Resource.objects.create()
         body = {
-            'title': "new job",
+            'http://happy-dev.fr/owl/#title': "new job",
         }
 
         response = self.client.post('/resources/{}/joboffers/'.format(resource.pk),
@@ -266,6 +266,7 @@ class Save(TestCase):
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], "http://testserver/resources/{}/".format(resource.pk))
+        self.assertEqual(response.data['title'], "new job")
 
     def test_embedded_context_2(self):
         body = {
