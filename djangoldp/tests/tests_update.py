@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Post, UserProfile
+from djangoldp.tests.models import Post, UserProfile, Resource
 from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
@@ -395,3 +395,21 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['peer_user'], None)
+
+    def test_m2m_new_link_embedded(self):
+        resource = Resource.objects.create()
+        body = {
+            'http://happy-dev.fr/owl/#joboffers': {
+                'http://happy-dev.fr/owl/#slug': 'aaa',
+                'http://happy-dev.fr/owl/#title': "new job",
+            }
+        }
+
+        response = self.client.put('/resources/{}/'.format(resource.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
+                         "http://testserver/job-offers/aaa/")
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "new job")
+
