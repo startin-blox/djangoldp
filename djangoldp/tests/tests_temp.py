@@ -1,10 +1,6 @@
-import json
-
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
-
-from djangoldp.tests.models import Resource
 
 
 class TestTemp(TestCase):
