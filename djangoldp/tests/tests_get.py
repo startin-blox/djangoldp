@@ -62,3 +62,16 @@ class TestGET(APITestCase):
         self.assertIn('recent_jobs', response.data)
         self.assertEqual(response.data['recent_jobs']['@id'], "http://happy-dev.fr/skills/1/recent_jobs/")
 
+    def test_get_virtual_field(self):
+        skill = Skill.objects.create(title="Java", obligatoire="ok", slug="1")
+        skill2 = Skill.objects.create(title="Java", obligatoire="ok", slug="2")
+        job = JobOffer.objects.create(title="job", slug="1")
+        job.skills.add(skill)
+        job.skills.add(skill2)
+        job.save()
+        response = self.client.get('/job-offers/{}/'.format(job.slug), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('some_skill', response.data)
+        self.assertEqual(response.data['some_skill']['@id'], "http://testserver/skills/1/")
+
+

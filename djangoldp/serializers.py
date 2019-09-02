@@ -269,23 +269,27 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def build_property_field(self, field_name, model_class):
         class JSonLDPropertyField(ReadOnlyField):
             def to_representation(self, instance):
+                from djangoldp.views import LDPViewSet
+                try:
+                    model_class = instance.model
+                except :
+                    model_class = instance.__class__
+                serializer_generator = LDPViewSet(model=model_class,
+                                                  lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
+                                                  permission_classes=Model.get_meta(model_class,
+                                                                                    'permission_classes',
+                                                                                    [LDPPermissions]),
+                                                  fields=Model.get_meta(model_class, 'serializer_fields', []),
+                                                  nested_fields=Model.get_meta(model_class, 'nested_fields', []))
+                parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
+                serializer_generator.depth = parent_depth
+                serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
+                if parent_depth is 0:
+                    serializer.Meta.fields = ["@id"]
+
                 if isinstance(instance, QuerySet):
                     data = list(instance)
-                    model_class = instance.model
-                    from djangoldp.views import LDPViewSet
 
-                    serializer_generator = LDPViewSet(model=model_class,
-                                                      lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
-                                                      permission_classes=Model.get_meta(model_class,
-                                                                                        'permission_classes',
-                                                                                        [LDPPermissions]),
-                                                      fields=Model.get_meta(model_class, 'serializer_fields', []),
-                                                      nested_fields=Model.get_meta(model_class, 'nested_fields', []))
-                    parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
-                    serializer_generator.depth = parent_depth
-                    serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
-                    if parent_depth is 0:
-                        serializer.Meta.fields = ["@id"]
                     return {'@id': '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source),
                             '@type': 'ldp:Container',
                             'ldp:contains': [serializer.to_representation(item) if item is not None else None for item
@@ -294,7 +298,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                                  ['view', 'add'])
                             }
                 else:
-                    return instance
+                    return serializer.to_representation(instance)
 
         field_class = JSonLDPropertyField
         field_kwargs = {}
