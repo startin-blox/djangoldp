@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.base import ModelBase
 from django.urls import get_resolver
+from django.utils.datastructures import MultiValueDict, MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 
 from djangoldp.permissions import LDPPermissions
@@ -53,7 +54,10 @@ class Model(models.Model):
         else:
             object_name = instance_or_model._meta.object_name.lower()
         view_name = '{}-detail'.format(object_name)
-        slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
+        try :
+            slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
+        except MultiValueDictKeyError:
+            slug_field = Model.get_meta(instance_or_model, 'lookup_field', 'pk')
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
         return slug_field

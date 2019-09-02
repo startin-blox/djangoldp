@@ -567,7 +567,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def save_or_update_nested_list(self, instance, nested_fields):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
-            slug_field = Model.slug_field(instance)
+            slug_field = Model.slug_field(manager.model)
             try:
                 item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
             except TypeError:
@@ -587,8 +587,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     saved_item = item
                 elif slug_field in item:
                     kwargs = {slug_field: item[slug_field]}
-                    old_obj = manager.model.objects.get(**kwargs)
-                    saved_item = self.update(instance=old_obj, validated_data=item)
+                    try:
+                        old_obj = manager.model.objects.get(**kwargs)
+                        saved_item = self.update(instance=old_obj, validated_data=item)
+                    except manager.model.DoesNotExist:
+                        saved_item = self.internal_create(validated_data=item, model=manager.model)
                 else:
                     rel = getattr(instance._meta.model, field_name).rel
                     try:
