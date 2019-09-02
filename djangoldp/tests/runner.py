@@ -71,7 +71,7 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_delete',
     'djangoldp.tests.tests_sources',
     'djangoldp.tests.tests_pagination',
-    # 'djangoldp.tests.tests_temp'
+    'djangoldp.tests.tests_temp'
 
 ])
 if failures:

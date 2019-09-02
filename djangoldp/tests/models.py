@@ -65,6 +65,7 @@ class Resource(Model):
         owner_perms = ['inherit']
         serializer_fields = ["@id", "joboffers"]
         nested_fields = ["joboffers"]
+        depth = 1
 
 
 class UserProfile(Model):
