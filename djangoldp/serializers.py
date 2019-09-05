@@ -254,8 +254,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field in data:
             if isinstance(data[field], dict) and '@id' in data[field]:
                 data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
-        if not '@id' in data:
+        if not ('@id' in data or 'id' in data):
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
+        if 'id' in data:
+            data['@id'] = data.pop('id')
         rdf_type = Model.get_meta(obj, 'rdf_type', None)
         rdf_context = Model.get_meta(obj, 'rdf_context', None)
         if rdf_type is not None:
