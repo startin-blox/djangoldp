@@ -69,6 +69,8 @@ class LDListMixin:
             container_permissions.extend(
                 Model.get_permissions(parent_model, self.context['request'].user,
                                       ['view']))
+        if self.id == '':
+            self.id = '{}{}'.format(settings.SITE_URL, Model.resource(parent_model))
         return {'@id': self.id,
                 '@type': 'ldp:Container',
                 'ldp:contains': super().to_representation(filtered_values),
@@ -252,6 +254,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field in data:
             if isinstance(data[field], dict) and '@id' in data[field]:
                 data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
+        if not '@id' in data:
+            data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
         rdf_type = Model.get_meta(obj, 'rdf_type', None)
         rdf_context = Model.get_meta(obj, 'rdf_context', None)
         if rdf_type is not None:
@@ -274,7 +278,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 if isinstance(instance, QuerySet) or isinstance(instance, Model):
                     try:
                         model_class = instance.model
-                    except :
+                    except:
                         model_class = instance.__class__
                     serializer_generator = LDPViewSet(model=model_class,
                                                       lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
@@ -294,9 +298,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                         return {'@id': '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source),
                                 '@type': 'ldp:Container',
-                                'ldp:contains': [serializer.to_representation(item) if item is not None else None for item
+                                'ldp:contains': [serializer.to_representation(item) if item is not None else None for
+                                                 item
                                                  in data],
-                                'permissions': Model.get_permissions(self.parent.Meta.model, self.context['request'].user,
+                                'permissions': Model.get_permissions(self.parent.Meta.model,
+                                                                     self.context['request'].user,
                                                                      ['view', 'add'])
                                 }
                     else:
