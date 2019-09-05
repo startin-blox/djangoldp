@@ -13,6 +13,6 @@ class TestSource(APITestCase):
         pass
 
     def test_get_resource(self):
-        source = LDPSource.objects.create(federation="source_name", container="http://bar.foo/")
+        source = LDPSource.objects.create(federation="source_name", id="http://bar.foo/")
         response = self.client.get('/sources/{}/'.format(source.federation), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)

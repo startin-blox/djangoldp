@@ -135,18 +135,18 @@ class Model(models.Model):
 
 
 class LDPSource(Model):
-    container = models.URLField()
+    id = models.URLField(primary_key=True)
     federation = models.CharField(max_length=255)
 
     class Meta:
-        rdf_type = 'sib:source'
+        rdf_type = 'ldp:Container'
         ordering = ('federation',)
         container_path = 'sources'
-        lookup_field = 'federation'
+        lookup_field = 'id'
         permissions = (
             ('view_source', 'acl:Read'),
             ('control_source', 'acl:Control'),
         )
 
     def __str__(self):
-        return "{}: {}".format(self.federation, self.container)
+        return "{}: {}".format(self.federation, self.id)
