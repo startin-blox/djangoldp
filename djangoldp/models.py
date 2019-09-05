@@ -141,6 +141,8 @@ class LDPSource(Model):
     class Meta:
         rdf_type = 'sib:source'
         ordering = ('federation',)
+        container_path = 'sources'
+        lookup_field = 'federation'
         permissions = (
             ('view_source', 'acl:Read'),
             ('control_source', 'acl:Control'),
