@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.base import ModelBase
@@ -138,7 +139,7 @@ class Model(models.Model):
     @classmethod
     def is_external(cls, value):
         try:
-            return value.urlid is not None
+            return value.urlid is not None and not value.urlid.startswith(settings.SITE_URL)
         except:
             return False
 

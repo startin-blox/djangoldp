@@ -339,6 +339,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 super().__init__(**kwargs)
 
             def get_value(self, dictionary):
+                if self.field_name == 'urlid':
+                    self.field_name = '@id'
                 try:
                     object_list = dictionary["@graph"]
                     if self.parent.instance is None:
@@ -354,6 +356,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 except KeyError:
                     value = super().get_value(dictionary)
 
+                if self.field_name == '@id' and value == './':
+                    self.field_name = 'urlid'
+                    return None
                 return self.manage_empty(value)
 
             def manage_empty(self, value):
@@ -384,6 +389,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
+                if self.url_field_name in data and not 'urlid' in data and data[self.url_field_name].startswith('http'):
+                    data['urlid'] = data[self.url_field_name]
                 if data is '':
                     return ''
                 if self.url_field_name in data:
@@ -397,6 +404,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     ret = OrderedDict()
                     errors = OrderedDict()
+
                     fields = list(filter(lambda x: x.field_name in data, self._writable_fields))
 
                     for field in fields:

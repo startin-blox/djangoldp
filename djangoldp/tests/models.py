@@ -40,7 +40,7 @@ class JobOffer(Model):
         authenticated_perms = ['inherit', 'change', 'add']
         owner_perms = ['inherit', 'delete', 'control']
         nested_fields = ["skills"]
-        serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill"]
+        serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
         container_path = "job-offers/"
         lookup_field = 'slug'
 
