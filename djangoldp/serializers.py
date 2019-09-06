@@ -184,7 +184,10 @@ class JsonLdField(HyperlinkedRelatedField):
 class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
         try:
-            return {'@id': super().to_representation(value)}
+            if Model.is_external(value):
+                return {'@id': value.urlid }
+            else:
+                return {'@id': super().to_representation(value)}
         except ImproperlyConfigured:
             return value.pk
 
@@ -223,9 +226,19 @@ class JsonLdIdentityField(JsonLdField):
 
     def to_representation(self, value: Any) -> Any:
         try:
-            return Hyperlink(value.webid(), value)
+            if isinstance(value, str):
+                return Hyperlink(value, value)
+            else:
+                return Hyperlink(value.webid(), value)
         except AttributeError:
             return super().to_representation(value)
+
+    def get_attribute(self, instance):
+        if Model.is_external(instance):
+            return instance.urlid
+        else:
+            return super().get_attribute(instance)
+
 
 
 class LDPSerializer(HyperlinkedModelSerializer):
@@ -254,10 +267,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field in data:
             if isinstance(data[field], dict) and '@id' in data[field]:
                 data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
-        if not ('@id' in data or 'id' in data):
+        if 'urlid' in data and data['urlid'] is not None:
+            data['@id'] = data.pop('urlid')['@id']
+        if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
-        if 'id' in data:
-            data['@id'] = data.pop('id')
         rdf_type = Model.get_meta(obj, 'rdf_type', None)
         rdf_context = Model.get_meta(obj, 'rdf_context', None)
         if rdf_type is not None:

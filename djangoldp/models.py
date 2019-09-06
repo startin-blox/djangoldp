@@ -5,6 +5,7 @@ from django.urls import get_resolver
 from django.utils.datastructures import MultiValueDict, MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 
+from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
 
 User._meta.rdf_type = "foaf:user"
@@ -12,6 +13,7 @@ User._meta.owner_field = "id"
 
 
 class Model(models.Model):
+    urlid = LDPUrlField(null=True, unique=True)
 
     @classmethod
     def get_view_set(cls):
@@ -133,20 +135,26 @@ class Model(models.Model):
             permissions = permission_class().filter_user_perms(user_or_group, obj_or_model, permissions)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
+    @classmethod
+    def is_external(cls, value):
+        try:
+            return value.urlid is not None
+        except:
+            return False
+
 
 class LDPSource(Model):
-    id = models.URLField(primary_key=True)
     federation = models.CharField(max_length=255)
 
     class Meta:
         rdf_type = 'ldp:Container'
         ordering = ('federation',)
         container_path = 'sources'
-        lookup_field = 'id'
+        lookup_field = 'federation'
         permissions = (
             ('view_source', 'acl:Read'),
             ('control_source', 'acl:Control'),
         )
 
     def __str__(self):
-        return "{}: {}".format(self.federation, self.id)
+        return "{}: {}".format(self.federation, self.urlid)

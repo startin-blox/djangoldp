@@ -1,10 +1,6 @@
-import json
-
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
-
-from djangoldp.tests.models import Resource, JobOffer, Invoice, Batch
 
 
 class TestTemp(TestCase):
@@ -16,4 +12,3 @@ class TestTemp(TestCase):
 
     def tearDown(self):
         pass
-
