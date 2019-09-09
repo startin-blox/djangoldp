@@ -69,8 +69,8 @@ class LDListMixin:
             container_permissions.extend(
                 Model.get_permissions(parent_model, self.context['request'].user,
                                       ['view']))
-        if self.id == '':
-            self.id = '{}{}'.format(settings.SITE_URL, Model.resource(parent_model))
+        if not self.id.startswith('http'):
+            self.id = '{}{}{}'.format(settings.SITE_URL, Model.resource(parent_model), self.id)
         return {'@id': self.id,
                 '@type': 'ldp:Container',
                 'ldp:contains': super().to_representation(filtered_values),
@@ -433,7 +433,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
     @classmethod
     def many_init(cls, *args, **kwargs):
         kwargs['child'] = cls(**kwargs)
-        return ContainerSerializer(*args, **kwargs)
+        serializer = ContainerSerializer(*args, **kwargs)
+        if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
+            serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
+        return serializer
 
     def get_value(self, dictionary):
         try:
