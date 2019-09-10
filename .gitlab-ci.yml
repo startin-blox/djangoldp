@@ -12,6 +12,7 @@ test:
     - python -m unittest djangoldp.tests.runner
   except:
     - master
+    - tags
   tags:
     - sib
 
