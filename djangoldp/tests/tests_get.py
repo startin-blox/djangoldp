@@ -1,9 +1,8 @@
-import json
-
-from django.contrib.auth.models import User
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Task, Invoice, JobOffer, Skill
+from rest_framework.test import APIRequestFactory, APIClient, APITestCase
+
+from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch
 
 
 class TestGET(APITestCase):
@@ -27,13 +26,13 @@ class TestGET(APITestCase):
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('permissions', response.data)
-        self.assertEquals(2, len(response.data['permissions'])) # read and add
+        self.assertEquals(2, len(response.data['permissions']))  # read and add
 
         Invoice.objects.create(title="content")
         response = self.client.get('/invoices/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('permissions', response.data)
-        self.assertEquals(1, len(response.data['permissions'])) # read only
+        self.assertEquals(1, len(response.data['permissions']))  # read only
 
     def test_get_empty_container(self):
         Post.objects.all().delete()
@@ -74,4 +73,9 @@ class TestGET(APITestCase):
         self.assertIn('some_skill', response.data)
         self.assertEqual(response.data['some_skill']['@id'], "http://testserver/skills/1/")
 
-
+    def test_get_nested(self):
+        invoice = Invoice.objects.create(title="invoice")
+        batch = Batch.objects.create(invoice=invoice, title="batch")
+        response = self.client.get('/invoices/{}/batches/'.format(invoice.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
