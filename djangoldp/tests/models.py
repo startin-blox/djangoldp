@@ -24,7 +24,7 @@ class Skill(Model):
 
 
 class JobOffer(Model):
-    title = models.CharField(max_length=255, blank=True, null=True)
+    title = models.CharField(max_length=255, null=True)
     skills = models.ManyToManyField(Skill, blank=True)
     slug = models.SlugField(blank=True, null=True, unique=True)
     date = models.DateTimeField(auto_now_add=True, blank=True)
@@ -58,6 +58,7 @@ class Conversation(models.Model):
 
 class Resource(Model):
     joboffers = models.ManyToManyField(JobOffer, blank=True, related_name='resources')
+    description = models.CharField(max_length=255)
 
     class Meta:
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']

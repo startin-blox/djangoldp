@@ -450,7 +450,7 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
-                         "http://testserver/job-offers/aaa/")
+                         "http://happy-dev.fr/job-offers/aaa/")
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "new job")
 
     def test_m2m_existing_link(self):
