@@ -1,4 +1,3 @@
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.base import ModelBase
 from django.urls import get_resolver
@@ -6,9 +5,6 @@ from django.utils.datastructures import MultiValueDict, MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 
 from djangoldp.permissions import LDPPermissions
-
-User._meta.rdf_type = "foaf:user"
-User._meta.owner_field = "id"
 
 
 class Model(models.Model):
