@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Post, UserProfile, Resource
+from djangoldp.tests.models import Post, UserProfile, Resource, Circle
 from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
@@ -492,3 +492,19 @@ class Update(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
                          "http://external.job/job/1")
+
+    def test_m2m_user_link_federated(self):
+        circle = Circle.objects.create(description="cicle name")
+        body = {
+            'http://happy-dev.fr/owl/#description': 'circle name',
+            'http://happy-dev.fr/owl/#team': {
+                'http://happy-dev.fr/owl/#@id': 'http://external.user/user/1',
+            }
+        }
+
+        response = self.client.put('/circles/{}/'.format(circle.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'],
+                         "http://external.user/user/1")

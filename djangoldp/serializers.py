@@ -3,6 +3,7 @@ from typing import Any
 from urllib import parse
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
@@ -440,7 +441,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         slug_field = Model.slug_field(self.__class__.Meta.model)
                         ret[slug_field] = match.kwargs[slug_field]
                     except Resolver404:
-                        pass
+                        if 'urlid' in data:
+                            ret['urlid'] = data['urlid']
 
                     return ret
                 else:
@@ -458,6 +460,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
             serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
         return serializer
+
+    def to_internal_value(self, data):
+        user_case = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(settings.BASE_URL)
+        if user_case:
+            data['username'] = 'external'
+        ret = super().to_internal_value(data)
+        if user_case:
+            ret['username'] = data['@id']
+        return ret
 
     def get_value(self, dictionary):
         try:
@@ -532,6 +543,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     field_name in validated_data) and not field_name is None:
                 many_to_many.append((field_name, validated_data.pop(field_name)))
         validated_data = self.remove_empty_value(validated_data)
+        if model is get_user_model() and 'urlid' in validated_data and not 'username' in validated_data:
+            validated_data['username'] = validated_data.pop('urlid')
         instance = model.objects.create(**validated_data)
 
         for field_name, value in many_to_many:
@@ -561,9 +574,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             else:
                 setattr(instance, attr, value)
 
-        instance.save()
 
         self.save_or_update_nested_list(instance, nested_fields)
+        instance.save()
 
         return instance
 

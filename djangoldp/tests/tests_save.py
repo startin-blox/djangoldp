@@ -1,12 +1,24 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post
+from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle
 
 
 class Save(TestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                         password='glass onion')
+        self.client.force_authenticate(self.user)
+
+    def tearDown(self):
+        pass
 
     def test_save_m2m_graph_with_many_nested(self):
         invoice = {
@@ -311,20 +323,18 @@ class Save(TestCase):
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         saved_post = Post.objects.get(pk=1)
-        self.assertEqual(saved_post.urlid, "https://happy-dev.fr/posts/1/")
+        self.assertEqual(saved_post.urlid, "http://happy-dev.fr/posts/1/")
 
-    def test_auto_id(self):
+    def test_nested_container_user_federated(self):
+        circle = Circle.objects.create()
         body = {
-            '@id': "./",
-            'content': "post update",
-            'peer_user': "",
-            '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
-            }
+            'http://happy-dev.fr/owl/#@id': "http://external.user/user/1/",
         }
 
-        response = self.client.post('/posts/', data=json.dumps(body),
+        response = self.client.post('/circles/{}/team/'.format(circle.pk),
+                                    data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        saved_post = Post.objects.get(pk=1)
-        self.assertEqual(saved_post.urlid, "http://happy-dev.fr/posts/1/")
+        self.assertEqual(response.data['circle_set']['ldp:contains'][0]['@id'],
+                         "http://testserver/circles/{}/".format(circle.pk))
+        self.assertEqual(response.data['@id'], "http://external.user/user/1/")
