@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Post, UserProfile, Resource
+from djangoldp.tests.models import Post, UserProfile, Resource, Circle
 from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
@@ -264,7 +264,7 @@ class Update(TestCase):
     def test_put_resource(self):
         post = Post.objects.create(content="content")
         body = [{
-            '@id': '/posts/{}/'.format(post.pk),
+            '@id': 'http://testserver.com/posts/{}/'.format(post.pk),
             'http://happy-dev.fr/owl/#content': "post content"}]
         response = self.client.put('/posts/{}/'.format(post.pk), data=json.dumps(body),
                                    content_type='application/ld+json')
@@ -401,7 +401,7 @@ class Update(TestCase):
         job = JobOffer.objects.create(title="first title", slug="job")
         body = {
             'http://happy-dev.fr/owl/#joboffers': {
-                '@id': 'http://testserver/job-offers/{}/'.format(job.slug),
+                '@id': 'http://testserver.com/job-offers/{}/'.format(job.slug),
             }
         }
 
@@ -410,7 +410,7 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
-                         "http://testserver/job-offers/{}/".format(job.slug))
+                         "http://testserver.com/job-offers/{}/".format(job.slug))
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "first title")
 
     def test_m2m_new_link_bis(self):
@@ -419,9 +419,9 @@ class Update(TestCase):
         body = {
             'http://happy-dev.fr/owl/#joboffers':
                 {
-                    '@id': "http://testserver/resources/{}/joboffers/".format(resource.pk),
+                    '@id': "http://testserver.com/resources/{}/joboffers/".format(resource.pk),
                     'ldp:contains': [
-                        {'@id': 'http://testserver/job-offers/{}/'.format(job.slug),
+                        {'@id': 'http://testserver.com/job-offers/{}/'.format(job.slug),
                          'http://happy-dev.fr/owl/#title': "new job",
                          },
                     ]
@@ -433,7 +433,7 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
-                         "http://testserver/job-offers/{}/".format(job.slug))
+                         "http://testserver.com/job-offers/{}/".format(job.slug))
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "new job")
 
     def test_m2m_new_link_embedded(self):
@@ -450,7 +450,7 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
-                         "http://testserver/job-offers/aaa/")
+                         "http://happy-dev.fr/job-offers/aaa/")
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "new job")
 
     def test_m2m_existing_link(self):
@@ -463,7 +463,7 @@ class Update(TestCase):
                 # '@id': "http://testserver/resources/{}/joboffers/".format(resource.pk),
                 'ldp:contains': [
                     {
-                        '@id': 'http://testserver/job-offers/{}/'.format(job.slug),
+                        '@id': 'http://testserver.com/job-offers/{}/'.format(job.slug),
                         'http://happy-dev.fr/owl/#title': "new job",
                     }
                 ]
@@ -475,5 +475,36 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
-                         "http://testserver/job-offers/{}/".format(job.slug))
+                         "http://testserver.com/job-offers/{}/".format(job.slug))
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "new job")
+
+    def test_m2m_new_link_federated(self):
+        resource = Resource.objects.create()
+        body = {
+            'http://happy-dev.fr/owl/#joboffers': {
+                'http://happy-dev.fr/owl/#@id': 'http://external.job/job/1',
+            }
+        }
+
+        response = self.client.put('/resources/{}/'.format(resource.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
+                         "http://external.job/job/1")
+
+    def test_m2m_user_link_federated(self):
+        circle = Circle.objects.create(description="cicle name")
+        body = {
+            'http://happy-dev.fr/owl/#description': 'circle name',
+            'http://happy-dev.fr/owl/#team': {
+                'http://happy-dev.fr/owl/#@id': 'http://external.user/user/1',
+            }
+        }
+
+        response = self.client.put('/circles/{}/'.format(circle.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'],
+                         "http://external.user/user/1")

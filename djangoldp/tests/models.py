@@ -1,6 +1,8 @@
+import validators
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.urls import reverse_lazy
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
@@ -24,7 +26,7 @@ class Skill(Model):
 
 
 class JobOffer(Model):
-    title = models.CharField(max_length=255, blank=True, null=True)
+    title = models.CharField(max_length=255, null=True)
     skills = models.ManyToManyField(Skill, blank=True)
     slug = models.SlugField(blank=True, null=True, unique=True)
     date = models.DateTimeField(auto_now_add=True, blank=True)
@@ -40,7 +42,7 @@ class JobOffer(Model):
         authenticated_perms = ['inherit', 'change', 'add']
         owner_perms = ['inherit', 'delete', 'control']
         nested_fields = ["skills"]
-        serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill"]
+        serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
         container_path = "job-offers/"
         lookup_field = 'slug'
 
@@ -58,6 +60,7 @@ class Conversation(models.Model):
 
 class Resource(Model):
     joboffers = models.ManyToManyField(JobOffer, blank=True, related_name='resources')
+    description = models.CharField(max_length=255)
 
     class Meta:
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
@@ -157,5 +160,28 @@ class Post(Model):
         owner_perms = ['inherit']
 
 
+class Circle(Model):
+    description = models.CharField(max_length=255)
+    team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True)
+
+    class Meta:
+        nested_fields = ["team"]
+        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
+        authenticated_perms = ["inherit"]
+        rdf_type = 'hd:circle'
+        depth = 1
+
+
+def webid(self):
+    # hack : We user webid as username for external user (since it's an uniq identifier too)
+    if validators.url(self.username):
+        webid = self.username
+    else:
+        webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
+    return webid
+
+
 get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
-                                            'conversation_set', ]
+                                            'conversation_set', 'circle_set']
+get_user_model().webid = webid
+get_user_model()._meta.anonymous_perms = ['view', 'add']

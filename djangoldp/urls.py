@@ -17,7 +17,7 @@ def __clean_path(path):
 
 
 urlpatterns = [
-    url(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'id'],
+    url(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
                                                                 permission_classes=[LDPPermissions], )),
     url(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
 ]
