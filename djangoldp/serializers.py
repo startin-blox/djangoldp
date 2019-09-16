@@ -618,4 +618,5 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     saved_item = self.internal_create(validated_data=item, model=manager.model)
 
                 if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
+                    manager.remove(saved_item)
                     manager.add(saved_item)
