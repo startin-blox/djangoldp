@@ -1,11 +1,6 @@
-import json
-
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
-
-from djangoldp.tests.models import Resource, JobOffer, Invoice, Batch
-
 
 class TestTemp(TestCase):
 
@@ -13,7 +8,7 @@ class TestTemp(TestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = User.objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
+        self.client.force_authenticate(self.user)
 
     def tearDown(self):
         pass
-

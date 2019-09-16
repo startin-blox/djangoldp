@@ -16,7 +16,7 @@ class LDPModelTest(TestCase):
     def test_class_inheriting_ldp_model(self):
         dummy = LDPDummy.objects.create(some="text")
         self.assertEquals("/ldpdummys/", dummy.get_container_id())
-        self.assertEquals("/ldpdummys/{}/".format(dummy.pk), dummy.get_absolute_url())
+        self.assertEquals("http://happy-dev.fr/ldpdummys/{}/".format(dummy.pk), dummy.get_absolute_url())
         self.assertEquals("/ldpdummys/", Model.container_id(dummy))
         self.assertEquals("/ldpdummys/{}/".format(dummy.pk), Model.resource_id(dummy))
 
@@ -33,6 +33,6 @@ class LDPModelTest(TestCase):
         from django.urls import get_resolver
         dummy = LDPDummy.objects.create(some="text")
         view_name = '{}-list'.format(dummy._meta.object_name.lower())
-        path = '/{}{}/'.format(get_resolver().reverse_dict[view_name][0][0][0], dummy.pk)
+        path = 'http://happy-dev.fr/{}{}/'.format(get_resolver().reverse_dict[view_name][0][0][0], dummy.pk)
 
         self.assertEquals(path, dummy.get_absolute_url())

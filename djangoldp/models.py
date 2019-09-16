@@ -1,13 +1,21 @@
+from django.conf import settings
 from django.db import models
 from django.db.models.base import ModelBase
+from django.db.models.signals import pre_save, post_save
+from django.dispatch import receiver
 from django.urls import get_resolver
-from django.utils.datastructures import MultiValueDict, MultiValueDictKeyError
+from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 
+from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
 
 
 class Model(models.Model):
+    urlid = LDPUrlField(blank=True, null=True, unique=True)
+
+    def __init__(self, *args, **kwargs):
+        super(Model, self).__init__(*args, **kwargs)
 
     @classmethod
     def get_view_set(cls):
@@ -26,7 +34,10 @@ class Model(models.Model):
         return cls.__clean_path(path)
 
     def get_absolute_url(self):
-        return Model.resource_id(self)
+        if self.urlid is  None or self.urlid != '':
+            return '{}{}'.format(settings.BASE_URL, Model.resource_id(self))
+        else:
+            return self.urlid
 
     def get_container_id(self):
         return Model.container_id(self)
@@ -50,7 +61,7 @@ class Model(models.Model):
         else:
             object_name = instance_or_model._meta.object_name.lower()
         view_name = '{}-detail'.format(object_name)
-        try :
+        try:
             slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         except MultiValueDictKeyError:
             slug_field = Model.get_meta(instance_or_model, 'lookup_field', 'pk')
@@ -129,20 +140,34 @@ class Model(models.Model):
             permissions = permission_class().filter_user_perms(user_or_group, obj_or_model, permissions)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
+    @classmethod
+    def is_external(cls, value):
+        try:
+            return value.urlid is not None and not value.urlid.startswith(settings.SITE_URL)
+        except:
+            return False
+
 
 class LDPSource(Model):
-    id = models.URLField(primary_key=True)
     federation = models.CharField(max_length=255)
 
     class Meta:
         rdf_type = 'ldp:Container'
         ordering = ('federation',)
         container_path = 'sources'
-        lookup_field = 'id'
+        lookup_field = 'federation'
         permissions = (
             ('view_source', 'acl:Read'),
             ('control_source', 'acl:Control'),
         )
 
     def __str__(self):
-        return "{}: {}".format(self.federation, self.id)
+        return "{}: {}".format(self.federation, self.urlid)
+
+
+@receiver([post_save])
+def auto_urlid(sender, instance, **kwargs):
+    if isinstance(instance, Model) and (instance.urlid is None or instance.urlid == ''):
+        instance.urlid = instance.get_absolute_url()
+        instance.save()
+

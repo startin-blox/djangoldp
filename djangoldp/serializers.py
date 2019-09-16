@@ -3,6 +3,7 @@ from typing import Any
 from urllib import parse
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
@@ -184,7 +185,10 @@ class JsonLdField(HyperlinkedRelatedField):
 class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
         try:
-            return {'@id': super().to_representation(value)}
+            if Model.is_external(value):
+                return {'@id': value.urlid }
+            else:
+                return {'@id': super().to_representation(value)}
         except ImproperlyConfigured:
             return value.pk
 
@@ -223,9 +227,19 @@ class JsonLdIdentityField(JsonLdField):
 
     def to_representation(self, value: Any) -> Any:
         try:
-            return Hyperlink(value.webid(), value)
+            if isinstance(value, str):
+                return Hyperlink(value, value)
+            else:
+                return Hyperlink(value.webid(), value)
         except AttributeError:
             return super().to_representation(value)
+
+    def get_attribute(self, instance):
+        if Model.is_external(instance):
+            return instance.urlid
+        else:
+            return super().get_attribute(instance)
+
 
 
 class LDPSerializer(HyperlinkedModelSerializer):
@@ -254,10 +268,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for field in data:
             if isinstance(data[field], dict) and '@id' in data[field]:
                 data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
-        if not ('@id' in data or 'id' in data):
+        if 'urlid' in data and data['urlid'] is not None:
+            data['@id'] = data.pop('urlid')['@id']
+        if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
-        if 'id' in data:
-            data['@id'] = data.pop('id')
         rdf_type = Model.get_meta(obj, 'rdf_type', None)
         rdf_context = Model.get_meta(obj, 'rdf_context', None)
         if rdf_type is not None:
@@ -326,6 +340,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 super().__init__(**kwargs)
 
             def get_value(self, dictionary):
+                if self.field_name == 'urlid':
+                    self.field_name = '@id'
                 try:
                     object_list = dictionary["@graph"]
                     if self.parent.instance is None:
@@ -341,6 +357,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 except KeyError:
                     value = super().get_value(dictionary)
 
+                if self.field_name == '@id' and value == './':
+                    self.field_name = 'urlid'
+                    return None
                 return self.manage_empty(value)
 
             def manage_empty(self, value):
@@ -371,6 +390,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
+                if self.url_field_name in data and not 'urlid' in data and data[self.url_field_name].startswith('http'):
+                    data['urlid'] = data[self.url_field_name]
                 if data is '':
                     return ''
                 if self.url_field_name in data:
@@ -384,6 +405,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     ret = OrderedDict()
                     errors = OrderedDict()
+
                     fields = list(filter(lambda x: x.field_name in data, self._writable_fields))
 
                     for field in fields:
@@ -419,7 +441,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         slug_field = Model.slug_field(self.__class__.Meta.model)
                         ret[slug_field] = match.kwargs[slug_field]
                     except Resolver404:
-                        pass
+                        if 'urlid' in data:
+                            ret['urlid'] = data['urlid']
 
                     return ret
                 else:
@@ -437,6 +460,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
             serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
         return serializer
+
+    def to_internal_value(self, data):
+        user_case = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(settings.BASE_URL)
+        if user_case:
+            data['username'] = 'external'
+        ret = super().to_internal_value(data)
+        if user_case:
+            ret['username'] = data['@id']
+        return ret
 
     def get_value(self, dictionary):
         try:
@@ -511,6 +543,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     field_name in validated_data) and not field_name is None:
                 many_to_many.append((field_name, validated_data.pop(field_name)))
         validated_data = self.remove_empty_value(validated_data)
+        if model is get_user_model() and 'urlid' in validated_data and not 'username' in validated_data:
+            validated_data['username'] = validated_data.pop('urlid')
         instance = model.objects.create(**validated_data)
 
         for field_name, value in many_to_many:
@@ -540,9 +574,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             else:
                 setattr(instance, attr, value)
 
-        instance.save()
 
         self.save_or_update_nested_list(instance, nested_fields)
+        instance.save()
 
         return instance
 
@@ -618,4 +652,5 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     saved_item = self.internal_create(validated_data=item, model=manager.model)
 
                 if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
+                    manager.remove(saved_item)
                     manager.add(saved_item)

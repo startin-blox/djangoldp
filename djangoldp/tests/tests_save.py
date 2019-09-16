@@ -1,12 +1,24 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource
+from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle
 
 
 class Save(TestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                         password='glass onion')
+        self.client.force_authenticate(self.user)
+
+    def tearDown(self):
+        pass
 
     def test_save_m2m_graph_with_many_nested(self):
         invoice = {
@@ -88,8 +100,8 @@ class Save(TestCase):
         self.assertIs(result.skills.count(), 0)
 
     def test_save_m2m_graph_with_nested(self):
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="a")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="b")
 
         job = {"@graph": [
             {"title": "job test",
@@ -111,9 +123,9 @@ class Save(TestCase):
         self.assertEquals(result.skills.all()[0].title, "skill3 NEW")  # creation on the fly
 
     def test_save_without_nested_fields(self):
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire")
-        job = {"title": "job test"}
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="a")
+        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="b")
+        job = {"title": "job test", "slug": "c"}
 
         meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
 
@@ -265,8 +277,23 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], "http://testserver/resources/{}/".format(resource.pk))
+        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'],
+                         "http://testserver/resources/{}/".format(resource.pk))
         self.assertEqual(response.data['title'], "new job")
+
+    def test_nested_container_federated(self):
+        resource = Resource.objects.create()
+        body = {
+            'http://happy-dev.fr/owl/#@id': "http://external.job/job/1",
+        }
+
+        response = self.client.post('/resources/{}/joboffers/'.format(resource.pk),
+                                    data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'],
+                         "http://testserver/resources/{}/".format(resource.pk))
+        self.assertEqual(response.data['@id'], "http://external.job/job/1")
 
     def test_embedded_context_2(self):
         body = {
@@ -281,3 +308,33 @@ class Save(TestCase):
         response = self.client.post('/posts/', data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
+
+    def test_auto_id(self):
+        body = {
+            '@id': "./",
+            'content': "post update",
+            'peer_user': "",
+            '@context': {
+                "@vocab": "http://happy-dev.fr/owl/#",
+            }
+        }
+
+        response = self.client.post('/posts/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        saved_post = Post.objects.get(pk=1)
+        self.assertEqual(saved_post.urlid, "http://happy-dev.fr/posts/1/")
+
+    def test_nested_container_user_federated(self):
+        circle = Circle.objects.create()
+        body = {
+            'http://happy-dev.fr/owl/#@id': "http://external.user/user/1/",
+        }
+
+        response = self.client.post('/circles/{}/team/'.format(circle.pk),
+                                    data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['circle_set']['ldp:contains'][0]['@id'],
+                         "http://testserver/circles/{}/".format(circle.pk))
+        self.assertEqual(response.data['@id'], "http://external.user/user/1/")
