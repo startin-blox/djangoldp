@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_save, post_save
@@ -10,9 +9,6 @@ from django.utils.decorators import classonlymethod
 
 from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
-
-User._meta.rdf_type = "foaf:user"
-User._meta.owner_field = "id"
 
 
 class Model(models.Model):
