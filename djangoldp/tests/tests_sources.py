@@ -16,3 +16,9 @@ class TestSource(APITestCase):
         source = LDPSource.objects.create(federation="source_name", urlid="http://bar.foo/")
         response = self.client.get('/sources/{}/'.format(source.federation), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['@id'], 'http://happy-dev.fr/sources/source_name/')
+
+    def test_get_empty_resource(self):
+        response = self.client.get('/sources/{}/'.format('unknown'), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['@id'], 'http://happy-dev.fr/sources/unknown/')
