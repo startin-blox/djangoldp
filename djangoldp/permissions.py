@@ -46,8 +46,9 @@ class LDPPermissions(BasePermission):
 
         else:
             if obj and hasattr(model._meta, 'owner_field') and (
-                    getattr(obj, getattr(model._meta, 'owner_field')) == user or getattr(obj, getattr(model._meta,
-                                                                                                      'owner_field')) == user.id):
+                    getattr(obj, getattr(model._meta, 'owner_field')) == user
+                    or getattr(obj, getattr(model._meta, 'owner_field')) == user.urlid
+                    or getattr(obj, getattr(model._meta, 'owner_field')) == user.id):
                 return owner_perms
 
             else:

@@ -167,7 +167,7 @@ class LDPSource(Model):
 
 @receiver([post_save])
 def auto_urlid(sender, instance, **kwargs):
-    if isinstance(instance, Model) and (instance.urlid is None or instance.urlid == ''):
+    if isinstance(instance, Model) and (instance.urlid is None or instance.urlid == '' or 'None' in instance.urlid):
         instance.urlid = instance.get_absolute_url()
         instance.save()
 
