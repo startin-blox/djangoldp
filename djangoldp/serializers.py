@@ -241,7 +241,6 @@ class JsonLdIdentityField(JsonLdField):
             return super().get_attribute(instance)
 
 
-
 class LDPSerializer(HyperlinkedModelSerializer):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
@@ -461,6 +460,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
         serializer = ContainerSerializer(*args, **kwargs)
         if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
             serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
+        elif 'context' in kwargs:
+            serializer.id = '{}{}'.format(settings.BASE_URL, kwargs['context']['view'].request.path)
         return serializer
 
     def to_internal_value(self, data):
