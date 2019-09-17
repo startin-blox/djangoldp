@@ -21,7 +21,7 @@ class Skill(Model):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
-        serializer_fields = ["@id", "title", "recent_jobs"]
+        serializer_fields = ["@id", "title", "recent_jobs", "slug"]
         lookup_field = 'slug'
 
 

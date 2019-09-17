@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.db.models.base import ModelBase
-from django.db.models.signals import pre_save, post_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.urls import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
@@ -34,7 +34,7 @@ class Model(models.Model):
         return cls.__clean_path(path)
 
     def get_absolute_url(self):
-        if self.urlid is  None or self.urlid != '':
+        if self.urlid is None or self.urlid != '':
             return '{}{}'.format(settings.BASE_URL, Model.resource_id(self))
         else:
             return self.urlid
@@ -167,7 +167,10 @@ class LDPSource(Model):
 
 @receiver([post_save])
 def auto_urlid(sender, instance, **kwargs):
-    if isinstance(instance, Model) and (instance.urlid is None or instance.urlid == '' or 'None' in instance.urlid):
-        instance.urlid = instance.get_absolute_url()
-        instance.save()
-
+    if isinstance(instance, Model):
+        if getattr(instance, Model.slug_field(instance), None) is None:
+            setattr(instance, Model.slug_field(instance), instance.pk)
+            instance.save()
+        if (instance.urlid is None or instance.urlid == '' or 'None' in instance.urlid):
+            instance.urlid = instance.get_absolute_url()
+            instance.save()

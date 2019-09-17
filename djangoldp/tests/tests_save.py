@@ -60,6 +60,7 @@ class Save(TestCase):
         skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug2")
 
         job = {"title": "job test",
+               "slug": "slug1",
                "skills": {
                    "ldp:contains": [
                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
@@ -84,11 +85,11 @@ class Save(TestCase):
 
     def test_save_m2m_graph_simple(self):
         job = {"@graph": [
-            {"title": "job test",
+            {"title": "job test", "slug": "slugjob",
              },
         ]}
 
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -105,12 +106,13 @@ class Save(TestCase):
 
         job = {"@graph": [
             {"title": "job test",
+             "slug": "slugj",
              "skills": {"@id": "_.123"}
              },
-            {"@id": "_.123", "title": "skill3 NEW", "obligatoire": "obligatoire"},
+            {"@id": "_.123", "title": "skill3 NEW", "obligatoire": "obligatoire", "slug": "skill3"},
         ]}
 
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -127,7 +129,7 @@ class Save(TestCase):
         skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="b")
         job = {"title": "job test", "slug": "c"}
 
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
 
         meta_class = type('Meta', (), meta_args)
         serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
@@ -271,6 +273,7 @@ class Save(TestCase):
         resource = Resource.objects.create()
         body = {
             'http://happy-dev.fr/owl/#title': "new job",
+            'http://happy-dev.fr/owl/#slug': "job1",
         }
 
         response = self.client.post('/resources/{}/joboffers/'.format(resource.pk),

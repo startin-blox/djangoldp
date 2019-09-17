@@ -390,8 +390,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                if self.url_field_name in data and not 'urlid' in data and data[self.url_field_name].startswith('http'):
-                    data['urlid'] = data[self.url_field_name]
                 if data is '':
                     return ''
                 if self.url_field_name in data:
@@ -444,9 +442,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         if 'urlid' in data:
                             ret['urlid'] = data['urlid']
 
-                    return ret
                 else:
-                    return super().to_internal_value(data)
+                    ret = super().to_internal_value(data)
+
+                if self.url_field_name in data and not 'urlid' in data and data[self.url_field_name].startswith('http'):
+                    ret['urlid'] = data[self.url_field_name]
+
+                return ret
 
         kwargs = get_nested_relation_kwargs(relation_info)
         kwargs['read_only'] = False
