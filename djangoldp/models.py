@@ -106,6 +106,8 @@ class Model(models.Model):
 
     @classonlymethod
     def resolve(cls, path):
+        if settings.BASE_URL in path:
+            path = path[len(settings.BASE_URL):]
         container = cls.resolve_container(path)
         try:
             resolve_id = cls.resolve_id(path)

@@ -272,31 +272,7 @@ class Update(TestCase):
         self.assertEquals(response.data['content'], "post content")
         self.assertIn('location', response._headers)
 
-    def test_create_sub_object_in_existing_object_with_reverse_1to1_relation(self):
-        """
-        Doesn't work with depth = 0 on UserProfile Model. Should it be ?
-        """
-        user = User.objects.create(username="alex", password="test")
-        body = [
-            {
-                '@id': "_:b975",
-                'http://happy-dev.fr/owl/#description': "user description",
-                'http://happy-dev.fr/owl/#dummy': {
-                    '@id': './'
-                }
-            },
-            {
-                '@id': '/users/{}/'.format(user.pk),
-                "http://happy-dev.fr/owl/#first_name": "Alexandre",
-                "http://happy-dev.fr/owl/#last_name": "Bourlier",
-                "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b975"}
-            }
-        ]
-        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
-                                   content_type='application/ld+json')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('userprofile', response.data)
+
 
     def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
         user = User.objects.create(username="alex", password="test")
@@ -396,23 +372,6 @@ class Update(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['peer_user'], None)
 
-    def test_m2m_new_link(self):
-        resource = Resource.objects.create()
-        job = JobOffer.objects.create(title="first title", slug="job")
-        body = {
-            'http://happy-dev.fr/owl/#joboffers': {
-                '@id': 'http://testserver.com/job-offers/{}/'.format(job.slug),
-            }
-        }
-
-        response = self.client.put('/resources/{}/'.format(resource.pk),
-                                   data=json.dumps(body),
-                                   content_type='application/ld+json')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
-                         "http://testserver.com/job-offers/{}/".format(job.slug))
-        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "first title")
-
     def test_m2m_new_link_bis(self):
         resource = Resource.objects.create()
         job = JobOffer.objects.create(title="first title", slug="job")
@@ -493,6 +452,62 @@ class Update(TestCase):
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
                          "http://external.job/job/1")
 
+    def test_m2m_new_link_external(self):
+        resource = Resource.objects.create()
+        body = {
+            'http://happy-dev.fr/owl/#joboffers': {
+                '@id': 'http://testserver.com/job-offers/stuff/',
+            }
+        }
+
+        response = self.client.put('/resources/{}/'.format(resource.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
+                         "http://testserver.com/job-offers/stuff/")
+
+    def test_m2m_new_link_local(self):
+        resource = Resource.objects.create()
+        job = JobOffer.objects.create(title="first title", slug="job")
+        body = {
+            'http://happy-dev.fr/owl/#joboffers': {
+                '@id': 'http://happy-dev.fr/job-offers/{}/'.format(job.slug),
+            }
+        }
+
+        response = self.client.put('/resources/{}/'.format(resource.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
+                         "http://happy-dev.fr/job-offers/{}/".format(job.slug))
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "first title")
+
+    def test_update_with_new_fk_relation(self):
+        user = User.objects.create(username="alex", password="test")
+        conversation = Conversation.objects.create(author_user=user,
+                                                   description="conversation description")
+        body = [
+            {
+                '@id': "/conversations/{}/".format(conversation.pk),
+                'http://happy-dev.fr/owl/#description': "conversation update",
+                'http://happy-dev.fr/owl/#peer_user': {
+                    '@id': 'http://happy-dev.fr/users/{}'.format(user.pk),
+                }
+            }
+        ]
+        response = self.client.put('/conversations/{}/'.format(conversation.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('peer_user', response.data)
+
+        conversation = Conversation.objects.get(pk=conversation.pk)
+        self.assertIsNotNone(conversation.peer_user)
+
+        user = User.objects.get(pk=user.pk)
+        self.assertEqual(user.peers_conv.count(), 1)
+
     def test_m2m_user_link_federated(self):
         circle = Circle.objects.create(description="cicle name")
         body = {
@@ -508,3 +523,74 @@ class Update(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['team']['ldp:contains'][0]['@id'],
                          "http://external.user/user/1")
+
+    def test_m2m_user_link_existing_external(self):
+        circle = Circle.objects.create(description="cicle name")
+        ext_user = User.objects.create(username='http://external.user/user/1')
+        body = {
+            'http://happy-dev.fr/owl/#description': 'circle name',
+            'http://happy-dev.fr/owl/#team': {
+                'http://happy-dev.fr/owl/#@id': ext_user.username,
+            }
+        }
+
+        response = self.client.put('/circles/{}/'.format(circle.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'],
+                         ext_user.username)
+
+        circle = Circle.objects.get(pk=circle.pk)
+        self.assertEqual(circle.team.count(), 1)
+
+        user = User.objects.get(pk=ext_user.pk)
+        self.assertEqual(user.circle_set.count(), 1)
+
+    def test_create_sub_object_in_existing_object_with_reverse_1to1_relation(self):
+        """
+        Doesn't work with depth = 0 on UserProfile Model. Should it be ?
+        """
+        user = User.objects.create(username="alex", password="test")
+        body = [
+            {
+                '@id': "_:b975",
+                'http://happy-dev.fr/owl/#description': "user description",
+                'http://happy-dev.fr/owl/#dummy': {
+                    '@id': './'
+                }
+            },
+            {
+                '@id': '/users/{}/'.format(user.pk),
+                "http://happy-dev.fr/owl/#first_name": "Alexandre",
+                "http://happy-dev.fr/owl/#last_name": "Bourlier",
+                "http://happy-dev.fr/owl/#username": "alex",
+                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b975"}
+            }
+        ]
+        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('userprofile', response.data)
+
+    def test_m2m_user_link_remove_existing_link(self):
+        ext_user = User.objects.create(username='http://external.user/user/1')
+        circle = Circle.objects.create(description="cicle name")
+        circle.team.add(ext_user)
+        circle.save()
+        body = {
+            'http://happy-dev.fr/owl/#description': 'circle name',
+            'http://happy-dev.fr/owl/#team': {
+            }
+        }
+
+        response = self.client.put('/circles/{}/'.format(circle.pk),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+
+        circle = Circle.objects.get(pk=circle.pk)
+        self.assertEqual(circle.team.count(), 0)
+
+        user = User.objects.get(pk=ext_user.pk)
+        self.assertEqual(user.circle_set.count(), 0)

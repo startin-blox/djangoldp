@@ -4,6 +4,7 @@ from urllib import parse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
@@ -33,6 +34,8 @@ class LDListMixin:
             data = data['ldp:contains']
         except (TypeError, KeyError):
             pass
+        if len(data) == 0:
+            return []
         if isinstance(data, dict):
             data = [data]
         if isinstance(data, str) and data.startswith("http"):
@@ -186,7 +189,7 @@ class JsonLdRelatedField(JsonLdField):
     def to_representation(self, value):
         try:
             if Model.is_external(value):
-                return {'@id': value.urlid }
+                return {'@id': value.urlid}
             else:
                 return {'@id': super().to_representation(value)}
         except ImproperlyConfigured:
@@ -465,7 +468,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return serializer
 
     def to_internal_value(self, data):
-        user_case = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(settings.BASE_URL)
+        user_case = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(
+            settings.BASE_URL)
         if user_case:
             data['username'] = 'external'
         ret = super().to_internal_value(data)
@@ -521,18 +525,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     getattr(instance, field_name).add(related)
 
     def internal_create(self, validated_data, model):
-
-        nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
-        for field_name in nested_fk_fields_name:
-            field_dict = validated_data[field_name]
-            field_model = getattr(model, field_name).field.rel.model
-            slug_field = Model.slug_field(field_model)
-            if slug_field in field_dict:
-                kwargs = {slug_field: field_dict[slug_field]}
-                sub_inst = field_model.objects.get(**kwargs)
-            else:
-                sub_inst = self.internal_create(field_dict, field_model)
-            validated_data[field_name] = sub_inst
+        validated_data = self.resolve_fk_instances(model, validated_data)
 
         nested_fields = []
         nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
@@ -564,6 +557,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return validated_data
 
     def update(self, instance, validated_data):
+        model = self.Meta.model
+        validated_data = self.resolve_fk_instances(model, validated_data)
+
         nested_fields = []
         nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_fields_name:
@@ -577,11 +573,37 @@ class LDPSerializer(HyperlinkedModelSerializer):
             else:
                 setattr(instance, attr, value)
 
-
         self.save_or_update_nested_list(instance, nested_fields)
         instance.save()
 
         return instance
+
+    def resolve_fk_instances(self, model, validated_data):
+        nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
+        for field_name in nested_fk_fields_name:
+            field_dict = validated_data[field_name]
+            try:
+                field_model = getattr(model, field_name).field.rel.model
+            except:
+                # not fk
+                continue
+            slug_field = Model.slug_field(field_model)
+            sub_inst = None
+            if slug_field in field_dict:
+                kwargs = {slug_field: field_dict[slug_field]}
+                sub_inst = field_model.objects.get(**kwargs)
+            elif 'urlid' in field_dict and settings.BASE_URL in field_dict['urlid']:
+                model, sub_inst = Model.resolve(field_dict['urlid'])
+            elif 'urlid' in field_dict and issubclass(field_model, AbstractUser):
+                kwargs = {'username': field_dict['urlid']}
+                sub_inst = field_model.objects.get(**kwargs)
+            elif 'urlid' in field_dict:
+                kwargs = {'urlid': field_dict['urlid']}
+                sub_inst = field_model.objects.get(**kwargs)
+            if sub_inst is None:
+                sub_inst = self.internal_create(field_dict, field_model)
+            validated_data[field_name] = sub_inst
+        return validated_data
 
     def update_dict_value(self, attr, instance, value):
         info = model_meta.get_field_info(instance)
@@ -597,8 +619,20 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if relation_info.to_many:
             value = self.internal_create(validated_data=value, model=relation_info.related_model)
         else:
-            value[instance._meta.fields_map[attr].remote_field.name] = instance
-            oldObj = getattr(instance, attr, None)
+            try:
+                reverse_attr_name = instance._meta.fields_map[attr].remote_field.name
+                many = False
+            except:
+                rel = list(filter(lambda field: field.name == attr, instance._meta.fields))[0].rel
+                many = rel.one_to_many
+                reverse_attr_name = rel.related_name
+            if many:
+                value[reverse_attr_name] = [instance]
+                oldObj = rel.model.object.get(id=value['urlid'])
+            else:
+                value[reverse_attr_name] = instance
+                oldObj = getattr(instance, attr, None)
+
             if oldObj is None:
                 value = self.internal_create(validated_data=value, model=relation_info.related_model)
             else:
@@ -619,6 +653,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def save_or_update_nested_list(self, instance, nested_fields):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
+            field_model = manager.model
             slug_field = Model.slug_field(manager.model)
             try:
                 item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
@@ -639,11 +674,19 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     saved_item = item
                 elif slug_field in item:
                     kwargs = {slug_field: item[slug_field]}
-                    try:
-                        old_obj = manager.model.objects.get(**kwargs)
+                    saved_item = self.get_or_create(field_model, item, kwargs)
+                elif 'urlid' in item and settings.BASE_URL in item['urlid']:
+                    model, old_obj = Model.resolve(item['urlid'])
+                    if old_obj is not None:
                         saved_item = self.update(instance=old_obj, validated_data=item)
-                    except manager.model.DoesNotExist:
-                        saved_item = self.internal_create(validated_data=item, model=manager.model)
+                    else:
+                        saved_item = self.internal_create(validated_data=item, model=field_model)
+                elif 'urlid' in item and issubclass(field_model, AbstractUser):
+                    kwargs = {'username': item['urlid']}
+                    saved_item = self.get_or_create(field_model, item, kwargs)
+                elif 'urlid' in item:
+                    kwargs = {'urlid': item['urlid']}
+                    saved_item = self.get_or_create(field_model, item, kwargs)
                 else:
                     rel = getattr(instance._meta.model, field_name).rel
                     try:
@@ -657,3 +700,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
                     manager.remove(saved_item)
                     manager.add(saved_item)
+
+    def get_or_create(self, field_model, item, kwargs):
+        try:
+            old_obj = field_model.objects.get(**kwargs)
+            saved_item = self.update(instance=old_obj, validated_data=item)
+        except field_model.DoesNotExist:
+            saved_item = self.internal_create(validated_data=item, model=field_model)
+        return saved_item
