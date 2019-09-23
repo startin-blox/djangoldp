@@ -34,10 +34,14 @@ class Model(models.Model):
         return cls.__clean_path(path)
 
     def get_absolute_url(self):
-        if self.urlid is None or self.urlid != '':
-            return '{}{}'.format(settings.BASE_URL, Model.resource_id(self))
+        return Model.absolute_url(self)
+
+    @classonlymethod
+    def absolute_url(cls, instance_or_model):
+        if isinstance(instance_or_model, ModelBase) or instance_or_model.urlid is None or instance_or_model.urlid == '':
+            return '{}{}'.format(settings.BASE_URL, Model.resource(instance_or_model))
         else:
-            return self.urlid
+            return instance_or_model.urlid
 
     def get_container_id(self):
         return Model.container_id(self)

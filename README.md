@@ -242,6 +242,16 @@ REST_FRAMEWORK = {
 }
 ```
  
+## Sources
+To enable sources auto creation for all models, change `djangoldp` by `djangoldp.apps.DjangoldpConfig`, on `INSTALLED_APPS`
+
+```python
+INSTALLED_APPS = [
+    'djangoldp.apps.DjangoldpConfig',
+]
+```
+
+
 ## License
 
 Licence MIT
