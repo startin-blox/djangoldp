@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.db import OperationalError
 
 
 class DjangoldpConfig(AppConfig):
@@ -21,3 +22,6 @@ class DjangoldpConfig(AppConfig):
                 existing_source = LDPSource.objects.get(federation=path)
             except LDPSource.DoesNotExist:
                 LDPSource.objects.create(federation=path, urlid=Model.absolute_url(model_class))
+            except OperationalError:
+                pass
+
