@@ -1,6 +1,6 @@
 import json
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
 
@@ -9,7 +9,7 @@ class TestAutoAuthor(APITestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.client = APIClient()
-        self.user = User.objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
 
     def tearDown(self):
         self.user.delete()

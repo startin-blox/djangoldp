@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
@@ -156,7 +156,7 @@ class Update(TestCase):
         self.assertEquals(skill, skill._meta.model.objects.get(pk=skill.pk))  # title updated
 
     def test_update_list_with_reverse_relation(self):
-        user1 = User.objects.create()
+        user1 = get_user_model().objects.create()
         conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
         message1 = Message.objects.create(text="Message 1", conversation=conversation, author_user=user1)
         message2 = Message.objects.create(text="Message 2", conversation=conversation, author_user=user1)
@@ -197,7 +197,7 @@ class Update(TestCase):
         self.assertEquals(messages[1].text, "Message 2 UP")
 
     def test_add_new_element_with_foreign_key_id(self):
-        user1 = User.objects.create()
+        user1 = get_user_model().objects.create()
         conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
         message1 = Message.objects.create(text="Message 1", conversation=conversation, author_user=user1)
         message2 = Message.objects.create(text="Message 2", conversation=conversation, author_user=user1)
@@ -275,7 +275,7 @@ class Update(TestCase):
 
 
     def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
-        user = User.objects.create(username="alex", password="test")
+        user = get_user_model().objects.create(username="alex", password="test")
         profile = UserProfile.objects.create(user=user, description="user description")
         body = [
             {
@@ -299,7 +299,7 @@ class Update(TestCase):
         """
         Doesn't work with depth = 0 on UserProfile Model. Should it be ?
         """
-        user = User.objects.create(username="alex", password="test")
+        user = get_user_model().objects.create(username="alex", password="test")
         body = [
             {
                 '@id': "_:b975",
@@ -319,7 +319,7 @@ class Update(TestCase):
         self.assertIn('conversation_set', response.data)
 
     def test_create_sub_object_in_existing_object_with_existing_reverse_fk_relation(self):
-        user = User.objects.create(username="alex", password="test")
+        user = get_user_model().objects.create(username="alex", password="test")
         conversation = Conversation.objects.create(author_user=user, description="conversation description")
         body = [
             {
@@ -340,8 +340,8 @@ class Update(TestCase):
         self.assertIn('conversation_set', response.data)
 
     def test_missing_field_should_not_be_removed_with_fk_relation(self):
-        user = User.objects.create(username="alex", password="test")
-        peer = User.objects.create(username="sylvain", password="test2")
+        user = get_user_model().objects.create(username="alex", password="test")
+        peer = get_user_model().objects.create(username="sylvain", password="test2")
         conversation = Conversation.objects.create(author_user=user, peer_user=peer,
                                                    description="conversation description")
         body = [
@@ -356,8 +356,8 @@ class Update(TestCase):
         self.assertIn('peer_user', response.data)
 
     def test_empty_field_should_be_removed_with_fk_relation(self):
-        user = User.objects.create(username="alex", password="test")
-        peer = User.objects.create(username="sylvain", password="test2")
+        user = get_user_model().objects.create(username="alex", password="test")
+        peer = get_user_model().objects.create(username="sylvain", password="test2")
         conversation = Conversation.objects.create(author_user=user, peer_user=peer,
                                                    description="conversation description")
         body = [
@@ -485,7 +485,7 @@ class Update(TestCase):
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "first title")
 
     def test_update_with_new_fk_relation(self):
-        user = User.objects.create(username="alex", password="test")
+        user = get_user_model().objects.create(username="alex", password="test")
         conversation = Conversation.objects.create(author_user=user,
                                                    description="conversation description")
         body = [
@@ -505,7 +505,7 @@ class Update(TestCase):
         conversation = Conversation.objects.get(pk=conversation.pk)
         self.assertIsNotNone(conversation.peer_user)
 
-        user = User.objects.get(pk=user.pk)
+        user = get_user_model().objects.get(pk=user.pk)
         self.assertEqual(user.peers_conv.count(), 1)
 
     def test_m2m_user_link_federated(self):
@@ -526,7 +526,7 @@ class Update(TestCase):
 
     def test_m2m_user_link_existing_external(self):
         circle = Circle.objects.create(description="cicle name")
-        ext_user = User.objects.create(username='http://external.user/user/1')
+        ext_user = get_user_model().objects.create(username='http://external.user/user/1')
         body = {
             'http://happy-dev.fr/owl/#description': 'circle name',
             'http://happy-dev.fr/owl/#team': {
@@ -544,14 +544,14 @@ class Update(TestCase):
         circle = Circle.objects.get(pk=circle.pk)
         self.assertEqual(circle.team.count(), 1)
 
-        user = User.objects.get(pk=ext_user.pk)
+        user = get_user_model().objects.get(pk=ext_user.pk)
         self.assertEqual(user.circle_set.count(), 1)
 
     def test_create_sub_object_in_existing_object_with_reverse_1to1_relation(self):
         """
         Doesn't work with depth = 0 on UserProfile Model. Should it be ?
         """
-        user = User.objects.create(username="alex", password="test")
+        user = get_user_model().objects.create(username="alex", password="test")
         body = [
             {
                 '@id': "_:b975",
@@ -574,7 +574,7 @@ class Update(TestCase):
         self.assertIn('userprofile', response.data)
 
     def test_m2m_user_link_remove_existing_link(self):
-        ext_user = User.objects.create(username='http://external.user/user/1')
+        ext_user = get_user_model().objects.create(username='http://external.user/user/1')
         circle = Circle.objects.create(description="cicle name")
         circle.team.add(ext_user)
         circle.save()
@@ -592,5 +592,5 @@ class Update(TestCase):
         circle = Circle.objects.get(pk=circle.pk)
         self.assertEqual(circle.team.count(), 0)
 
-        user = User.objects.get(pk=ext_user.pk)
+        user = get_user_model().objects.get(pk=ext_user.pk)
         self.assertEqual(user.circle_set.count(), 0)

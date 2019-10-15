@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APITestCase
 
 from djangoldp.permissions import LDPPermissions
@@ -10,7 +10,7 @@ import json
 class TestUserPermissions(APITestCase):
 
     def setUp(self):
-        user = User.objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
+        user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
         self.client = APIClient(enforce_csrf_checks=True)
         self.client.force_authenticate(user=user)
         self.job = JobOffer.objects.create(title="job", slug="slug1")
