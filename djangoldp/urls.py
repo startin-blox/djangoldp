@@ -6,6 +6,7 @@ from django.conf.urls import url, include
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
 from djangoldp.views import LDPSourceViewSet, WebFingerView
+from djangoldp.views import LDPViewSet
 
 
 def __clean_path(path):
@@ -46,3 +47,6 @@ for package in settings.DJANGOLDP_PACKAGES:
         urlpatterns.append(url(r'^', include('{}.djangoldp_urls'.format(package))))
     except ModuleNotFoundError:
         pass
+
+if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
+    urlpatterns.append(url(r'^users/', LDPViewSet.urls(model=settings.AUTH_USER_MODEL, permission_classes=[])))

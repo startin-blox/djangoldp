@@ -1,9 +1,11 @@
+import validators
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.urls import get_resolver
+from django.urls import reverse_lazy, get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 
@@ -180,3 +182,16 @@ def auto_urlid(sender, instance, **kwargs):
         if (instance.urlid is None or instance.urlid == '' or 'None' in instance.urlid):
             instance.urlid = instance.get_absolute_url()
             instance.save()
+
+
+if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
+    def webid(self):
+        # hack : We user webid as username for external user (since it's an uniq identifier too)
+        if validators.url(self.username):
+            webid = self.username
+        else:
+            webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
+        return webid
+
+    get_user_model()._meta.serializer_fields = ['@id']
+    get_user_model().webid = webid

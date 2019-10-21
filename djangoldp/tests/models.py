@@ -1,8 +1,6 @@
-import validators
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.urls import reverse_lazy
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
@@ -171,17 +169,6 @@ class Circle(Model):
         rdf_type = 'hd:circle'
         depth = 1
 
-
-def webid(self):
-    # hack : We user webid as username for external user (since it's an uniq identifier too)
-    if validators.url(self.username):
-        webid = self.username
-    else:
-        webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
-    return webid
-
-
 get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
                                             'conversation_set', 'circle_set']
-get_user_model().webid = webid
 get_user_model()._meta.anonymous_perms = ['view', 'add']
