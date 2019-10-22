@@ -8,8 +8,8 @@ class AllowOnlySiteUrl:
         self.get_response = get_response
 
     def __call__(self, request):
+        response = self.get_response(request)
         if(is_safe_url(request.get_raw_uri(), allowed_hosts=settings.SITE_URL)):
-            response = self.get_response(request)
             return response
         else:
             return redirect('{}{}'.format(settings.SITE_URL, request.path))

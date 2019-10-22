@@ -267,9 +267,9 @@ INSTALLED_APPS = [
 ]
 ```
 
-## 301 on domain mismatch
+## 302 on domain mismatch
 
-To enable 301 redirection on domain mismatch, add `djangoldp.middleware.AllowOnlySiteUrl` on `MIDDLEWARE`
+To enable 302 redirection on domain mismatch, add `djangoldp.middleware.AllowOnlySiteUrl` on `MIDDLEWARE`
 
 This ensure that your clients will use `SITE_URL` and avoid mismatch betwen url & the id of a resource/container
 
