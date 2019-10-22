@@ -12,4 +12,4 @@ class AllowOnlySiteUrl:
         if(is_safe_url(request.get_raw_uri(), allowed_hosts=settings.SITE_URL) or response.status_code != 200):
             return response
         else:
-            return redirect('{}{}'.format(settings.SITE_URL, request.path))
+            return redirect('{}{}'.format(settings.SITE_URL, request.path), permanent=True)
