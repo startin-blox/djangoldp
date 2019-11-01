@@ -255,7 +255,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             fields = list(self.Meta.model._meta.serializer_fields)
         except AttributeError:
             fields = super().get_default_field_names(declared_fields, model_info)
-        if 'request' in self._context and not self._context['request']._request.method == 'GET':
+        if 'request' in self._context and not (self._context['request']._request.method == 'GET' or self._context['request']._request.method == 'OPTIONS'):
             try:
                 fields.remove(self.Meta.model._meta.auto_author)
             except ValueError:
