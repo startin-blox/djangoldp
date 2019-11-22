@@ -21,6 +21,9 @@ from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
 
 
+get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
+
+
 class JSONLDRenderer(JSONRenderer):
     media_type = 'application/ld+json'
 
