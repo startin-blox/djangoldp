@@ -41,7 +41,7 @@ class Model(models.Model):
     @classonlymethod
     def absolute_url(cls, instance_or_model):
         if isinstance(instance_or_model, ModelBase) or instance_or_model.urlid is None or instance_or_model.urlid == '':
-            return '{}{}'.format(settings.BASE_URL, Model.resource(instance_or_model))
+            return '{}{}'.format(settings.SITE_URL, Model.resource(instance_or_model))
         else:
             return instance_or_model.urlid
 
