@@ -74,7 +74,7 @@ class LDListMixin:
                 Model.get_permissions(parent_model, self.context['request'].user,
                                       ['view']))
         if not self.id.startswith('http'):
-            self.id = '{}{}{}'.format(settings.SITE_URL, Model.resource(parent_model), self.id)
+            self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
         return {'@id': self.id,
                 '@type': 'ldp:Container',
                 'ldp:contains': super().to_representation(filtered_values),
