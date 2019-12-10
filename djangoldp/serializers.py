@@ -661,12 +661,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 item_pk_to_keep = list(
                     map(lambda e: getattr(e, slug_field), filter(lambda x: hasattr(x, slug_field), data)))
 
-            for item in list(manager.all()):
-                if not str(getattr(item, slug_field)) in item_pk_to_keep:
-                    if getattr(manager, 'through', None) is None:
+            if getattr(manager, 'through', None) is None:
+                for item in list(manager.all()):
+                    if not str(getattr(item, slug_field)) in item_pk_to_keep:
                         item.delete()
-                    else:
-                        manager.remove(item)
+            else:
+                manager.clear()
 
             for item in data:
                 if not isinstance(item, dict):
