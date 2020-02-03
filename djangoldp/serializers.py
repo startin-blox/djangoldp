@@ -27,13 +27,17 @@ from djangoldp.permissions import LDPPermissions
 
 
 class LDListMixin:
+    '''A Mixin used by the custom Serializers in this file'''
     child_attr = 'child'
 
+    # converts primitive data representation to the representation used within our application
     def to_internal_value(self, data):
         try:
+            # if this is a container, the data will be stored in ldp:contains
             data = data['ldp:contains']
         except (TypeError, KeyError):
             pass
+
         if len(data) == 0:
             return []
         if isinstance(data, dict):
@@ -43,6 +47,7 @@ class LDListMixin:
 
         return [getattr(self, self.child_attr).to_internal_value(item) for item in data]
 
+    # converts internal representation to primitive data representation
     def to_representation(self, value):
         '''
         Permission on container :
@@ -53,7 +58,9 @@ class LDListMixin:
             child_model = getattr(self, self.child_attr).Meta.model
         except AttributeError:
             child_model = value.model
+
         parent_model = None
+
         if isinstance(value, QuerySet):
             value = list(value)
 
@@ -61,11 +68,13 @@ class LDListMixin:
             filtered_values = value
             container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['view', 'add'])
         else:
+            # this is a container. Parent model is the containing object, child the model contained
             try:
                 parent_model = Model.resolve_parent(self.context['request'].path)
             except:
                 parent_model = child_model
 
+            # remove objects from the list which I don't have permission to view
             filtered_values = list(
                 filter(lambda v: Model.get_permission_classes(v, [LDPPermissions])[0]().has_object_permission(
                     self.context['request'], self.context['view'], v), value))

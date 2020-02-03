@@ -24,6 +24,8 @@ from djangoldp.permissions import LDPPermissions
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
 
 
+# renders into JSONLD format by applying context to the data
+# https://github.com/digitalbazaar/pyld
 class JSONLDRenderer(JSONRenderer):
     media_type = 'application/ld+json'
 
@@ -38,15 +40,18 @@ class JSONLDRenderer(JSONRenderer):
                 data["@context"] = settings.LDP_RDF_CONTEXT
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
-
+# https://github.com/digitalbazaar/pyld
 class JSONLDParser(JSONParser):
     media_type = 'application/ld+json'
 
     def parse(self, stream, media_type=None, parser_context=None):
         data = super(JSONLDParser, self).parse(stream, media_type, parser_context)
+        # compact applies the context to the data and makes it a format which is easier to work with
+        # see: http://json-ld.org/spec/latest/json-ld/#compacted-document-form
         return jsonld.compact(data, ctx=settings.LDP_RDF_CONTEXT)
 
 
+# an authentication class which exempts CSRF authentication
 class NoCSRFAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
@@ -81,6 +86,7 @@ class LDPViewSetGenerator(ModelViewSet):
 
     @classonlymethod
     def urls(cls, **kwargs):
+        '''constructs urls list for model passed in kwargs'''
         kwargs['model'] = cls.get_model(**kwargs)
         model_name = kwargs['model']._meta.object_name.lower()
         if kwargs.get('model_prefix'):
@@ -93,12 +99,14 @@ class LDPViewSetGenerator(ModelViewSet):
                 name='{}-detail'.format(model_name)),
         ]
 
+        # append nested fields to the urls list
         for field in kwargs.get('nested_fields') or cls.nested_fields:
             urls.append(url('^' + detail_expr + field + '/', LDPNestedViewSet.nested_urls(field, **kwargs)))
 
         return include(urls)
 
 
+# LDPViewSetGenerator is a ModelViewSet (DRF) with methods to automatically generate model urls
 class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
@@ -109,6 +117,8 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # attach filter backends based on permissions classes, to reduce the queryset based on these permissions
+        # https://www.django-rest-framework.org/api-guide/filtering/#generic-filtering
         if self.permission_classes:
             for p in self.permission_classes:
                 if hasattr(p, 'filter_class') and p.filter_class:
@@ -136,11 +146,13 @@ class LDPViewSet(LDPViewSetGenerator):
         return self.build_serializer(meta_args, 'Write')
 
     def build_serializer(self, meta_args, name_prefix):
+        # create the Meta class to associate to LDPSerializer, using meta_args param
         if self.fields:
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = self.exclude or ()
         meta_class = type('Meta', (), meta_args)
+
         from djangoldp.serializers import LDPSerializer
         return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,),
                                    {'Meta': meta_class})
@@ -148,6 +160,7 @@ class LDPViewSet(LDPViewSetGenerator):
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         self.perform_create(serializer)
         response_serializer = self.get_serializer()
         data = response_serializer.to_representation(serializer.instance)
@@ -210,6 +223,7 @@ class LDPViewSet(LDPViewSetGenerator):
             return super(LDPView, self).get_queryset(*args, **kwargs)
 
     def dispatch(self, request, *args, **kwargs):
+        '''overriden dispatch method to append some custom headers'''
         response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
         response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
         response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE"
