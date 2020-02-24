@@ -14,19 +14,18 @@ test:
     - master
     - tags
   tags:
-    - sib
+    - test
 
 publish:
   stage: release
   before_script:
+    - pip install python-semantic-release sib-commit-parser
     - git config user.name "${GITLAB_USER_NAME}"
     - git config user.email "${GITLAB_USER_EMAIL}"
     - git remote set-url origin "https://gitlab-ci-token:${GL_TOKEN}@git.happy-dev.fr/${CI_PROJECT_PATH}.git"
-    - pip install git+https://github.com/plup/python-semantic-release
-    - pip install sib-commit-parser
   script:
     - semantic-release publish
   only:
     - master
   tags:
-    - sib
+    - deploy
