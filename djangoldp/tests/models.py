@@ -15,7 +15,7 @@ class Skill(Model):
     def recent_jobs(self):
         return self.joboffer_set.filter(date__gte=date.today())
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -35,7 +35,7 @@ class JobOffer(Model):
     def some_skill(self):
         return self.skills.all().first()
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'change', 'add']
         owner_perms = ['inherit', 'delete', 'control']
@@ -50,18 +50,19 @@ class Conversation(models.Model):
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_conv")
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
+        owner_field = 'author_user'
 
 
 class Resource(Model):
     joboffers = models.ManyToManyField(JobOffer, blank=True, related_name='resources')
     description = models.CharField(max_length=255)
 
-    class Meta:
-        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
+    class Meta(Model.Meta):
+        anonymous_perms = ['view', 'add', 'delete', 'change', 'control']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
         serializer_fields = ["@id", "joboffers"]
@@ -73,7 +74,7 @@ class UserProfile(Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL)
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit', 'change', 'control']
@@ -85,7 +86,7 @@ class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.DO_NOTHING)
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -95,7 +96,7 @@ class Dummy(models.Model):
     some = models.CharField(max_length=255, blank=True, null=True)
     slug = models.SlugField(blank=True, null=True, unique=True)
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -104,17 +105,31 @@ class Dummy(models.Model):
 class LDPDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
 
-    class Meta:
+    class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
+
+
+# model used in django-guardian permission tests (no anonymous etc permissions set)
+class PermissionlessDummy(Model):
+    some = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(blank=True, null=True, unique=True)
+
+    class Meta(Model.Meta):
+        anonymous_perms = []
+        authenticated_perms = []
+        owner_perms = []
+        permissions = (
+            ('custom_permission_permissionlessdummy', 'Custom Permission'),
+        )
 
 
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     date = models.DateField(blank=True, null=True)
 
-    class Meta:
+    class Meta(Model.Meta):
         depth = 2
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
@@ -126,7 +141,7 @@ class Batch(Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='batches')
     title = models.CharField(max_length=255, blank=True, null=True)
 
-    class Meta:
+    class Meta(Model.Meta):
         serializer_fields = ['@id', 'title', 'invoice', 'tasks']
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'add']
@@ -139,7 +154,7 @@ class Task(models.Model):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
 
-    class Meta:
+    class Meta(Model.Meta):
         serializer_fields = ['@id', 'title', 'batch']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
@@ -151,7 +166,7 @@ class Post(Model):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post")
 
-    class Meta:
+    class Meta(Model.Meta):
         auto_author = 'author'
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
@@ -162,7 +177,7 @@ class Circle(Model):
     description = models.CharField(max_length=255)
     team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True)
 
-    class Meta:
+    class Meta(Model.Meta):
         nested_fields = ["team"]
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
