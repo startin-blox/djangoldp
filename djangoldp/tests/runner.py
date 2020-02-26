@@ -65,6 +65,7 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_ldp_model',
     'djangoldp.tests.tests_save',
     'djangoldp.tests.tests_user_permissions',
+    'djangoldp.tests.tests_guardian',
     'djangoldp.tests.tests_anonymous_permissions',
     'djangoldp.tests.tests_update',
     'djangoldp.tests.tests_auto_author',
@@ -73,7 +74,6 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_sources',
     'djangoldp.tests.tests_pagination',
     # 'djangoldp.tests.tests_temp'
-
 ])
 if failures:
     sys.exit(failures)

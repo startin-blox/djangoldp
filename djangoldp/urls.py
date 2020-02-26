@@ -10,6 +10,7 @@ from djangoldp.views import LDPViewSet
 
 
 def __clean_path(path):
+    '''ensures path is Django-friendly'''
     if path.startswith("/"):
         path = path[1:]
     if not path.endswith("/"):
@@ -29,11 +30,15 @@ for package in settings.DJANGOLDP_PACKAGES:
     except ModuleNotFoundError:
         pass
 
+# fetch a list of all models which subclass DjangoLDP Model
 model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
 
+# append urls for all DjangoLDP Model subclasses
 for class_name in model_classes:
     model_class = model_classes[class_name]
+    # the path is the url for this model
     path = __clean_path(model_class.get_container_path())
+    # urls_fct will be a method which generates urls for a ViewSet (defined in LDPViewSet)
     urls_fct = model_class.get_view_set().urls
     urlpatterns.append(url(r'^' + path, include(
         urls_fct(model=model_class,

@@ -146,6 +146,28 @@ To start the server, `cd` to the root of your Django project and run :
 $ python3 manage.py runserver
 ```
 
+## Using DjangoLDP
+
+### Models
+
+To use DjangoLDP in your models you just need to extend djangoldp.Model
+
+If you define a Meta for your Model, you will [need to explicitly inherit Model.Meta](https://docs.djangoproject.com/fr/2.2/topics/db/models/#meta-inheritance) in order to inherit the default settings, e.g. `default_permissions`
+
+```python
+from djangoldp.models import Model, LDPMetaMixin
+
+class Todo(Model):
+    name = models.CharField(max_length=255)
+
+    class Meta(Model.Meta):
+```
+
+
+See "Custom Meta options" below to see some helpful ways you can tweak the behaviour of DjangoLDP
+
+Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend the GuardedModelAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html)
+
 ## Custom Parameters to LDPViewSet
 
 ### lookup_field
@@ -183,6 +205,10 @@ class MyModel(models.Model):
 ```
 
 Now when an instance of `MyModel` is saved, its `author_user` property will be set to the current user. 
+
+## permissions
+
+Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information
 
 ## permissions_classes
 
@@ -302,6 +328,15 @@ MIDDLEWARE = [
 ```
 
 Notice tht it'll redirect only HTTP 200 Code.
+
+## Extending DjangoLDP
+
+### Testing
+
+Packaged with DjangoLDP is a tests module, containing unit tests
+
+You can extend these tests and add your own test cases by following the examples in the code. You can then run your tests with:
+`python -m unittest tests.runner`
 
 ## License
 

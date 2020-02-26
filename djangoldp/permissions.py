@@ -1,14 +1,15 @@
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import DjangoObjectPermissions
+from guardian.shortcuts import get_perms
 
 
-class LDPPermissions(BasePermission):
+class LDPPermissions(DjangoObjectPermissions):
     """
         Default permissions
         Anon: None
-        Auth: None but herit from Anon
-        Ownr: None but herit from Auth
+        Auth: None but inherit from Anon
+        Owner: None but inherit from Auth
     """
     anonymous_perms = ['view']
     authenticated_perms = ['inherit']
@@ -19,7 +20,7 @@ class LDPPermissions(BasePermission):
             Filter user permissions for a model class
         """
 
-        # sorted out param mess
+        # this may be a permission for the model class, or an instance
         if isinstance(obj_or_model, ModelBase):
             model = obj_or_model
         else:
@@ -41,23 +42,39 @@ class LDPPermissions(BasePermission):
         if 'inherit' in owner_perms:
             owner_perms = owner_perms + list(set(authenticated_perms) - set(owner_perms))
 
-        if user.is_anonymous():
-            return anonymous_perms
+        # return permissions
+        # apply Django-Guardian (object-level) permissions
+        perms = []
+
+        if obj is not None and not user.is_anonymous:
+            guardian_perms = get_perms(user, obj)
+            model_name = model._meta.model_name
+
+            # remove model name from the permissions
+            forbidden_string = "_" + model_name
+            perms = [p.replace(forbidden_string, '') for p in guardian_perms]
+
+        # apply anon, owner and auth permissions
+        if user.is_anonymous:
+            perms = perms + anonymous_perms
 
         else:
             if obj and hasattr(model._meta, 'owner_field') and (
                     getattr(obj, getattr(model._meta, 'owner_field')) == user
-                    or getattr(obj, getattr(model._meta, 'owner_field')) == user.urlid
+                    or (hasattr(user, 'urlid') and getattr(obj, getattr(model._meta, 'owner_field')) == user.urlid)
                     or getattr(obj, getattr(model._meta, 'owner_field')) == user.id):
-                return owner_perms
+                perms = perms + owner_perms
 
             else:
-                return authenticated_perms
+                perms = perms + authenticated_perms
+
+        return perms
 
     def filter_user_perms(self, user, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
         return [perm for perm in permissions if perm in self.user_permissions(user, obj_or_model)]
 
+    # perms_map defines the permissions required for different methods
     perms_map = {
         'GET': ['%(app_label)s.view_%(model_name)s'],
         'OPTIONS': [],
@@ -100,8 +117,10 @@ class LDPPermissions(BasePermission):
             obj = Model.resolve_id(request._request.path)
             model = view.model
 
+        # get permissions required
         perms = self.get_permissions(request.method, model)
 
+        # compare them with the permissions I have
         for perm in perms:
             if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
                 return False
@@ -119,9 +138,11 @@ class LDPPermissions(BasePermission):
             User have permission on request: Continue
             User does not have permission:   403
         """
+        # get permissions required
         perms = self.get_permissions(request.method, obj)
         model = obj
 
+        # compare them with the permissions I have
         for perm in perms:
             if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
                 return False

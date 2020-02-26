@@ -21,6 +21,7 @@ class Model(models.Model):
 
     @classmethod
     def get_view_set(cls):
+        '''returns the view_set defined in the model Meta or the LDPViewSet class'''
         view_set = getattr(cls._meta, 'view_set', getattr(cls.Meta, 'view_set', None))
         if view_set is None:
             from djangoldp.views import LDPViewSet
@@ -29,6 +30,7 @@ class Model(models.Model):
 
     @classmethod
     def get_container_path(cls):
+        '''returns the url path which is used to access actions on this model (e.g. /users/)'''
         path = getattr(cls._meta, 'container_path', getattr(cls.Meta, 'container_path', None))
         if path is None:
             path = "{}s".format(cls._meta.object_name.lower())
@@ -123,6 +125,7 @@ class Model(models.Model):
 
     @classonlymethod
     def __clean_path(cls, path):
+        '''ensures path is Django-friendly'''
         if not path.startswith("/"):
             path = "/{}".format(path)
         if not path.endswith("/"):
@@ -131,10 +134,12 @@ class Model(models.Model):
 
     @classonlymethod
     def get_permission_classes(cls, related_model, default_permissions_classes):
+        '''returns the permission_classes set in the models Meta class'''
         return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
 
     @classonlymethod
     def get_meta(cls, model_class, meta_name, default=None):
+        '''returns the models Meta class'''
         if hasattr(model_class, 'Meta'):
             meta = getattr(model_class.Meta, meta_name, default)
         else:
@@ -150,6 +155,7 @@ class Model(models.Model):
 
     @classmethod
     def is_external(cls, value):
+        '''returns True if the urlid of the value passed is from an external source'''
         try:
             return value.urlid is not None and not value.urlid.startswith(settings.SITE_URL)
         except:
@@ -159,15 +165,11 @@ class Model(models.Model):
 class LDPSource(Model):
     federation = models.CharField(max_length=255)
 
-    class Meta:
+    class Meta(Model.Meta):
         rdf_type = 'ldp:Container'
         ordering = ('federation',)
         container_path = 'sources'
         lookup_field = 'federation'
-        permissions = (
-            ('view_source', 'acl:Read'),
-            ('control_source', 'acl:Control'),
-        )
 
     def __str__(self):
         return "{}: {}".format(self.federation, self.urlid)
@@ -189,6 +191,7 @@ if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
         # hack : We user webid as username for external user (since it's an uniq identifier too)
         if validators.url(self.username):
             webid = self.username
+        # unable to use username, so use user-detail URL with primary key
         else:
             webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
         return webid

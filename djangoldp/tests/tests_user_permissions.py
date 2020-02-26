@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APITestCase
+from guardian.shortcuts import assign_perm
 
 from djangoldp.permissions import LDPPermissions
-from .models import JobOffer
+from .models import JobOffer, PermissionlessDummy
 from djangoldp.views import LDPViewSet
 
 import json
@@ -10,9 +11,9 @@ import json
 class TestUserPermissions(APITestCase):
 
     def setUp(self):
-        user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
         self.client = APIClient(enforce_csrf_checks=True)
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
         self.job = JobOffer.objects.create(title="job", slug="slug1")
 
     def test_get_for_authenticated_user(self):

@@ -13,6 +13,9 @@ class Update(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.client = APIClient()
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                         password='glass onion')
+        self.client.force_authenticate(user=self.user)
 
     def tearDown(self):
         pass
@@ -340,9 +343,8 @@ class Update(TestCase):
         self.assertIn('conversation_set', response.data)
 
     def test_missing_field_should_not_be_removed_with_fk_relation(self):
-        user = get_user_model().objects.create(username="alex", password="test")
         peer = get_user_model().objects.create(username="sylvain", password="test2")
-        conversation = Conversation.objects.create(author_user=user, peer_user=peer,
+        conversation = Conversation.objects.create(author_user=self.user, peer_user=peer,
                                                    description="conversation description")
         body = [
             {
@@ -356,9 +358,8 @@ class Update(TestCase):
         self.assertIn('peer_user', response.data)
 
     def test_empty_field_should_be_removed_with_fk_relation(self):
-        user = get_user_model().objects.create(username="alex", password="test")
         peer = get_user_model().objects.create(username="sylvain", password="test2")
-        conversation = Conversation.objects.create(author_user=user, peer_user=peer,
+        conversation = Conversation.objects.create(author_user=self.user, peer_user=peer,
                                                    description="conversation description")
         body = [
             {
@@ -485,15 +486,14 @@ class Update(TestCase):
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['title'], "first title")
 
     def test_update_with_new_fk_relation(self):
-        user = get_user_model().objects.create(username="alex", password="test")
-        conversation = Conversation.objects.create(author_user=user,
+        conversation = Conversation.objects.create(author_user=self.user,
                                                    description="conversation description")
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
                 'http://happy-dev.fr/owl/#description': "conversation update",
                 'http://happy-dev.fr/owl/#peer_user': {
-                    '@id': 'http://happy-dev.fr/users/{}'.format(user.pk),
+                    '@id': 'http://happy-dev.fr/users/{}'.format(self.user.pk),
                 }
             }
         ]
@@ -505,7 +505,7 @@ class Update(TestCase):
         conversation = Conversation.objects.get(pk=conversation.pk)
         self.assertIsNotNone(conversation.peer_user)
 
-        user = get_user_model().objects.get(pk=user.pk)
+        user = get_user_model().objects.get(pk=self.user.pk)
         self.assertEqual(user.peers_conv.count(), 1)
 
     def test_m2m_user_link_federated(self):
