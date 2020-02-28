@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APITestCase
 from guardian.shortcuts import assign_perm
 
-from .models import PermissionlessDummy
+from .models import PermissionlessDummy, Dummy
 from djangoldp.permissions import LDPPermissions
 
 
@@ -90,3 +90,15 @@ class TestsGuardian(APITestCase):
         permissions = LDPPermissions()
         result = permissions.user_permissions(self.user, self.dummy)
         self.assertIn('custom_permission', result)
+
+    # test that duplicate permissions aren't returned
+    def test_no_duplicate_permissions(self):
+        self.setUpLoggedInUser()
+        dummy = Dummy.objects.create(some='test', slug='test')
+        model_name = Dummy._meta.model_name
+
+        assign_perm('view_' + model_name, self.user, dummy)
+
+        permissions = LDPPermissions()
+        result = permissions.user_permissions(self.user, dummy)
+        self.assertEqual(result.count('view'), 1)
