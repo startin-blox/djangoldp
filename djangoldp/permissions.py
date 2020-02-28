@@ -1,7 +1,7 @@
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
 from rest_framework.permissions import DjangoObjectPermissions
-from guardian.shortcuts import get_perms
+from guardian.shortcuts import get_user_perms
 
 
 class LDPPermissions(DjangoObjectPermissions):
@@ -42,33 +42,33 @@ class LDPPermissions(DjangoObjectPermissions):
         if 'inherit' in owner_perms:
             owner_perms = owner_perms + list(set(authenticated_perms) - set(owner_perms))
 
-        # return permissions
+        # return permissions - using set to avoid duplicates
         # apply Django-Guardian (object-level) permissions
-        perms = []
+        perms = set()
 
         if obj is not None and not user.is_anonymous:
-            guardian_perms = get_perms(user, obj)
+            guardian_perms = get_user_perms(user, obj)
             model_name = model._meta.model_name
 
             # remove model name from the permissions
             forbidden_string = "_" + model_name
-            perms = [p.replace(forbidden_string, '') for p in guardian_perms]
+            perms = set([p.replace(forbidden_string, '') for p in guardian_perms])
 
         # apply anon, owner and auth permissions
         if user.is_anonymous:
-            perms = perms + anonymous_perms
+            perms = perms.union(set(anonymous_perms))
 
         else:
             if obj and hasattr(model._meta, 'owner_field') and (
                     getattr(obj, getattr(model._meta, 'owner_field')) == user
                     or (hasattr(user, 'urlid') and getattr(obj, getattr(model._meta, 'owner_field')) == user.urlid)
                     or getattr(obj, getattr(model._meta, 'owner_field')) == user.id):
-                perms = perms + owner_perms
+                perms = perms.union(set(owner_perms))
 
             else:
-                perms = perms + authenticated_perms
+                perms = perms.union(set(authenticated_perms))
 
-        return perms
+        return list(perms)
 
     def filter_user_perms(self, user, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
