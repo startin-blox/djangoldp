@@ -27,7 +27,7 @@ from djangoldp.permissions import LDPPermissions
 
 
 class LDListMixin:
-    '''A Mixin used by the custom Serializers in this file'''
+    '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
 
     # converts primitive data representation to the representation used within our application
@@ -220,6 +220,7 @@ class JsonLdRelatedField(JsonLdField):
 
 
 class JsonLdIdentityField(JsonLdField):
+    '''Represents an identity (url) field for a serializer'''
     def __init__(self, view_name=None, **kwargs):
         kwargs['read_only'] = True
         kwargs['source'] = '*'
@@ -229,6 +230,7 @@ class JsonLdIdentityField(JsonLdField):
         return False
 
     def to_internal_value(self, data):
+        '''tells serializer how to write identity field'''
         try:
             return super().to_internal_value(data[self.parent.url_field_name])
         except KeyError:
@@ -238,9 +240,12 @@ class JsonLdIdentityField(JsonLdField):
         return super().get_value(dictionary)
 
     def to_representation(self, value: Any) -> Any:
+        '''returns hyperlink representation of identity field'''
         try:
+            # we already have a url to return
             if isinstance(value, str):
                 return Hyperlink(value, value)
+            # expecting a user instance. Compute the webid and return this in hyperlink format
             else:
                 return Hyperlink(value.webid(), value)
         except AttributeError:
@@ -250,6 +255,8 @@ class JsonLdIdentityField(JsonLdField):
         if Model.is_external(instance):
             return instance.urlid
         else:
+            # runs DRF's RelatedField.get_attribute
+            # returns the pk only if optimised or the instance itself in the standard case
             return super().get_attribute(instance)
 
 
@@ -274,11 +281,17 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
     def to_representation(self, obj):
+        # external Models should only be returned with an id (on GET)
+        if self.context['request'].method == 'GET' and Model.is_external(obj):
+            return {'@id': obj.urlid}
+
         data = super().to_representation(obj)
+
         slug_field = Model.slug_field(obj)
         for field in data:
             if isinstance(data[field], dict) and '@id' in data[field]:
                 data[field]['@id'] = data[field]['@id'].format(Model.container_id(obj), str(getattr(obj, slug_field)))
+        # prioritise urlid field over generated @id
         if 'urlid' in data and data['urlid'] is not None:
             data['@id'] = data.pop('urlid')['@id']
         if not '@id' in data:
@@ -456,6 +469,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 else:
                     ret = super().to_internal_value(data)
 
+                # copy url_field_name value to urlid, if necessary
                 if self.url_field_name in data and not 'urlid' in data and data[self.url_field_name].startswith('http'):
                     ret['urlid'] = data[self.url_field_name]
 
