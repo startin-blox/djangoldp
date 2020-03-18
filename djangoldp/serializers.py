@@ -598,16 +598,25 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 continue
             slug_field = Model.slug_field(field_model)
             sub_inst = None
-            if slug_field in field_dict:
+            if 'urlid' in field_dict:
+                # has urlid and is a local resource
+                if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(field_dict['urlid']).netloc:
+                    # try slug field if it exists
+                    if slug_field in field_dict:
+                        kwargs = {slug_field: field_dict[slug_field]}
+                        sub_inst = field_model.objects.get(**kwargs)
+                    else:
+                        model, sub_inst = Model.resolve(field_dict['urlid'])
+                # remote resource - get backlinked copy
+                elif hasattr(field_model, 'urlid'):
+                    kwargs = {'urlid': field_dict['urlid']}
+                    sub_inst = field_model.objects.get(**kwargs)
+                elif issubclass(field_model, AbstractUser):
+                    kwargs = {'username': field_dict['urlid']}
+                    sub_inst = field_model.objects.get(**kwargs)
+            # try slug field, assuming that this is a local resource
+            elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
-                sub_inst = field_model.objects.get(**kwargs)
-            elif 'urlid' in field_dict and settings.BASE_URL in field_dict['urlid']:
-                model, sub_inst = Model.resolve(field_dict['urlid'])
-            elif 'urlid' in field_dict and issubclass(field_model, AbstractUser):
-                kwargs = {'username': field_dict['urlid']}
-                sub_inst = field_model.objects.get(**kwargs)
-            elif 'urlid' in field_dict:
-                kwargs = {'urlid': field_dict['urlid']}
                 sub_inst = field_model.objects.get(**kwargs)
             if sub_inst is None:
                 sub_inst = self.internal_create(field_dict, field_model)
