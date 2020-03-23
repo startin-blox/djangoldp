@@ -1,10 +1,10 @@
+import uuid
 from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError, FieldDoesNotExist
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
@@ -491,13 +491,14 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return serializer
 
     def to_internal_value(self, data):
-        user_case = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(
+        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(
             settings.BASE_URL)
-        if user_case:
+        if is_user_and_external:
             data['username'] = 'external'
         ret = super().to_internal_value(data)
-        if user_case:
-            ret['username'] = data['@id']
+        if is_user_and_external:
+            ret['urlid'] = data['@id']
+            ret.pop('username')
         return ret
 
     def get_value(self, dictionary):
@@ -562,8 +563,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     field_name in validated_data) and not field_name is None:
                 many_to_many.append((field_name, validated_data.pop(field_name)))
         validated_data = self.remove_empty_value(validated_data)
-        if model is get_user_model() and 'urlid' in validated_data and not 'username' in validated_data:
-            validated_data['username'] = validated_data.pop('urlid')
+        if model is get_user_model() and not 'username' in validated_data:
+            validated_data['username'] = uuid.uuid4()
         instance = model.objects.create(**validated_data)
 
         for field_name, value in many_to_many:

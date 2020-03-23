@@ -37,6 +37,7 @@ settings.configure(DEBUG=False,
                        }
                    },
                    AUTH_USER_MODEL='tests.User',
+                   ANONYMOUS_USER_NAME = None,
                    AUTHENTICATION_BACKENDS=(
                        'django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend'),
                    ROOT_URLCONF='djangoldp.urls',

@@ -1,4 +1,3 @@
-import validators
 from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -189,10 +188,11 @@ def auto_urlid(sender, instance, **kwargs):
 
 if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
     def webid(self):
-        # hack : We user webid as username for external user (since it's an uniq identifier too)
-        if validators.url(self.username):
-            webid = self.username
-        # unable to use username, so use user-detail URL with primary key
+        # an external user should have urlid set
+        webid = getattr(self, 'urlid', None)
+        if webid is not None and urlparse(settings.BASE_URL).netloc != urlparse(webid).netloc:
+            webid = self.urlid
+        # local user use user-detail URL with primary key
         else:
             webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
         return webid
