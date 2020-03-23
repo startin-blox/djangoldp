@@ -39,6 +39,24 @@ INSTALLED_APPS = [
 
 IMPORTANT: DjangoLDP will register any models which haven't been registered, with the admin. As such it is important to add your own apps above DjangoLDP, so that you can use custom Admin classes if you wish
 
+### User model requirements
+
+When implementing authentication in your own application, you have two options:
+
+* Using or extending [DjangoLDP-Account](https://git.startinblox.com/djangoldp-packages/djangoldp-account), a DjangoLDP package modelling federated users
+* Using your own user model & defining the authentication behaviour yourself
+
+Please see the [Authentication guide](https://git.startinblox.com/djangoldp-packages/djangoldp/wikis/guides/authentication) for full information
+
+If you're going to use your own model then your user model must extend `DjangoLDP.Model`, or define a `urlid` field on the user model, for example:
+```python
+urlid = LDPUrlField(blank=True, null=True, unique=True)
+```
+
+The `urlid` field is used to uniquely identify the user and is part of the Linked Data Protocol standard. For local users it can be generated at runtime, but for some resources which are from distant servers this is required to be stored
+
+## Creating your first model
+
 4. Create your django model inside a file myldpserver/myldpserver/models.py
 Note that container_path will be use to resolve instance iri and container iri
 In the future it could also be used to auto configure django router (e.g. urls.py)
