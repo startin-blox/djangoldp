@@ -36,6 +36,7 @@ settings.configure(DEBUG=False,
                            "control": "acl:Control"
                        }
                    },
+                   AUTH_USER_MODEL='tests.User',
                    AUTHENTICATION_BACKENDS=(
                        'django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend'),
                    ROOT_URLCONF='djangoldp.urls',
