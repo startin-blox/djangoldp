@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ImproperlyConfigured
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError, FieldDoesNotExist
 from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
 from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
@@ -625,6 +625,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 elif hasattr(field_model, 'urlid'):
                     kwargs = {'urlid': field_dict['urlid']}
                     sub_inst = field_model.objects.get(**kwargs)
+                else:
+                    raise FieldDoesNotExist(
+                        'model ' + str(field_model) + ' lacked urlid field, but urlid was submitted')
             # try slug field, assuming that this is a local resource
             elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
@@ -704,15 +707,21 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 elif slug_field in item:
                     kwargs = {slug_field: item[slug_field]}
                     saved_item = self.get_or_create(field_model, item, kwargs)
-                elif 'urlid' in item and settings.BASE_URL in item['urlid']:
-                    model, old_obj = Model.resolve(item['urlid'])
-                    if old_obj is not None:
-                        saved_item = self.update(instance=old_obj, validated_data=item)
-                    else:
-                        saved_item = self.internal_create(validated_data=item, model=field_model)
                 elif 'urlid' in item:
-                    kwargs = {'urlid': item['urlid']}
-                    saved_item = self.get_or_create(field_model, item, kwargs)
+                    # has urlid and is a local resource
+                    if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(item['urlid']).netloc:
+                        model, old_obj = Model.resolve(item['urlid'])
+                        if old_obj is not None:
+                            saved_item = self.update(instance=old_obj, validated_data=item)
+                        else:
+                            saved_item = self.internal_create(validated_data=item, model=field_model)
+                    # has urlid and is external resource
+                    elif hasattr(field_model, 'urlid'):
+                        kwargs = {'urlid': item['urlid']}
+                        saved_item = self.get_or_create(field_model, item, kwargs)
+                    else:
+                        raise FieldDoesNotExist(
+                            'model ' + str(field_model) + ' lacked urlid field, but urlid was submitted')
                 else:
                     rel = getattr(instance._meta.model, field_name).rel
                     try:
