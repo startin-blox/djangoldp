@@ -625,9 +625,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 elif hasattr(field_model, 'urlid'):
                     kwargs = {'urlid': field_dict['urlid']}
                     sub_inst = field_model.objects.get(**kwargs)
-                elif issubclass(field_model, AbstractUser):
-                    kwargs = {'username': field_dict['urlid']}
-                    sub_inst = field_model.objects.get(**kwargs)
             # try slug field, assuming that this is a local resource
             elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
@@ -713,9 +710,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         saved_item = self.update(instance=old_obj, validated_data=item)
                     else:
                         saved_item = self.internal_create(validated_data=item, model=field_model)
-                elif 'urlid' in item and issubclass(field_model, AbstractUser):
-                    kwargs = {'username': item['urlid']}
-                    saved_item = self.get_or_create(field_model, item, kwargs)
                 elif 'urlid' in item:
                     kwargs = {'urlid': item['urlid']}
                     saved_item = self.get_or_create(field_model, item, kwargs)
