@@ -57,7 +57,7 @@ The `urlid` field is used to uniquely identify the user and is part of the Linke
 
 ## Creating your first model
 
-4. Create your django model inside a file myldpserver/myldpserver/models.py
+1. Create your django model inside a file myldpserver/myldpserver/models.py
 Note that container_path will be use to resolve instance iri and container iri
 In the future it could also be used to auto configure django router (e.g. urls.py)
 
@@ -69,14 +69,14 @@ class Todo(Model):
     deadline = models.DateTimeField()
 ```
 
-4.1. Configure container path (optional)
+1.1. Configure container path (optional)
 By default it will be "todos/" with an S for model called Todo
 
 ```python
 <Model>._meta.container_path = "/my-path/"
 ```
 
-4.2. Configure field visibility (optional) 
+1.2. Configure field visibility (optional) 
 Note that at this stage you can limit access to certain fields of models using
 
 ```python
@@ -95,7 +95,7 @@ User._meta.serializer_fields  = ('username','first_name','last_name')
 
 Note that this will be overridden if you explicitly set the fields= parameter as an argument to LDPViewSet.urls(), and filtered if you set the excludes= parameter.
 
-5. Add a url in your urls.py:
+2. Add a url in your urls.py:
 
 ```python
 from django.conf.urls import url
@@ -117,7 +117,7 @@ You could also only use this line in settings.py instead:
 ROOT_URLCONF = 'djangoldp.urls'
 ```
 
-6. In the settings.py file, add your application name at the beginning of the application list, and add the following lines
+3. In the settings.py file, add your application name at the beginning of the application list, and add the following lines
 
 ```python
 STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
@@ -133,7 +133,7 @@ BASE_URL = SITE_URL
 * `BASE_URL` may be different from SITE_URL, e.g. `https://example.com/app/`
 
 
-7. You can also register your model for the django administration site
+4. You can also register your model for the django administration site
 
 ```python
 from django.contrib import admin
@@ -142,15 +142,15 @@ from .models import Todo
 admin.site.register(Todo)
 ```
 
-8. You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
+5. You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
 
-9. You will probably need to create a super user
+6. You will probably need to create a super user
 
 ```bash
 $ ./manage.py createsuperuser
 ```
 
-10. If you have no CSS on the admin screens :
+7. If you have no CSS on the admin screens :
 
 ```bash
 $ ./manage.py collectstatic
