@@ -1,9 +1,19 @@
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
+
+
+class User(AbstractUser, Model):
+
+    class Meta(AbstractUser.Meta, Model.Meta):
+        serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
+                             'conversation_set', 'circle_set']
+        anonymous_perms = ['view', 'add']
+        authenticated_perms = ['inherit', 'change']
+        owner_perms = ['inherit']
 
 
 class Skill(Model):
@@ -183,7 +193,3 @@ class Circle(Model):
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:circle'
         depth = 1
-
-get_user_model()._meta.serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
-                                            'conversation_set', 'circle_set']
-get_user_model()._meta.anonymous_perms = ['view', 'add']

@@ -1,3 +1,4 @@
+import uuid
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
@@ -526,11 +527,11 @@ class Update(TestCase):
 
     def test_m2m_user_link_existing_external(self):
         circle = Circle.objects.create(description="cicle name")
-        ext_user = get_user_model().objects.create(username='http://external.user/user/1')
+        ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
         body = {
             'http://happy-dev.fr/owl/#description': 'circle name',
             'http://happy-dev.fr/owl/#team': {
-                'http://happy-dev.fr/owl/#@id': ext_user.username,
+                'http://happy-dev.fr/owl/#@id': ext_user.urlid,
             }
         }
 
@@ -538,8 +539,7 @@ class Update(TestCase):
                                    data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'],
-                         ext_user.username)
+        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'], ext_user.urlid)
 
         circle = Circle.objects.get(pk=circle.pk)
         self.assertEqual(circle.team.count(), 1)
@@ -574,7 +574,7 @@ class Update(TestCase):
         self.assertIn('userprofile', response.data)
 
     def test_m2m_user_link_remove_existing_link(self):
-        ext_user = get_user_model().objects.create(username='http://external.user/user/1')
+        ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
         circle = Circle.objects.create(description="cicle name")
         circle.team.add(ext_user)
         circle.save()
