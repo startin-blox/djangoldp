@@ -48,10 +48,11 @@ When implementing authentication in your own application, you have two options:
 
 Please see the [Authentication guide](https://git.startinblox.com/djangoldp-packages/djangoldp/wikis/guides/authentication) for full information
 
-If you're going to use your own model then your user model must extend `DjangoLDP.Model`, or define a `urlid` field on the user model, for example:
+If you're going to use your own model then for federated login to work your user model must extend `DjangoLDP.Model`, or define a `urlid` field on the user model, for example:
 ```python
 urlid = LDPUrlField(blank=True, null=True, unique=True)
 ```
+If you don't include this field, then all users will be treated as users local to your instance
 
 The `urlid` field is used to uniquely identify the user and is part of the Linked Data Protocol standard. For local users it can be generated at runtime, but for some resources which are from distant servers this is required to be stored
 
