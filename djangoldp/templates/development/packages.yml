@@ -1,0 +1,25 @@
+
+## DjangoLDP packages ##
+
+## DjangoLDP packages file extends the python requirements allowing the developer to indicate the module name to import as a DjangoLDP package. The python module name is the YAML key and the corresponding distribution name, the value.
+
+ldppackages:
+  ## Simple package (same module name and distribution name)
+  #djangoldp_project: djangoldp_project
+
+  ## Extended SIB requirements format (different module name and distribution name)
+  #oidc_provider: django-oidc-provider
+
+  ## More elaborated combinations (loading distribution from specific version and private repository)
+  #oidc_provider: 'django-oidc-provider==1.0'
+  #oidc_provider: 'git+https://github.com/jblemee/django-oidc-provider.git@develop'
+
+## Django server parameters ##
+
+server:
+  site_url: 'http://localhost:8000'
+  admin_email: admin@example.org
+  admin_name: admin
+  admin_pass: admin
+  xmpp_url: 'https://jabber.happy-dev.fr'
+  jabber_host: 'happy-dev.fr'
