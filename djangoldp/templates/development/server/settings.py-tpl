@@ -2,27 +2,22 @@
 Development settings for {{ project_name }} project.
 """
 
-import os
 import yaml
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).parent.parent
 
 def djangoldp_config():
 
     """Get DjangoLDP parameters from configuration file"""
 
-    path = os.path.join(BASE_DIR, 'packages.yml')
+    path = BASE_DIR / 'config.yml'
     with open(path, 'r') as f:
-        content = yaml.safe_load(f)
-        config = content.get('server', {})
-        try:
-            config['packages'] = list(content.get('ldppackages').keys())
-        except AttributeError:
-            config['packages'] = []
-        return config
+        return yaml.safe_load(f)
 
 
-DJANGOLDP_PACKAGES = djangoldp_config().get('packages', [])
+DJANGOLDP_PACKAGES = djangoldp_config().get('ldppackages', [])
+DEPENDENCIES = djangoldp_config().get('dependencies', [])
 
 SECRET_KEY = '{{ secret_key }}'
 DEBUG = True
@@ -30,7 +25,7 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-WSGI_APPLICATION = '{{ project_name|lower }}.wsgi.application'
+WSGI_APPLICATION = 'server.wsgi.application'
 
 INSTALLED_APPS = DJANGOLDP_PACKAGES
 
@@ -45,7 +40,7 @@ INSTALLED_APPS.extend([
     'guardian'
 ])
 
-ROOT_URLCONF = '{{ project_name|lower }}.urls'
+ROOT_URLCONF = 'server.urls'
 
 TEMPLATES = [
     {
@@ -68,7 +63,7 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -135,18 +130,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 
 APPEND_SLASH = False
-SITE_URL = djangoldp_config().get('site_url', 'http://localhost:8000')
+SITE_URL = djangoldp_config().get('server', {}).get('site_url', 'http://localhost:8000')
 BASE_URL = SITE_URL
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
+STATIC_ROOT = BASE_DIR / 'static'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
 
 # Chat
 
-PROSODY_HTTP_URL = djangoldp_config().get('xmpp_url')
-JABBER_DEFAULT_HOST = djangoldp_config().get('jabber_host')
+#PROSODY_HTTP_URL = djangoldp_config().get('xmpp_url')
+#JABBER_DEFAULT_HOST = djangoldp_config().get('jabber_host')
 
 # Email
 

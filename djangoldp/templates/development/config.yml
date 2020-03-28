@@ -1,0 +1,9 @@
+
+dependencies:
+  - git+https://git.startinblox.com/djangoldp-packages/djangoldp-account.git@feat/relax_core_version
+
+ldppackages:
+  - djangoldp_account
+
+server:
+  site_url: 'https://localhost:8000'
