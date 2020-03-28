@@ -3,11 +3,11 @@
 ```
 # docker run --rm -v $PWD:/code -w /code -it python:3.6 bash
 # pip install .
-# django-admin startproject sibserver /tmp/ --template /code/sib/templates/development/
 # cd /tmp/
+# djangoldp start myproject
 ```
 
-Then configure `djangoldp_account` in `packages.yml` and install it: 
+BUGFIX: Configure `djangoldp_account` in `packages.yml` and install it:
 ```
 # pip install djangoldp_account
 ```
