@@ -5,6 +5,3 @@ dependencies:
 ldppackages:
   - djangoldp_account
   - oidc_provider
-
-server:
-  site_url: 'https://localhost:8000'
