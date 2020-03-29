@@ -63,7 +63,7 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': str(BASE_DIR / 'db.sqlite3'),
     }
 }
 
@@ -133,15 +133,15 @@ APPEND_SLASH = False
 SITE_URL = djangoldp_config().get('server', {}).get('site_url', 'http://localhost:8000')
 BASE_URL = SITE_URL
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'static'
+STATIC_ROOT = str(BASE_DIR / 'static')
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = str(BASE_DIR / 'media')
 LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
 
 # Chat
 
-#PROSODY_HTTP_URL = djangoldp_config().get('xmpp_url')
-#JABBER_DEFAULT_HOST = djangoldp_config().get('jabber_host')
+PROSODY_HTTP_URL = djangoldp_config().get('server', {}).get('xmpp_url', 'https://jabber.happy-dev.fr')
+JABBER_DEFAULT_HOST = djangoldp_config().get('server', {}).get('jabber_host', 'happy-dev.fr')
 
 # Email
 
