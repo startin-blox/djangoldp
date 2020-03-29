@@ -77,4 +77,14 @@ def install():
 def configure():
 
     """Configure the project."""
-    pass
+
+    try:
+        # shortcut to the djangoldp.management command
+        path = str(Path.cwd() / 'manage.py')
+        cmd = [sys.executable, path, 'configure']
+        subprocess.run(cmd).check_returncode()
+
+        click.echo('Confguration done!')
+
+    except subprocess.CalledProcessError as e:
+        click.echo(f'Configuration error: {e}')
