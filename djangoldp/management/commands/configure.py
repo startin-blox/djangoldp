@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 
 class Command(BaseCommand):
 
-    help = 'Install server dependencies'
+    help = 'Initialize the DjangoLDP backend'
 
     def handle(self, *args, **options):
 

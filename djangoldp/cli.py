@@ -88,3 +88,18 @@ def configure():
 
     except subprocess.CalledProcessError as e:
         click.echo(f'Configuration error: {e}')
+
+
+@main.command()
+def runserver():
+
+    """Run the Django embeded webserver."""
+
+    try:
+        # shortcut to the djangoldp.management command
+        path = str(Path.cwd() / 'manage.py')
+        cmd = [sys.executable, path, 'runserver', '0.0.0.0:8000']
+        subprocess.run(cmd).check_returncode()
+
+    except subprocess.CalledProcessError as e:
+        click.echo(f'Execution error: {e}')

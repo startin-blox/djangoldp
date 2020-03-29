@@ -1,16 +1,17 @@
 # Using the client
 
+Setup the project:
 ```
-# docker run --rm -v $PWD:/code -w /code -it python:3.6 bash
+# docker run --rm -v $PWD:/code -w /code -p 127.0.0.1:8000:8000 -it python:3.6 bash
 # pip install .
 # cd /tmp/
-# djangoldp start myproject
+# djangoldp startproject myproject
 # cd myproject
 # djangoldp install
 # djangoldp configure
 ```
 
-Play with the installation:
+Play with it:
 ```
-# python manage.py runserver
+# djangoldp runserver
 ```
