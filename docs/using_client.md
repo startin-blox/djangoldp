@@ -5,14 +5,11 @@
 # pip install .
 # cd /tmp/
 # djangoldp start myproject
-```
-
-BUGFIX: Configure `djangoldp_account` in `packages.yml` and install it:
-```
-# pip install djangoldp_account
+# cd myproject
+# djangoldp install
 ```
 
 Play with the installation:
 ```
-# python manage.py runserver --settings=sibserver.setting
+# python manage.py runserver
 ```
