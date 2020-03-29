@@ -7,6 +7,7 @@
 # djangoldp start myproject
 # cd myproject
 # djangoldp install
+# djangoldp configure
 ```
 
 Play with the installation:

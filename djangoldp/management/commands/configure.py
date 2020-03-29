@@ -36,3 +36,11 @@ class Command(BaseCommand):
 
         except CommandError as e:
             setf.stdout.write(self.style.ERROR(f'Superuser creation failed: {e}'))
+            pass
+
+        try:
+            # creatersakey
+            management.call_command('creatersakey', interactive=False)
+
+        except CommandError as e:
+            setf.stdout.write(self.style.ERROR(f'RSA key creation failed: {e}'))
