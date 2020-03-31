@@ -197,7 +197,4 @@ if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
             webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
         return webid
 
-    if get_user_model()._meta.serializer_fields is None:
-        get_user_model()._meta.serializer_fields = []
-    get_user_model()._meta.serializer_fields.append('@id')
     get_user_model().webid = webid
