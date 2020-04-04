@@ -29,9 +29,7 @@ def startproject(name, production):
         directory = Path.cwd() / name
 
         # get the template path
-        template = resource_filename(__name__, 'templates/development')
-        if production:
-             template = resource_filename(__name__, 'templates/production')
+        template = resource_filename(__name__, 'conf/server_template')
 
         # create dir
         directory.mkdir(parents=False, exist_ok=False)
@@ -39,7 +37,7 @@ def startproject(name, production):
         # wrap the default django-admin startproject command
         # this call import django settings and configure it
         # see: https://docs.djangoproject.com/fr/1.11/topics/settings/#calling-django-setup-is-required-for-standalone-django-usage
-        management.call_command('startproject', name, directory, template=template)
+        management.call_command('startproject', name, directory, template=template, production=production)
 
     except FileExistsError:
         click.echo(f'Error: the folder {directory} already exists')
@@ -47,6 +45,30 @@ def startproject(name, production):
     except CommandError as e:
         click.echo(f'Error: {e}')
 
+@main.command()
+@click.argument('name', nargs=1)
+def startpackage(name):
+
+    """Start a DjangoLDP package."""
+
+    try:
+        # set directory
+        directory = Path.cwd() / name
+
+        # get the template path
+        template = resource_filename(__name__, 'templates/package')
+
+        # create dir
+        directory.mkdir(parents=False, exist_ok=False)
+
+        # wrap the default startapp command
+        management.call_command('startapp', name, directory, template=template)
+
+    except FileExistsError:
+        click.echo(f'Error: the folder {directory} already exists')
+
+    except CommandError as e:
+        click.echo(f'Error: {e}')
 
 @main.command()
 def install():

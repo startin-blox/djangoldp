@@ -16,6 +16,8 @@ def djangoldp_config():
         return yaml.safe_load(f)
 
 
+PROD = {{production}}
+
 DJANGOLDP_PACKAGES = djangoldp_config().get('ldppackages', [])
 DEPENDENCIES = djangoldp_config().get('dependencies', [])
 
