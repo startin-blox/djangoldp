@@ -1,25 +1,15 @@
 """
-Development settings for {{ project_name }} project.
+Settings for {{ project_name }} project.
 """
 
-import yaml
 from pathlib import Path
+from djangoldp.conf.settings import LDPSettings
 
 BASE_DIR = Path(__file__).parent.parent
-
-def djangoldp_config():
-
-    """Get DjangoLDP parameters from configuration file"""
-
-    path = BASE_DIR / 'config.yml'
-    with open(path, 'r') as f:
-        return yaml.safe_load(f)
-
+settings = LDPSettings(BASE_DIR / 'config.yml')
 
 PROD = {{production}}
 
-DJANGOLDP_PACKAGES = djangoldp_config().get('ldppackages', [])
-DEPENDENCIES = djangoldp_config().get('dependencies', [])
 
 SECRET_KEY = '{{ secret_key }}'
 DEBUG = True
@@ -29,18 +19,8 @@ ALLOWED_HOSTS = []
 
 WSGI_APPLICATION = 'server.wsgi.application'
 
-INSTALLED_APPS = DJANGOLDP_PACKAGES
-
-INSTALLED_APPS.extend([
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'djangoldp',
-    'guardian'
-])
+DJANGOLDP_PACKAGES = settings.PACKAGES
+INSTALLED_APPS = settings.INSTALLED_APPS
 
 ROOT_URLCONF = 'server.urls'
 
@@ -132,7 +112,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 
 APPEND_SLASH = False
-SITE_URL = djangoldp_config().get('server', {}).get('site_url', 'http://localhost:8000')
+SITE_URL = ""
 BASE_URL = SITE_URL
 STATIC_URL = '/static/'
 STATIC_ROOT = str(BASE_DIR / 'static')
@@ -142,8 +122,8 @@ LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
 
 # Chat
 
-PROSODY_HTTP_URL = djangoldp_config().get('server', {}).get('xmpp_url', 'https://jabber.happy-dev.fr')
-JABBER_DEFAULT_HOST = djangoldp_config().get('server', {}).get('jabber_host', 'happy-dev.fr')
+PROSODY_HTTP_URL = ""
+JABBER_DEFAULT_HOST = ""
 
 # Email
 
@@ -152,3 +132,6 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # Registration
 
 ACCOUNT_ACTIVATION_DAYS = 10  # 10 days
+
+print(INSTALLED_APPS)
+#vim: syntax=python
