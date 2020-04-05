@@ -56,7 +56,7 @@ def startpackage(name):
         directory = Path.cwd() / name
 
         # get the template path
-        template = resource_filename(__name__, 'templates/package')
+        template = resource_filename(__name__, 'conf/package_template')
 
         # create dir
         directory.mkdir(parents=False, exist_ok=False)

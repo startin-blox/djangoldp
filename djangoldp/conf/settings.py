@@ -1,4 +1,31 @@
 import yaml
+import os
+from django.conf import settings as django_settings
+
+try:
+    from importlib import import_module
+except ImportError:
+    from django.utils.importlib import import_module
+
+
+def configure():
+
+    # catch djangoldp specific settings
+    settings = os.getenv('DJANGOLDP_SETTINGS')
+    if not settings:
+        raise ImportError('Settings could not be imported because DJANGOLDP_SETTINGS is not set')
+
+    #mod = import_module(settings)
+
+    # craft a settings module from class
+    ldpsettings = LDPSettings('config.yml')
+    for key in dir(ldpsettings):
+        if key.isupper():
+            print(getattr(ldpsettings, key))
+
+    # setup vars to resume django setup process
+    os.environ['DJANGO_SETTINGS_MODULE'] = settings
+
 
 class LDPSettings(object):
 
@@ -37,6 +64,38 @@ class LDPSettings(object):
             'guardian'
         ]
 
-        # add pacakges
+        # add packages
         apps.extend(self.PACKAGES)
         return apps
+
+    @property
+    def MIDDLEWARE(self):
+
+        # set default middlewares
+        middlewares = [
+            'django.middleware.security.SecurityMiddleware',
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'django.middleware.common.CommonMiddleware',
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'django.contrib.messages.middleware.MessageMiddleware',
+            'django.middleware.clickjacking.XFrameOptionsMiddleware'
+        ]
+
+        # explore packages looking for middleware to reference
+        for pkg in self.PACKAGES:
+            try:
+                # import installed package
+                mod = import_module(f'{pkg}.default_settings')
+                middlewares.extend(getattr(mod, 'MIDDLEWARE'))
+            except (ModuleNotFoundError, NameError):
+                try:
+                    # import local package
+                    mod = import_module(f'{pkg}.{pkg}.default_settings')
+                    middlewares.extend(getattr(mod, 'MIDDLEWARE'))
+                except (ModuleNotFoundError, NameError):
+                    print('nothing')
+                    # logger.debug()
+                    pass
+
+        return middlewares

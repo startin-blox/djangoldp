@@ -1,0 +1,5 @@
+
+# This module is loaded dy DjangoLDP core before Django is configured.
+
+MIDDLEWARE = ['MY_MIDDLEWARE']
+MYPACKAGE_VAR = 'MY_DEFAULT_VAR'
