@@ -1,11 +1,15 @@
-import yaml
 import os
+import sys
+import yaml
+from django import conf
 from django.conf import global_settings
 
 try:
     from importlib import import_module
 except ImportError:
     from django.utils.importlib import import_module
+
+# Reference: https://github.com/django/django/blob/master/django/conf/__init__.py
 
 
 def configure():
@@ -15,16 +19,21 @@ def configure():
     if not settings:
         raise ImportError('Settings could not be imported because DJANGOLDP_SETTINGS is not set')
 
-    #mod = import_module(settings)
-
-    # craft a settings module from class
+    # patch django.conf.settings
+    # Inspiration: https://github.com/rochacbruno/dynaconf/blob/master/dynaconf/contrib/django_dynaconf_v2.py
     ldpsettings = LDPSettings('config.yml')
-    for key in dir(ldpsettings):
-        if key.isupper():
-            print(getattr(ldpsettings, key))
+    class Wrapper(object):
+
+        def __getattribute__(self, name):
+            if name == "settings":
+                return ldpsettings
+            else:
+                return getattr(conf, name)
+
+    sys.modules["django.conf"] = Wrapper()
 
     # setup vars to resume django setup process
-    os.environ['DJANGO_SETTINGS_MODULE'] = settings
+    #os.environ['DJANGO_SETTINGS_MODULE'] = settings
 
 
 # build a class from django default settings
