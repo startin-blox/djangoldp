@@ -1,6 +1,6 @@
 import yaml
 import os
-from django.conf import settings as django_settings
+from django.conf import global_settings
 
 try:
     from importlib import import_module
@@ -27,7 +27,17 @@ def configure():
     os.environ['DJANGO_SETTINGS_MODULE'] = settings
 
 
-class LDPSettings(object):
+# build a class from django default settings
+class DefaultSettings(object):
+    pass
+
+for attr in vars(global_settings):
+    if not attr.startswith('_'):
+        value = getattr(global_settings, attr)
+        setattr(DefaultSettings, attr, value)
+
+
+class LDPSettings(DefaultSettings):
 
     def __init__(self, path):
 
