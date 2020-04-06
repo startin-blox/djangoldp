@@ -3,8 +3,6 @@ dependencies:
   - git+https://git.startinblox.com/djangoldp-packages/djangoldp-account.git
 
 ldppackages:
-  - djangoldp_account
-  - oidc_provider
 
 server:
   # App specific settings

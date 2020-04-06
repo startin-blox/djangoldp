@@ -5,10 +5,8 @@ Settings for {{ project_name }} project.
 """
 
 from pathlib import Path
-from djangoldp.conf.settings import LDPSettings
 
 BASE_DIR = Path(__file__).parent.parent
-settings = LDPSettings(BASE_DIR / 'config.yml')
 
 PROD = {{production}}
 
@@ -20,9 +18,6 @@ ALLOWED_HOSTS = []
 # Application definition
 
 WSGI_APPLICATION = 'server.wsgi.application'
-
-DJANGOLDP_PACKAGES = settings.PACKAGES
-INSTALLED_APPS = settings.INSTALLED_APPS
 
 ROOT_URLCONF = 'server.urls'
 

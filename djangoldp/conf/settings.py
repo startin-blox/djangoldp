@@ -2,7 +2,7 @@ import os
 import sys
 import yaml
 from django import conf
-from django.conf import global_settings
+from django.conf import global_settings, LazySettings, UserSettingsHolder
 
 try:
     from importlib import import_module
@@ -15,40 +15,35 @@ except ImportError:
 def configure():
 
     # catch djangoldp specific settings
-    settings = os.getenv('DJANGOLDP_SETTINGS')
-    if not settings:
+    settings_module = os.getenv('DJANGOLDP_SETTINGS')
+    if not settings_module:
         raise ImportError('Settings could not be imported because DJANGOLDP_SETTINGS is not set')
 
     # patch django.conf.settings
     # Inspiration: https://github.com/rochacbruno/dynaconf/blob/master/dynaconf/contrib/django_dynaconf_v2.py
-    ldpsettings = LDPSettings('config.yml')
+    settings = LDPSettings('config.yml')
+
+    lazy = LazySettings()
+    lazy.configure(settings)
+
     class Wrapper(object):
 
         def __getattribute__(self, name):
             if name == "settings":
-                return ldpsettings
+                return lazy
             else:
                 return getattr(conf, name)
 
     sys.modules["django.conf"] = Wrapper()
 
     # setup vars to resume django setup process
-    #os.environ['DJANGO_SETTINGS_MODULE'] = settings
+    os.environ['DJANGO_SETTINGS_MODULE'] = settings_module
 
 
-# build a class from django default settings
-class DefaultSettings(object):
-    pass
 
-for attr in vars(global_settings):
-    if not attr.startswith('_'):
-        value = getattr(global_settings, attr)
-        setattr(DefaultSettings, attr, value)
+class LDPSettings(object):
 
-
-class LDPSettings(DefaultSettings):
-
-    def __init__(self, path):
+    def __init__(self, path, *args, **kwargs):
 
         self.path = path
         self._config = None
@@ -64,8 +59,18 @@ class LDPSettings(DefaultSettings):
 
         return self._config
 
+    def __getattr__(self, name):
+
+        """Look for the value in config and fallback on django defaults."""
+
+        try:
+            if not name.startswith('_') and name.isupper():
+                return self.config[name]
+        except KeyError:
+            return getattr(global_settings, name)
+
     @property
-    def PACKAGES(self):
+    def LDP_PACKAGES(self):
         return self.config.get('ldppackages', [])
 
     @property
@@ -84,7 +89,7 @@ class LDPSettings(DefaultSettings):
         ]
 
         # add packages
-        apps.extend(self.PACKAGES)
+        apps.extend(self.LDP_PACKAGES)
         return apps
 
     @property
@@ -102,7 +107,7 @@ class LDPSettings(DefaultSettings):
         ]
 
         # explore packages looking for middleware to reference
-        for pkg in self.PACKAGES:
+        for pkg in self.LDP_PACKAGES:
             try:
                 # import installed package
                 mod = import_module(f'{pkg}.default_settings')

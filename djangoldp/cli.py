@@ -18,21 +18,23 @@ def main():
 
 
 @main.command()
-@click.argument('name', nargs=1)
+@click.argument('name', nargs=1, required=False)
 @click.option('--production', is_flag=True, default=False, help='Use a production template')
 def startproject(name, production):
 
     """Start a DjangoLDP project."""
 
     try:
-        # set a directory from project name in pwd
-        directory = Path.cwd() / name
+        # use directly pwd
+        directory = Path.cwd()
+
+        if name:
+            # create a directory from project name in pwd
+            directory = Path.cwd() / name
+            directory.mkdir(parents=False, exist_ok=False)
 
         # get the template path
         template = resource_filename(__name__, 'conf/server_template')
-
-        # create dir
-        directory.mkdir(parents=False, exist_ok=False)
 
         # wrap the default django-admin startproject command
         # this call import django settings and configure it
