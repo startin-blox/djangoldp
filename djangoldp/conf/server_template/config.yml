@@ -17,6 +17,7 @@ server:
     - django.contrib.auth.middleware.AuthenticationMiddleware
     - django.contrib.messages.middleware.MessageMiddleware
     - django.middleware.clickjacking.XFrameOptionsMiddleware
+  SECRET_KEY: "{{secret_key}}"
   AUTH_PASSWORD_VALIDATORS:
     - NAME: django.contrib.auth.password_validation.UserAttributeSimilarityValidator
     - NAME: django.contrib.auth.password_validation.MinimumLengthValidator
@@ -26,3 +27,9 @@ server:
     default:
       ENGINE: django.db.backends.sqlite3
       NAME: db.sqlite3
+  STATIC_ROOT: static
+  MEDIA_ROOT: media
+  LDP_RDF_CONTEXT: https://cdn.happy-dev.fr/owl/hdcontext.jsonld
+  PROSODY_HTTP_URL:
+  JABBER_DEFAULT_HOST:
+  ACCOUNT_ACTIVATION_DAYS: 10

@@ -77,7 +77,8 @@ class LDPSettings(object):
 
     @property
     def LDP_PACKAGES(self):
-        return self.config.get('ldppackages', [])
+        pkg = self.config.get('ldppackages', [])
+        return [] if pkg is None else pkg
 
     @property
     def INSTALLED_APPS(self):

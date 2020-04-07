@@ -173,7 +173,12 @@ DEFAULT_CHARSET = 'utf-8'
 SERVER_EMAIL = 'root@localhost'
 
 # Database connection info. If left empty, will default to the dummy backend.
-DATABASES = {}
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'db.sqlite3',
+    }
+}
 
 # Classes used to implement DB routing behavior.
 DATABASE_ROUTERS = []
@@ -205,7 +210,21 @@ EMAIL_TIMEOUT = None
 # List of strings representing installed apps.
 INSTALLED_APPS = []
 
-TEMPLATES = []
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
 # Default form rendering class.
 FORM_RENDERER = 'django.forms.renderers.DjangoTemplates'
@@ -219,7 +238,7 @@ DEFAULT_FROM_EMAIL = 'webmaster@localhost'
 EMAIL_SUBJECT_PREFIX = '[Django] '
 
 # Whether to append trailing slashes to URLs.
-APPEND_SLASH = True
+APPEND_SLASH = False
 
 # Whether to prepend the "www." subdomain to URLs that don't have it.
 PREPEND_WWW = False
@@ -258,12 +277,15 @@ IGNORABLE_404_URLS = []
 # loudly.
 SECRET_KEY = ''
 
+# Default server url
+SITE_URL = 'http://localhost:8000/'
+
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/var/www/example.com/media/"
-MEDIA_ROOT = ''
+MEDIA_ROOT = 'server.urls'
 
 # URL that handles the media served from MEDIA_ROOT.
 # Examples: "http://example.com/media/", "http://media.example.com/"
@@ -417,7 +439,7 @@ USE_X_FORWARDED_PORT = False
 # 'django.core.wsgi.get_wsgi_application' is used, thus preserving the same
 # behavior as previous versions of Django. Otherwise this should point to an
 # actual WSGI application object.
-WSGI_APPLICATION = None
+WSGI_APPLICATION = 'server.wsgi.application'
 
 # If your Django app is behind a proxy that sets a header to specify secure
 # connections, AND that proxy ensures that user-submitted headers with the

@@ -2,7 +2,8 @@
 
 ## With SQLite backend
 
-Setup the project:
+### Setup a project
+
 ```
 # docker run --rm -v $PWD:/code -w /code -p 127.0.0.1:8000:8000 -it python:3.6 bash
 # pip install .
@@ -11,6 +12,19 @@ Setup the project:
 # cd myproject
 # djangoldp install
 # djangoldp configure
+```
+
+### Create a package
+
+Add a new package:
+```
+# djangoldp startpackage mypkg
+```
+
+Reference it in the project config.yml:
+```
+ldppackages:
+  - mypkg
 ```
 
 Play with it:

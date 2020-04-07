@@ -330,7 +330,7 @@ def auto_urlid(sender, instance, **kwargs):
             instance.save()
 
 
-if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
+if 'djangoldp_account' not in settings.LDP_PACKAGES:
     def webid(self):
         # an external user should have urlid set
         webid = getattr(self, 'urlid', None)
