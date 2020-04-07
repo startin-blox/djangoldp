@@ -5,7 +5,6 @@ from djangoldp.conf import settings as ldpsettings
 
 if __name__ == "__main__":
 
-    os.environ.setdefault("DJANGOLDP_SETTINGS", "server.settings")
     ldpsettings.configure()
 
     try:

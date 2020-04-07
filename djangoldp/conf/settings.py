@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings as django_settings
 from . import global_settings
 
@@ -14,12 +15,15 @@ def configure():
 
     # ref: https://docs.djangoproject.com/fr/2.2/topics/settings/#custom-default-settings
     settings = LDPSettings('config.yml')
-    django_settings.configure(settings)
+    django_settings.configure(settings)     # gives a LazySettings
 
 
 class LDPSettings(object):
 
-    def __init__(self, path, *args, **kwargs):
+    def __init__(self, path):
+
+        if django_settings.configured:
+            raise ImproperlyConfigured('Settings have been configured already')
 
         self.path = path
         self._config = None
@@ -35,27 +39,18 @@ class LDPSettings(object):
 
         return self._config
 
-    def __getattr__(self, name):
-
-        """Look for the value in config and fallback on django defaults."""
-
-        try:
-            if not name.startswith('_') and name.isupper():
-                return self.config['server'][name]
-        except KeyError:
-            try:
-                return getattr(global_settings, name)
-            except AttributeError:
-                # logger.info(f'The settings {name} is not accessible')
-                raise
-
     @property
     def LDP_PACKAGES(self):
+
+        """Returns the list of LDP packages configured."""
+
         pkg = self.config.get('ldppackages', [])
         return [] if pkg is None else pkg
 
     @property
     def INSTALLED_APPS(self):
+
+        """Returns the default installed apps and the LDP packages."""
 
         # get default apps
         apps = getattr(global_settings, 'INSTALLED_APPS')
@@ -66,6 +61,8 @@ class LDPSettings(object):
 
     @property
     def MIDDLEWARE(self):
+
+        """Returns the default middlewares and the middlewares found in each LDP packages."""
 
         # get default middlewares
         middleware = getattr(global_settings, 'MIDDLEWARE')
@@ -87,3 +84,18 @@ class LDPSettings(object):
                     pass
 
         return middleware
+
+    def __getattr__(self, name):
+
+        """Look for the value in config and fallback on defaults."""
+
+        try:
+            if not name.startswith('_') and name.isupper():
+                return self.config['server'][name]
+        except KeyError:
+            try:
+                return getattr(global_settings, name)
+            except AttributeError:
+                # logger.info(f'The settings {name} is not accessible')
+                raise
+
