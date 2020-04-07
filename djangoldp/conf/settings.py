@@ -83,17 +83,8 @@ class LDPSettings(object):
     @property
     def INSTALLED_APPS(self):
 
-        # set default apps
-        apps = [
-            'django.contrib.admin',
-            'django.contrib.auth',
-            'django.contrib.contenttypes',
-            'django.contrib.sessions',
-            'django.contrib.messages',
-            'django.contrib.staticfiles',
-            'djangoldp',
-            'guardian'
-        ]
+        # get default apps
+        apps = getattr(global_settings, 'INSTALLED_APPS')
 
         # add packages
         apps.extend(self.LDP_PACKAGES)
@@ -102,31 +93,23 @@ class LDPSettings(object):
     @property
     def MIDDLEWARE(self):
 
-        # set default middlewares
-        middlewares = [
-            'django.middleware.security.SecurityMiddleware',
-            'django.contrib.sessions.middleware.SessionMiddleware',
-            'django.middleware.common.CommonMiddleware',
-            'django.middleware.csrf.CsrfViewMiddleware',
-            'django.contrib.auth.middleware.AuthenticationMiddleware',
-            'django.contrib.messages.middleware.MessageMiddleware',
-            'django.middleware.clickjacking.XFrameOptionsMiddleware'
-        ]
+        # get default middlewares
+        middleware = getattr(global_settings, 'MIDDLEWARE')
 
         # explore packages looking for middleware to reference
         for pkg in self.LDP_PACKAGES:
             try:
-                # import installed package
+                # import from installed package
                 mod = import_module(f'{pkg}.default_settings')
-                middlewares.extend(getattr(mod, 'MIDDLEWARE'))
+                middleware.extend(getattr(mod, 'MIDDLEWARE'))
             except (ModuleNotFoundError, NameError):
                 try:
-                    # import local package
+                    # import from local package
                     mod = import_module(f'{pkg}.{pkg}.default_settings')
-                    middlewares.extend(getattr(mod, 'MIDDLEWARE'))
+                    middleware.extend(getattr(mod, 'MIDDLEWARE'))
                 except (ModuleNotFoundError, NameError):
                     print('nothing')
                     # logger.debug()
                     pass
 
-        return middlewares
+        return middleware

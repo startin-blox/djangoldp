@@ -14,6 +14,11 @@
 # djangoldp configure
 ```
 
+Play with it:
+```
+# djangoldp runserver
+```
+
 ### Create a package
 
 Add a new package:
@@ -27,8 +32,8 @@ ldppackages:
   - mypkg
 ```
 
-Play with it:
 ```
+# djangoldp configure
 # djangoldp runserver
 ```
 
