@@ -2,7 +2,8 @@ import os
 import sys
 import yaml
 from django import conf
-from django.conf import global_settings, LazySettings, UserSettingsHolder
+from django.conf import LazySettings
+from . import global_settings
 
 try:
     from importlib import import_module
@@ -20,7 +21,8 @@ def configure():
         raise ImportError('Settings could not be imported because DJANGOLDP_SETTINGS is not set')
 
     # patch django.conf.settings
-    # Inspiration: https://github.com/rochacbruno/dynaconf/blob/master/dynaconf/contrib/django_dynaconf_v2.py
+    # ref: https://github.com/rochacbruno/dynaconf/blob/master/dynaconf/contrib/django_dynaconf_v2.py
+    # ref: https://docs.djangoproject.com/fr/2.2/topics/settings/#custom-default-settings
     settings = LDPSettings('config.yml')
 
     lazy = LazySettings()
@@ -65,9 +67,13 @@ class LDPSettings(object):
 
         try:
             if not name.startswith('_') and name.isupper():
-                return self.config[name]
+                return self.config['server'][name]
         except KeyError:
-            return getattr(global_settings, name)
+            try:
+                return getattr(global_settings, name)
+            except AttributeError:
+                # logger.info(f'The settings {name} is not accessible')
+                raise
 
     @property
     def LDP_PACKAGES(self):
