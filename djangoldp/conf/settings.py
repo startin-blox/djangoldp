@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+import logging
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings as django_settings
 from . import global_settings
@@ -9,6 +10,9 @@ try:
     from importlib import import_module
 except ImportError:
     from django.utils.importlib import import_module
+
+
+logger = logging.getLogger(__name__)
 
 
 def configure():
@@ -73,14 +77,15 @@ class LDPSettings(object):
                 # import from installed package
                 mod = import_module(f'{pkg}.default_settings')
                 middleware.extend(getattr(mod, 'MIDDLEWARE'))
+                logger.debug(f'Middleware found in installed package {pkg}')
             except (ModuleNotFoundError, NameError):
                 try:
                     # import from local package
                     mod = import_module(f'{pkg}.{pkg}.default_settings')
                     middleware.extend(getattr(mod, 'MIDDLEWARE'))
+                    logger.debug(f'Middleware found in local package {pkg}')
                 except (ModuleNotFoundError, NameError):
-                    print('nothing')
-                    # logger.debug()
+                    logger.info(f'No middleware found for package {pkg}')
                     pass
 
         return middleware
@@ -96,6 +101,6 @@ class LDPSettings(object):
             try:
                 return getattr(global_settings, name)
             except AttributeError:
-                # logger.info(f'The settings {name} is not accessible')
+                logger.info(f'The settings {name} is not accessible')
                 raise
 

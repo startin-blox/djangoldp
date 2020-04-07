@@ -476,6 +476,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware'
 ]
 
+# Deprecated since django 1.10 but test stills runs if MIDDLEWARE is not None)
+MIDDLEWARE_CLASSES = []
+
 ############
 # SESSIONS #
 ############
