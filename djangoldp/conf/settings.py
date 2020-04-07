@@ -1,8 +1,7 @@
 import os
 import sys
 import yaml
-from django import conf
-from django.conf import LazySettings
+from django.conf import settings as django_settings
 from . import global_settings
 
 try:
@@ -10,37 +9,12 @@ try:
 except ImportError:
     from django.utils.importlib import import_module
 
-# Reference: https://github.com/django/django/blob/master/django/conf/__init__.py
-
 
 def configure():
 
-    # catch djangoldp specific settings
-    settings_module = os.getenv('DJANGOLDP_SETTINGS')
-    if not settings_module:
-        raise ImportError('Settings could not be imported because DJANGOLDP_SETTINGS is not set')
-
-    # patch django.conf.settings
-    # ref: https://github.com/rochacbruno/dynaconf/blob/master/dynaconf/contrib/django_dynaconf_v2.py
     # ref: https://docs.djangoproject.com/fr/2.2/topics/settings/#custom-default-settings
     settings = LDPSettings('config.yml')
-
-    lazy = LazySettings()
-    lazy.configure(settings)
-
-    class Wrapper(object):
-
-        def __getattribute__(self, name):
-            if name == "settings":
-                return lazy
-            else:
-                return getattr(conf, name)
-
-    sys.modules["django.conf"] = Wrapper()
-
-    # setup vars to resume django setup process
-    os.environ['DJANGO_SETTINGS_MODULE'] = settings_module
-
+    django_settings.configure(settings)
 
 
 class LDPSettings(object):
