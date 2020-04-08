@@ -19,6 +19,7 @@ from rest_framework.viewsets import ModelViewSet
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
+from djangoldp.filters import LocalObjectOnContainerPathBackend
 
 
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -114,6 +115,7 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
+    filter_backends = [LocalObjectOnContainerPathBackend]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -122,7 +124,7 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.permission_classes:
             for p in self.permission_classes:
                 if hasattr(p, 'filter_class') and p.filter_class:
-                    self.filter_backends = p.filter_class
+                    self.filter_backends.append(p.filter_class)
 
         self.serializer_class = self.build_read_serializer()
         self.write_serializer_class = self.build_write_serializer()
@@ -301,6 +303,7 @@ class LDPNestedViewSet(LDPViewSet):
 class LDPSourceViewSet(LDPViewSet):
     model = LDPSource
     federation = None
+    filter_backends = []
 
     def get_queryset(self, *args, **kwargs):
         return super().get_queryset(*args, **kwargs).filter(federation=self.kwargs['federation'])
