@@ -182,7 +182,7 @@ class Todo(Model):
     class Meta(Model.Meta):
 ```
 
-To enable federation, meaning that local users can access objects from another server as if they were on the local server, DjangoLDP creates backlinks, local copies of the object containing the URL-id (@id) of the distant resource. This is a key concept in LDP [read more](https://www.w3.org/TR/ldp-primer/)
+To enable federation, meaning that local users can access objects from another server as if they were on the local server, DjangoLDP creates backlinks, local copies of the object containing the URL-id (@id) of the distant resource. This is a key concept in LDP. To read more, see the [W3C primer on LDP](https://www.w3.org/TR/ldp-primer/), and the [LDP specification](https://www.w3.org/TR/ldp/)
 
 For situations where you don't want to include federated resources in a queryset, DjangoLDP Models override `models.Manager`, allowing you to write `Todo.objects.local()`, for example:
 ```python
