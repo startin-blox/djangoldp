@@ -13,8 +13,17 @@ from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
 
 
+class LDPModelManager(models.Manager):
+    # an alternative to all() which exlcudes external resources
+    def local(self):
+        queryset = super(LDPModelManager, self).all()
+        internal_ids = [x.pk for x in queryset if not Model.is_external(x)]
+        return queryset.filter(pk__in=internal_ids)
+
+
 class Model(models.Model):
     urlid = LDPUrlField(blank=True, null=True, unique=True)
+    objects = LDPModelManager()
 
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)

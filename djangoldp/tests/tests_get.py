@@ -23,9 +23,12 @@ class TestGET(APITestCase):
 
     def test_get_container(self):
         Post.objects.create(content="content")
+        # federated object - should not be returned in the container view
+        Post.objects.create(content="federated", urlid="https://external.com/posts/1/")
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('permissions', response.data)
+        self.assertEquals(1, len(response.data['ldp:contains']))
         self.assertEquals(2, len(response.data['permissions']))  # read and add
 
         Invoice.objects.create(title="content")
@@ -38,6 +41,7 @@ class TestGET(APITestCase):
         Post.objects.all().delete()
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
+        self.assertEquals(0, len(response.data['ldp:contains']))
 
     def test_get_filtered_fields(self):
         skill = Skill.objects.create(title="Java", obligatoire="ok", slug="1")
@@ -79,6 +83,8 @@ class TestGET(APITestCase):
     def test_get_nested(self):
         invoice = Invoice.objects.create(title="invoice")
         batch = Batch.objects.create(invoice=invoice, title="batch")
+        distant_batch = Batch.objects.create(invoice=invoice, title="distant", urlid="https://external.com/batch/1/")
         response = self.client.get('/invoices/{}/batches/'.format(invoice.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
+        self.assertEquals(len(response.data['ldp:contains']), 2)

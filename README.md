@@ -182,14 +182,31 @@ class Todo(Model):
     class Meta(Model.Meta):
 ```
 
+To enable federation, meaning that local users can access objects from another server as if they were on the local server, DjangoLDP creates backlinks, local copies of the object containing the URL-id (@id) of the distant resource. This is a key concept in LDP. To read more, see the [W3C primer on LDP](https://www.w3.org/TR/ldp-primer/), and the [LDP specification](https://www.w3.org/TR/ldp/)
+
+For situations where you don't want to include federated resources in a queryset, DjangoLDP Models override `models.Manager`, allowing you to write `Todo.objects.local()`, for example:
+```python
+Todo.objects.create(name='Local Todo')
+Todo.objects.create(name='Distant Todo', urlid='https://anotherserversomewhere.com/todos/1/')
+
+Todo.objects.all() # query set containing { Local Todo, Distant Todo }
+Todo.objects.local() # { Local Todo } only
+```
+
+For Views, we also define a FilterBackend to achieve the same purpose. See the section on ViewSets for this purpose
+
 
 See "Custom Meta options" below to see some helpful ways you can tweak the behaviour of DjangoLDP
 
 Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend the GuardedModelAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html)
 
-## Custom Parameters to LDPViewSet
+## LDPViewSet
 
-### lookup_field
+DjangoLDP automatically generates ViewSets for your models, and registers these at urls, according to the settings configured in the model Meta (see below for options)
+
+### Custom Parameters
+
+#### lookup_field
 
 Can be used to use a slug in the url instead of the primary key.
 
@@ -197,7 +214,7 @@ Can be used to use a slug in the url instead of the primary key.
 LDPViewSet.urls(model=User, lookup_field='username')
 ```
 
-### nested_fields
+#### nested_fields
 
 list of ForeignKey, ManyToManyField, OneToOneField and their reverse relations. When a field is listed in this parameter, a container will be created inside each single element of the container.
 
@@ -206,6 +223,37 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
 ```python
 <Model>._meta.nested_fields=["skills"]
 ```
+
+## Filter Backends
+
+To achieve federation, DjangoLDP includes links to objects from federated servers and stores these as local objects (see 1.0 - Models). In some situations, you will want to exclude these from the queryset of a custom view
+
+To provide for this need, there is defined in `djangoldp.filters` a FilterBackend which can be included in custom viewsets to restrict the queryset to only objects which were created locally:
+
+```python
+from djangoldp.filters import LocalObjectFilterBackend
+
+class MyViewSet(..):
+    filter_backends=[LocalObjectFilterBackend]
+```
+
+By default, LDPViewset applies filter backends from the `permission_classes` defined on the model (see 3.1 for configuration)
+
+By default, `LDPViewSets` use another FilterBackend, `LocalObjectOnContainerPathBackend`, which ensures that only local objects are returned when the path matches that of the Models `container_path` (e.g. /users/ will return a list of local users). In very rare situations where this might be undesirable, it's possible to extend `LDPViewSet` and remove the filter_backend:
+
+```python
+class LDPSourceViewSet(LDPViewSet):
+    model = LDPSource
+    filter_backends = []
+```
+
+Following this you will need to update the model's Meta to use the custom `view_set`:
+
+```python
+class Meta:
+    view_set = LDPSourceViewSet
+```
+
 
 ## Custom Meta options on models
 
