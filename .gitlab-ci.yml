@@ -19,7 +19,7 @@ test:
 publish:
   stage: release
   before_script:
-    - pip install python-semantic-release sib-commit-parser
+    - pip install python-semantic-release~=5.0 sib-commit-parser~=0.3
     - git config user.name "${GITLAB_USER_NAME}"
     - git config user.email "${GITLAB_USER_EMAIL}"
     - git remote set-url origin "https://gitlab-ci-token:${GL_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
