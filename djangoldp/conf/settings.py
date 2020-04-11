@@ -101,6 +101,5 @@ class LDPSettings(object):
             try:
                 return getattr(global_settings, name)
             except AttributeError:
-                logger.info(f'The settings {name} is not accessible')
-                raise
+                raise ImproperlyConfigured(f'no "{name}" parameter found in settings')
 

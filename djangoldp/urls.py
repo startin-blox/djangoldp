@@ -25,7 +25,7 @@ urlpatterns = [
     re_path(r'^inbox/$', InboxView.as_view()),
 ]
 
-for package in settings.DJANGOLDP_PACKAGES:
+for package in settings.LDP_PACKAGES:
     try:
         import_module('{}.models'.format(package))
         urlpatterns.append(re_path(r'^', include('{}.djangoldp_urls'.format(package))))
