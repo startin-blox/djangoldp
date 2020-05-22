@@ -1,11 +1,7 @@
-import json
-import uuid
 from urllib.parse import urlparse
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models import BinaryField, DateField
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -15,10 +11,6 @@ from django.utils.decorators import classonlymethod
 
 from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
-import logging
-
-
-logger = logging.getLogger('djangoldp')
 
 
 class LDPModelManager(models.Manager):
@@ -31,9 +23,6 @@ class LDPModelManager(models.Manager):
 
 class Model(models.Model):
     urlid = LDPUrlField(blank=True, null=True, unique=True)
-    is_backlink = models.BooleanField(default=False, help_text='set automatically to indicate the Model is a backlink')
-    allow_create_backlink = models.BooleanField(default=True,
-                                                help_text='set to False to disable backlink creation after Model save')
     objects = LDPModelManager()
 
     def __init__(self, *args, **kwargs):
@@ -153,41 +142,6 @@ class Model(models.Model):
         return path
 
     @classonlymethod
-    def get_or_create(cls, model, urlid, update=False, **field_tuples):
-        try:
-            logger.debug('[get_or_create] ' + str(model) + ' backlink ' + str(urlid))
-            rval = model.objects.get(urlid=urlid)
-            if update:
-                for field in field_tuples.keys():
-                    setattr(rval, field, field_tuples[field])
-                rval.save()
-            return rval
-        except ObjectDoesNotExist:
-            logger.debug('[get_or_create] creating..')
-            if model is get_user_model():
-                field_tuples['username'] = str(uuid.uuid4())
-            return model.objects.create(urlid=urlid, is_backlink=True, **field_tuples)
-
-    @classonlymethod
-    def get_model_rdf_type(cls, model):
-        if model is get_user_model():
-            return "foaf:user"
-        else:
-            return Model.get_meta(model, "rdf_type")
-
-    @classonlymethod
-    def get_subclass_with_rdf_type(cls, type):
-        '''returns Model subclass with Meta.rdf_type matching parameterised type, or None'''
-        if type == 'foaf:user':
-            return get_user_model()
-
-        for subcls in Model.__subclasses__():
-            if Model.get_meta(subcls, 'rdf_type') == type:
-                return subcls
-
-        return None
-
-    @classonlymethod
     def get_permission_classes(cls, related_model, default_permissions_classes):
         '''returns the permission_classes set in the models Meta class'''
         return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
@@ -228,37 +182,6 @@ class LDPSource(Model):
 
     def __str__(self):
         return "{}: {}".format(self.federation, self.urlid)
-
-
-class Activity(Model):
-    '''Models an ActivityStreams Activity'''
-    aid = LDPUrlField(null=True) # activity id
-    local_id = LDPUrlField()  # /inbox or /outbox full url
-    payload = BinaryField()
-    created_at = DateField(auto_now_add=True)
-
-    class Meta(Model.Meta):
-        container_path = "activities"
-        rdf_type = 'as:Activity'
-
-    def to_activitystream(self):
-        payload = self.payload.decode("utf-8")
-        data = json.loads(payload)
-        return data
-
-
-class Follower(Model):
-    '''Models a subscription on a model. When the model is saved, an Update activity will be sent to the inbox'''
-    object = models.URLField()
-    inbox = models.URLField()
-
-    def __str__(self):
-        return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)
-
-    def save(self, *args, **kwargs):
-        if self.pk is None:
-            logger.debug('[Follower] saving Follower ' + self.__str__())
-        super(Follower, self).save(*args, **kwargs)
 
 
 @receiver([post_save])

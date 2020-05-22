@@ -6,7 +6,7 @@ from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer
 from djangoldp.tests.models import Post, UserProfile, Resource, Circle
-from djangoldp.tests.models import Skill, JobOffer, Conversation, Message, Project
+from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
 class Update(TestCase):
@@ -510,15 +510,15 @@ class Update(TestCase):
         self.assertEqual(user.peers_conv.count(), 1)
 
     def test_m2m_user_link_federated(self):
-        project = Project.objects.create(description="project name")
+        circle = Circle.objects.create(description="cicle name")
         body = {
-            'http://happy-dev.fr/owl/#description': 'project name',
+            'http://happy-dev.fr/owl/#description': 'circle name',
             'http://happy-dev.fr/owl/#team': {
                 'http://happy-dev.fr/owl/#@id': 'http://external.user/user/1',
             }
         }
 
-        response = self.client.put('/projects/{}/'.format(project.pk),
+        response = self.client.put('/circles/{}/'.format(circle.pk),
                                    data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
@@ -526,26 +526,26 @@ class Update(TestCase):
                          "http://external.user/user/1")
 
     def test_m2m_user_link_existing_external(self):
-        project = Project.objects.create(description="project name")
+        circle = Circle.objects.create(description="cicle name")
         ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
         body = {
-            'http://happy-dev.fr/owl/#description': 'project name',
+            'http://happy-dev.fr/owl/#description': 'circle name',
             'http://happy-dev.fr/owl/#team': {
                 'http://happy-dev.fr/owl/#@id': ext_user.urlid,
             }
         }
 
-        response = self.client.put('/projects/{}/'.format(project.pk),
+        response = self.client.put('/circles/{}/'.format(circle.pk),
                                    data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['team']['ldp:contains'][0]['@id'], ext_user.urlid)
 
-        project = Project.objects.get(pk=project.pk)
-        self.assertEqual(project.team.count(), 1)
+        circle = Circle.objects.get(pk=circle.pk)
+        self.assertEqual(circle.team.count(), 1)
 
         user = get_user_model().objects.get(pk=ext_user.pk)
-        self.assertEqual(user.projects.count(), 1)
+        self.assertEqual(user.circle_set.count(), 1)
 
     def test_create_sub_object_in_existing_object_with_reverse_1to1_relation(self):
         """
@@ -575,22 +575,22 @@ class Update(TestCase):
 
     def test_m2m_user_link_remove_existing_link(self):
         ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
-        project = Project.objects.create(description="project name")
-        project.team.add(ext_user)
-        project.save()
+        circle = Circle.objects.create(description="cicle name")
+        circle.team.add(ext_user)
+        circle.save()
         body = {
-            'http://happy-dev.fr/owl/#description': 'project name',
+            'http://happy-dev.fr/owl/#description': 'circle name',
             'http://happy-dev.fr/owl/#team': {
             }
         }
 
-        response = self.client.put('/projects/{}/'.format(project.pk),
+        response = self.client.put('/circles/{}/'.format(circle.pk),
                                    data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
 
-        project = Project.objects.get(pk=project.pk)
-        self.assertEqual(project.team.count(), 0)
+        circle = Circle.objects.get(pk=circle.pk)
+        self.assertEqual(circle.team.count(), 0)
 
         user = get_user_model().objects.get(pk=ext_user.pk)
-        self.assertEqual(user.projects.count(), 0)
+        self.assertEqual(user.circle_set.count(), 0)

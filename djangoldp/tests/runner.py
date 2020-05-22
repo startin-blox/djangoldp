@@ -50,7 +50,6 @@ settings.configure(DEBUG=False,
                                    'djangoldp',
                                    'djangoldp.tests',
                                    ),
-                   SEND_BACKLINKS=False,
                    SITE_URL='http://happy-dev.fr',
                    BASE_URL='http://happy-dev.fr',
                    REST_FRAMEWORK = {
@@ -76,8 +75,7 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_delete',
     'djangoldp.tests.tests_sources',
     'djangoldp.tests.tests_pagination',
-    'djangoldp.tests.tests_inbox',
-    #'djangoldp.tests.tests_temp'
+    # 'djangoldp.tests.tests_temp'
 ])
 if failures:
     sys.exit(failures)

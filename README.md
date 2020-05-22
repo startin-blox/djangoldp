@@ -171,8 +171,6 @@ $ python3 manage.py runserver
 
 To use DjangoLDP in your models you just need to extend djangoldp.Model
 
-The Model class allows you to use your models in federation, adding a `urlid` field, and some key methods useful in federation
-
 If you define a Meta for your Model, you will [need to explicitly inherit Model.Meta](https://docs.djangoproject.com/fr/2.2/topics/db/models/#meta-inheritance) in order to inherit the default settings, e.g. `default_permissions`
 
 ```python
@@ -184,30 +182,7 @@ class Todo(Model):
     class Meta(Model.Meta):
 ```
 
-See "Custom Meta options" below to see some helpful ways you can tweak the behaviour of DjangoLDP
-
-Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend the GuardedModelAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html)
-
-### Model Federation
-
-Model `urlid`s can be **local** (matching `settings.SITE_URL`), or **external**
-
-To maintain consistency between federated servers, [Activities](https://www.w3.org/TR/activitystreams-vocabulary) such as Create, Update, Delete are sent to external resources referenced in a ForeignKey relation, instructing them on how to manage the reverse-links with the local server
-
-This behaviour can be disabled in settings.py
-```python
-SEND_BACKLINKS = False
-```
-
-It can also be disabled on a model instance
-```python
-instance.allow_create_backlinks = False
-```
-
-When an instance was created as a reverse-link to an external resource, it is marked with `is_backlink`
-```python
-instance.is_backlink = True
-```
+To enable federation, meaning that local users can access objects from another server as if they were on the local server, DjangoLDP creates backlinks, local copies of the object containing the URL-id (@id) of the distant resource. This is a key concept in LDP. To read more, see the [W3C primer on LDP](https://www.w3.org/TR/ldp-primer/), and the [LDP specification](https://www.w3.org/TR/ldp/)
 
 For situations where you don't want to include federated resources in a queryset, DjangoLDP Models override `models.Manager`, allowing you to write `Todo.objects.local()`, for example:
 ```python
@@ -220,6 +195,10 @@ Todo.objects.local() # { Local Todo } only
 
 For Views, we also define a FilterBackend to achieve the same purpose. See the section on ViewSets for this purpose
 
+
+See "Custom Meta options" below to see some helpful ways you can tweak the behaviour of DjangoLDP
+
+Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend the GuardedModelAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html)
 
 ## LDPViewSet
 
