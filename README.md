@@ -130,7 +130,7 @@ BASE_URL = SITE_URL
 
 * `LDP_RDF_CONTEXT` tells DjangoLDP where our RDF [ontology](https://www.w3.org/standards/semanticweb/ontology) is defined, which will be returned as part of our views in the 'context' field. This is a web URL and you can visit the value to view the full ontology online
 * `DJANGOLDP_PACKAGES` defines which other [DjangoLDP packages](https://git.happy-dev.fr/startinblox/djangoldp-packages) we're using in this installation
-* `SITE_URL` is the URL serving the site, e.g. `https://example.com/`
+* `SITE_URL` is the URL serving the site, e.g. `https://example.com/`. Note that if you include the DjangoLDP urls in a nested path (e.g. `https://example.com/api/`), then `SITE_URL` will need to be set to this value
 * `BASE_URL` may be different from SITE_URL, e.g. `https://example.com/app/`
 
 
