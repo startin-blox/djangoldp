@@ -20,4 +20,5 @@ class TestAutoAuthor(APITestCase):
 
         response = self.client.post('/posts/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
+        self.assertNotIn('author', response.data)
         self.assertEquals(response.data['content'], "post content")

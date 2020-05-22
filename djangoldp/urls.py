@@ -5,7 +5,7 @@ from django.conf.urls import url, include
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
-from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
+from djangoldp.views import LDPSourceViewSet, WebFingerView
 from djangoldp.views import LDPViewSet
 
 
@@ -22,7 +22,6 @@ urlpatterns = [
     url(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
                                                                 permission_classes=[LDPPermissions], )),
     url(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
-    url(r'^inbox/$', InboxView.as_view()),
 ]
 
 for package in settings.DJANGOLDP_PACKAGES:

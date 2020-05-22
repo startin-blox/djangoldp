@@ -47,10 +47,9 @@ class LDListMixin:
 
         return [getattr(self, self.child_attr).to_internal_value(item) for item in data]
 
+    # converts internal representation to primitive data representation
     def to_representation(self, value):
         '''
-        Converts internal representation to primitive data representation
-        Filters objects out which I don't have permission to view
         Permission on container :
          - Can Add if add permission on contained object's type
          - Can view the container is view permission on container model : container obj are filtered by view permission
@@ -272,6 +271,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
             fields = list(self.Meta.model._meta.serializer_fields)
         except AttributeError:
             fields = super().get_default_field_names(declared_fields, model_info)
+        if 'request' in self._context and not (self._context['request']._request.method == 'GET' or self._context['request']._request.method == 'OPTIONS'):
+            try:
+                fields.remove(self.Meta.model._meta.auto_author)
+            except ValueError:
+                pass
+            except AttributeError:
+                pass
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
     def to_representation(self, obj):
@@ -410,9 +416,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
             def to_internal_value(self, data):
                 if data is '':
                     return ''
-                # workaround for Hubl app - 293
-                if 'username' in data and not self.url_field_name in data:
-                    data[self.url_field_name] = './'
                 if self.url_field_name in data:
                     if not isinstance(data, Mapping):
                         message = self.error_messages['invalid'].format(
@@ -425,7 +428,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     ret = OrderedDict()
                     errors = OrderedDict()
 
-                    # validate fields passed in the data
                     fields = list(filter(lambda x: x.field_name in data, self._writable_fields))
 
                     for field in fields:
@@ -447,7 +449,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     if errors:
                         raise ValidationError(errors)
 
-                    # resolve path of the resource
                     uri = data[self.url_field_name]
                     http_prefix = uri.startswith(('http:', 'https:'))
 
@@ -550,7 +551,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def internal_create(self, validated_data, model):
         validated_data = self.resolve_fk_instances(model, validated_data)
 
-        # build tuples list of nested_field keys and their values
         nested_fields = []
         nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_list_fields_name:
@@ -563,9 +563,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     field_name in validated_data) and not field_name is None:
                 many_to_many.append((field_name, validated_data.pop(field_name)))
         validated_data = self.remove_empty_value(validated_data)
-
         if model is get_user_model() and not 'username' in validated_data:
-            validated_data['username'] = str(uuid.uuid4())
+            validated_data['username'] = uuid.uuid4()
         instance = model.objects.create(**validated_data)
 
         for field_name, value in many_to_many:
@@ -576,7 +575,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return instance
 
     def remove_empty_value(self, validated_data):
-        '''sets any empty strings in the validated_data to None'''
         for attr, value in validated_data.items():
             if value is '':
                 validated_data[attr] = None
@@ -605,7 +603,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return instance
 
     def resolve_fk_instances(self, model, validated_data):
-        '''iterates over every dict object in validated_data and resolves them into instances (get or create)'''
         nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
         for field_name in nested_fk_fields_name:
             field_dict = validated_data[field_name]
@@ -627,7 +624,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         model, sub_inst = Model.resolve(field_dict['urlid'])
                 # remote resource - get backlinked copy
                 elif hasattr(field_model, 'urlid'):
-                    sub_inst = Model.get_or_create(field_model, field_dict['urlid'])
+                    kwargs = {'urlid': field_dict['urlid']}
+                    sub_inst = field_model.objects.get(**kwargs)
             # try slug field, assuming that this is a local resource
             elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
