@@ -1,25 +1,32 @@
+import copy
+import json
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
 from django.views import View
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import AllowAny
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
+from rest_framework.utils import model_meta
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
-from djangoldp.models import LDPSource, Model
+from djangoldp.models import LDPSource, Model, Activity, Follower
 from djangoldp.permissions import LDPPermissions
 from djangoldp.filters import LocalObjectOnContainerPathBackend
+from djangoldp.activities import ActivityPubService, as_activitystream
+from djangoldp.activities.errors import ActivityStreamDecodeError
 
 
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -56,6 +63,183 @@ class JSONLDParser(JSONParser):
 class NoCSRFAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
+
+
+class InboxView(APIView):
+    """
+    Receive linked data notifications
+    """
+    permission_classes=[AllowAny,]
+
+    def post(self, request, *args, **kwargs):
+        '''
+        receiver for inbox messages. See https://www.w3.org/TR/ldn/
+        '''
+        payload = request.body.decode("utf-8")
+
+        try:
+            activity = json.loads(payload, object_hook=as_activitystream)
+            activity.validate()
+        except ActivityStreamDecodeError:
+            return Response('Activity type unsupported', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        if activity.type == 'Add':
+            self.handle_add_activity(activity, **kwargs)
+        elif activity.type == 'Remove':
+            self.handle_remove_activity(activity, **kwargs)
+        elif activity.type == 'Delete':
+            self.handle_delete_activity(activity, **kwargs)
+        elif activity.type == 'Create' or activity.type == 'Update':
+            self.handle_create_or_update_activity(activity, **kwargs)
+        elif activity.type == 'Follow':
+            self.handle_follow_activity(activity, **kwargs)
+
+        # save the activity and return 201
+        payload = bytes(json.dumps(activity.to_json()), "utf-8")
+        obj = Activity.objects.create(local_id=request.path_info, payload=payload)
+        obj.aid = Model.absolute_url(obj)
+        obj.save()
+
+        response = Response({}, status=status.HTTP_201_CREATED)
+        response['Location'] = obj.aid
+
+        return response
+
+    def get_or_create_nested_backlinks(self, object, object_model=None, update=False):
+        '''
+        recursively constructs a tree of nested objects, using get_or_create on each leaf/branch
+        :param object: Dict representation of the object
+        :param object_model: The Model class of the object. Will be discovered if set to None
+        :param update: if True will update retrieved objects with new data
+        '''
+        # store a list of the object's sub-items
+        if object_model is None:
+            object_model = Model.get_subclass_with_rdf_type(object['@type'])
+        if object_model is None:
+            raise Http404('unable to store type ' + object['@type'] + ', model with this rdf_type not found')
+        branches = {}
+
+        for item in object.items():
+            # TODO: parse other data types. Match the key to the field_name
+            if isinstance(item[1], dict):
+                item_value = item[1]
+                item_model = Model.get_subclass_with_rdf_type(item_value['@type'])
+                if item_model is None:
+                    raise Http404('unable to store type ' + item_value['@type'] + ', model with this rdf_type not found')
+
+                # push nested object tuple as a branch
+                backlink = self.get_or_create_nested_backlinks(item_value, item_model)
+                branches[item[0]] = backlink
+
+        # get or create the backlink
+        return Model.get_or_create(object_model, object['@id'], update=update, **branches)
+
+    # TODO: a fallback here? Saving the backlink as Object or similar
+    def _get_subclass_with_rdf_type_or_404(self, rdf_type):
+        model = Model.get_subclass_with_rdf_type(rdf_type)
+        if model is None:
+            raise Http404('unable to store type ' + rdf_type + ', model not found')
+        return model
+
+    def handle_add_activity(self, activity, **kwargs):
+        '''
+        handles Add Activities. See https://www.w3.org/ns/activitystreams
+        Indicates that the actor has added the object to the target
+        '''
+        object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
+        target_model = self._get_subclass_with_rdf_type_or_404(activity.target['@type'])
+
+        # store backlink(s) in database
+        backlink = self.get_or_create_nested_backlinks(activity.object, object_model)
+
+        # add object to target
+        try:
+            target_info = model_meta.get_field_info(target_model)
+            target = target_model.objects.get(urlid=activity.target['@id'])
+
+            for field_name, relation_info in target_info.relations.items():
+                if relation_info.related_model == object_model:
+                    getattr(target, field_name).add(backlink)
+        except target_model.DoesNotExist:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+
+    def handle_remove_activity(self, activity, **kwargs):
+        '''
+        handles Remove Activities. See https://www.w3.org/ns/activitystreams
+        Indicates that the actor has removed the object from the origin
+        '''
+        # TODO: Remove Activity may pass target instead
+        object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
+        origin_model = self._get_subclass_with_rdf_type_or_404(activity.origin['@type'])
+
+        # get the model reference to saved object
+        try:
+            object_instance = object_model.objects.get(urlid=activity.object['@id'])
+        except object_model.DoesNotExist:
+            return
+
+        # remove object from origin
+        try:
+            origin_info = model_meta.get_field_info(origin_model)
+            origin = origin_model.objects.get(urlid=activity.origin['@id'])
+
+            for field_name, relation_info in origin_info.relations.items():
+                if relation_info.related_model == object_model:
+                    getattr(origin, field_name).remove(object_instance)
+        # TODO: decipher from history if the resource has been moved?
+        except origin_model.DoesNotExist:
+            raise Http404()
+
+    def handle_create_or_update_activity(self, activity, **kwargs):
+        '''
+        handles Create & Update Activities. See https://www.w3.org/ns/activitystreams
+        '''
+        object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
+        self.get_or_create_nested_backlinks(activity.object, object_model, update=True)
+
+    def handle_delete_activity(self, activity, **kwargs):
+        '''
+        handles Remove Activities. See https://www.w3.org/ns/activitystreams
+        Indicates that the actor has deleted the object
+        '''
+        object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
+
+        # get the model reference to saved object
+        try:
+            object_instance = object_model.objects.get(urlid=activity.object['@id'])
+        except object_model.DoesNotExist:
+            return
+
+        # disable backlinks first - prevents a duplicate being sent back
+        object_instance.allow_create_backlink = False
+        object_instance.save()
+        object_instance.delete()
+
+    def handle_follow_activity(self, activity, **kwargs):
+        '''
+        handles Follow Activities. See https://www.w3.org/ns/activitystreams
+        Indicates that the actor is following the object, and should receive Updates on what happens to it
+        '''
+        object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
+
+        # get the model reference to saved object
+        try:
+            object_instance = object_model.objects.get(urlid=activity.object['@id'])
+        except object_model.DoesNotExist:
+            raise Http404()
+        if Model.is_external(object_instance):
+            raise Http404()
+
+        # get the inbox field from the actor
+        if isinstance(activity.actor, str):
+            inbox = activity.actor
+        else:
+            inbox = getattr(activity.actor, 'inbox', None)
+            if inbox is None:
+                inbox = getattr(activity.actor, 'id', getattr(activity.actor, '@id'))
+
+        if not Follower.objects.filter(object=object_instance.urlid, inbox=inbox).exists():
+            Follower.objects.create(object=object_instance.urlid, inbox=inbox)
 
 
 class LDPViewSetGenerator(ModelViewSet):

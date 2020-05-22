@@ -5,7 +5,7 @@ from rest_framework.utils import json
 
 from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle
+from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle, Project
 
 
 class Save(TestCase):
@@ -329,15 +329,15 @@ class Save(TestCase):
         self.assertEqual(saved_post.urlid, "http://happy-dev.fr/posts/1/")
 
     def test_nested_container_user_federated(self):
-        circle = Circle.objects.create()
+        project = Project.objects.create()
         body = {
             'http://happy-dev.fr/owl/#@id': "http://external.user/user/1/",
         }
 
-        response = self.client.post('/circles/{}/team/'.format(circle.pk),
+        response = self.client.post('/projects/{}/team/'.format(project.pk),
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['circle_set']['ldp:contains'][0]['@id'],
-                         "http://testserver/circles/{}/".format(circle.pk))
+        self.assertEqual(response.data['projects']['ldp:contains'][0]['@id'],
+                         "http://testserver/projects/{}/".format(project.pk))
         self.assertEqual(response.data['@id'], "http://external.user/user/1/")
