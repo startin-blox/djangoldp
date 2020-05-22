@@ -1,8 +1,11 @@
+import json
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import BinaryField, DateField
 from django.utils.datetime_safe import date
 
+from djangoldp.fields import LDPUrlField
 from djangoldp.models import Model
 
 
@@ -10,10 +13,11 @@ class User(AbstractUser, Model):
 
     class Meta(AbstractUser.Meta, Model.Meta):
         serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
-                             'conversation_set', 'circle_set']
+                             'conversation_set', 'circle_set', 'projects']
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'change']
         owner_perms = ['inherit']
+        nested_fields = ['circles', 'projects']
 
 
 class Skill(Model):
@@ -184,12 +188,39 @@ class Post(Model):
 
 
 class Circle(Model):
-    description = models.CharField(max_length=255)
-    team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True)
+    description = models.CharField(max_length=255, null=True, blank=False)
+    team = models.ManyToManyField(settings.AUTH_USER_MODEL, through="CircleMember", blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING,
+                              null=True, blank=True)
 
     class Meta(Model.Meta):
         nested_fields = ["team"]
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:circle'
+        depth = 1
+
+
+class CircleMember(Model):
+    circle = models.ForeignKey(Circle, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="circles")
+    is_admin = models.BooleanField(default=False)
+
+    class Meta(Model.Meta):
+        container_path = "circle-members/"
+        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
+        authenticated_perms = ['inherit']
+        unique_together = ['user', 'circle']
+        rdf_type = 'hd:circlemember'
+
+
+class Project(Model):
+    description = models.CharField(max_length=255, null=True, blank=False)
+    team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
+
+    class Meta(Model.Meta):
+        nested_fields = ["team"]
+        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
+        authenticated_perms = ["inherit"]
+        rdf_type = 'hd:project'
         depth = 1

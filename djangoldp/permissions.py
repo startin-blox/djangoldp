@@ -119,10 +119,11 @@ class LDPPermissions(DjangoObjectPermissions):
 
         # get permissions required
         perms = self.get_permissions(request.method, model)
+        user_perms = self.user_permissions(request.user, model, obj)
 
         # compare them with the permissions I have
         for perm in perms:
-            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
+            if not perm.split('.')[1].split('_')[0] in user_perms:
                 return False
 
         return True
@@ -141,10 +142,11 @@ class LDPPermissions(DjangoObjectPermissions):
         # get permissions required
         perms = self.get_permissions(request.method, obj)
         model = obj
+        user_perms = self.user_permissions(request.user, model, obj)
 
         # compare them with the permissions I have
         for perm in perms:
-            if not perm.split('.')[1].split('_')[0] in self.user_permissions(request.user, model, obj):
+            if not perm.split('.')[1].split('_')[0] in user_perms:
                 return False
 
         return True
