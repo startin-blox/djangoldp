@@ -10,7 +10,7 @@ Building a Startin' Blox application? Read this: https://git.happy-dev.fr/starti
 
 * Django (known to work with django 1.11)
 * Django Rest Framework
-* pyld
+* pyld==1.0.5
 * django-guardian
 * djangorestframework-guardian
 
