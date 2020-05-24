@@ -289,6 +289,9 @@ SECRET_KEY = ''
 # Default server url
 SITE_URL = 'http://localhost:8000/'
 
+# Default URL conf
+ROOT_URLCONF = 'djangoldp.urls'
+
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
@@ -298,7 +301,7 @@ MEDIA_ROOT = 'server.urls'
 
 # URL that handles the media served from MEDIA_ROOT.
 # Examples: "http://example.com/media/", "http://media.example.com/"
-MEDIA_URL = ''
+MEDIA_URL = '/media/'
 
 # Absolute path to the directory static files should be collected to.
 # Example: "/var/www/example.com/static/"
@@ -532,13 +535,7 @@ CACHE_MIDDLEWARE_ALIAS = 'default'
 
 AUTH_USER_MODEL = 'auth.User'
 
-AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend']
-
-LOGIN_URL = '/accounts/login/'
-
-LOGIN_REDIRECT_URL = '/accounts/profile/'
-
-LOGOUT_REDIRECT_URL = None
+AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend']
 
 # The number of days a password reset link is valid for
 PASSWORD_RESET_TIMEOUT_DAYS = 3

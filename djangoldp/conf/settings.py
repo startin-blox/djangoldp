@@ -24,6 +24,8 @@ def configure():
 
 class LDPSettings(object):
 
+    """Class managing the DjangoLDP configuration."""
+
     def __init__(self, path):
 
         if django_settings.configured:
@@ -54,7 +56,7 @@ class LDPSettings(object):
     @property
     def INSTALLED_APPS(self):
 
-        """Returns the default installed apps and the LDP packages."""
+        """Return the default installed apps and the LDP packages."""
 
         # get default apps
         apps = getattr(global_settings, 'INSTALLED_APPS')
@@ -66,40 +68,82 @@ class LDPSettings(object):
     @property
     def MIDDLEWARE(self):
 
-        """Returns the default middlewares and the middlewares found in each LDP packages."""
+        """
+        Return the default middlewares and the middlewares found in each LDP packages.
+        It doesn't manage duplications or collisions. All middlewares are returned.
+        """
 
         # get default middlewares
-        middleware = getattr(global_settings, 'MIDDLEWARE')
+        middlewares = getattr(global_settings, 'MIDDLEWARE')
 
         # explore packages looking for middleware to reference
         for pkg in self.LDP_PACKAGES:
             try:
                 # import from installed package
                 mod = import_module(f'{pkg}.djangoldp_settings')
-                middleware.extend(getattr(mod, 'MIDDLEWARE'))
+                middlewares.extend(getattr(mod, 'MIDDLEWARE'))
                 logger.debug(f'Middleware found in installed package {pkg}')
             except (ModuleNotFoundError, NameError):
                 try:
                     # import from local package
                     mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
-                    middleware.extend(getattr(mod, 'MIDDLEWARE'))
+                    middlewares.extend(getattr(mod, 'MIDDLEWARE'))
                     logger.debug(f'Middleware found in local package {pkg}')
                 except (ModuleNotFoundError, NameError):
                     logger.info(f'No middleware found for package {pkg}')
                     pass
 
-        return middleware
+        return middlewares
 
-    def __getattr__(self, name):
+    def __getattr__(self, param):
 
-        """Look for the value in config and fallback on defaults."""
+        """
+        Look for the parameter in config and return the first value found.
 
-        try:
-            if not name.startswith('_') and name.isupper():
-                return self.config['server'][name]
-        except KeyError:
+        Resolution order of the configuration:
+          1. YAML config file
+          2. Packages settings
+          3. Core default settings
+        """
+
+        if not param.startswith('_') and param.isupper():
+
+            # look in config file
             try:
-                return getattr(global_settings, name)
-            except AttributeError:
-                raise AttributeError(f'no "{name}" parameter found in settings')
+                value = self.config['server'][param]
+                logger.debug(f'{param} found in project config')
+                return value
+            except KeyError:
+                pass
 
+            # look in all packages config
+            for pkg in self.LDP_PACKAGES:
+
+                try:
+                    # import from local package
+                    mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
+                    value = getattr(mod, param)
+                    logger.debug(f'{param} found in local package {pkg}')
+                    return value
+                except (ModuleNotFoundError, NameError):
+                    pass
+
+                try:
+                    # import from installed package
+                    mod = import_module(f'{pkg}.djangoldp_settings')
+                    value = getattr(mod, param)
+                    logger.debug(f'{param} found in installed package {pkg}')
+                    return value
+                except (ModuleNotFoundError, NameError):
+                    pass
+
+            # look in default settings
+            try:
+                value = getattr(global_settings, param)
+                logger.debug(f'{param} found in core default config')
+                return value
+            except AttributeError:
+                pass
+
+            # raise the django exception for inexistent parameter
+            raise AttributeError(f'no "{param}" parameter found in settings')
