@@ -306,7 +306,7 @@ STATIC_ROOT = None
 
 # URL that handles the static files served from STATIC_ROOT.
 # Example: "http://example.com/static/", "http://static.example.com/"
-STATIC_URL = None
+STATIC_URL = '/static/'
 
 # List of upload handler classes to be applied in order.
 FILE_UPLOAD_HANDLERS = [

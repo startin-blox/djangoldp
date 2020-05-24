@@ -46,6 +46,7 @@ def startproject(name, production):
 
     except CommandError as e:
         click.echo(f'Error: {e}')
+        directory.rmdir()
 
 @main.command()
 @click.argument('name', nargs=1)

@@ -101,6 +101,5 @@ class LDPSettings(object):
             try:
                 return getattr(global_settings, name)
             except AttributeError:
-                logger.debug(f'no "{name}" parameter found in settings')
-                raise
+                raise AttributeError(f'no "{name}" parameter found in settings')
 
