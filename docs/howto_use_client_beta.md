@@ -4,7 +4,7 @@
 
 Install the appropriate version of the client:
 ```
-$ python -m pip install 'git+https://git.startinblox.com/djangoldp-packages/djangoldp.git@v0.7.dev1'
+$ python -m pip install "git+https://git.startinblox.com/djangoldp-packages/djangoldp.git@v0.7.dev1"
 ```
 
 Setup a new project:

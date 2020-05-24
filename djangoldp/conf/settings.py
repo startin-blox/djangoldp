@@ -75,13 +75,13 @@ class LDPSettings(object):
         for pkg in self.LDP_PACKAGES:
             try:
                 # import from installed package
-                mod = import_module(f'{pkg}.default_settings')
+                mod = import_module(f'{pkg}.djangoldp_settings')
                 middleware.extend(getattr(mod, 'MIDDLEWARE'))
                 logger.debug(f'Middleware found in installed package {pkg}')
             except (ModuleNotFoundError, NameError):
                 try:
                     # import from local package
-                    mod = import_module(f'{pkg}.{pkg}.default_settings')
+                    mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
                     middleware.extend(getattr(mod, 'MIDDLEWARE'))
                     logger.debug(f'Middleware found in local package {pkg}')
                 except (ModuleNotFoundError, NameError):
@@ -101,5 +101,6 @@ class LDPSettings(object):
             try:
                 return getattr(global_settings, name)
             except AttributeError:
-                raise ImproperlyConfigured(f'no "{name}" parameter found in settings')
+                logger.debug(f'no "{name}" parameter found in settings')
+                raise
 
