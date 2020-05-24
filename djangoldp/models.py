@@ -118,13 +118,16 @@ class Model(models.Model):
     def resolve_id(cls, id):
         '''
         Resolves the id of a given path (e.g. /container/1/)
-        Raises ValidationError if the path has no id, a Resolver404 if the path cannot be found
+        Raises Resolver404 if the path cannot be found, ValidationError if the path is for a model base
         and an ObjectDoesNotExist exception if the resource does not exist
         '''
         id = cls.__clean_path(id)
-        view, args, kwargs = get_resolver().resolve(id)
-        if len(kwargs.keys()) == 0:
-            raise ValidationError('no id in given path')
+        match = get_resolver().resolve(id)
+        kwargs = match.kwargs
+        view = match.func
+
+        if match.url_name.endswith('-list') or len(match.kwargs.keys()) == 0:
+            raise ValidationError('resolve_id received a path for a container or nested container')
         return view.initkwargs['model'].objects.get(**kwargs)
 
     @classonlymethod
