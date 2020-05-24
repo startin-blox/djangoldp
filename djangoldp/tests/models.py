@@ -188,7 +188,8 @@ class Post(Model):
 
 
 class Circle(Model):
-    description = models.CharField(max_length=255, null=True, blank=False)
+    name = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True)
     team = models.ManyToManyField(settings.AUTH_USER_MODEL, through="CircleMember", blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING,
                               null=True, blank=True)

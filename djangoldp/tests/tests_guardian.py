@@ -38,13 +38,6 @@ class TestsGuardian(APITestCase):
         response = self.client.get('/permissionless-dummys/')
         self.assertEqual(response.status_code, 403)
 
-    # tests that dummy with permissions set enforces these permissions
-    def test_list_dummy_permission_granted(self):
-        self.setUpLoggedInUser()
-        self.setUpGuardianDummyWithPerms(['view'])
-        response = self.client.get('/permissionless-dummys/')
-        self.assertEqual(response.status_code, 200)
-
     def test_get_dummy_permission_granted(self):
         self.setUpLoggedInUser()
         self.setUpGuardianDummyWithPerms(['view'])
@@ -57,13 +50,6 @@ class TestsGuardian(APITestCase):
         dummy_without = PermissionlessDummy.objects.create(some='test2', slug='test2')
         response = self.client.get('/permissionless-dummys/{}/'.format(dummy_without.slug))
         self.assertEqual(response.status_code, 403)
-
-    def test_post_dummy_permission_granted(self):
-        self.setUpLoggedInUser()
-        self.setUpGuardianDummyWithPerms(['add'])
-        post = {'some': "some_new", "slug": 'slug1'}
-        response = self.client.post('/permissionless-dummys/', data=json.dumps(post), content_type='application/ld+json')
-        self.assertEqual(response.status_code, 201)
 
     def test_patch_dummy_permission_granted(self):
         self.setUpLoggedInUser()
