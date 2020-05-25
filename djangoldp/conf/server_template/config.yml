@@ -1,16 +1,14 @@
 
 dependencies:
-  - git+https://git.startinblox.com/djangoldp-packages/djangoldp-account.git
 
 ldppackages:
 
 server:
-  # App specific settings
-  # Django required settings
+  # DjangoLDP required settings
   DEBUG: true
   ALLOWED_HOSTS:
     - '*'
-  SECRET_KEY: "{{secret_key}}"
+  SECRET_KEY: '{{secret_key}}'
   DATABASES:
     default:
       ENGINE: django.db.backends.sqlite3
@@ -21,3 +19,9 @@ server:
   PROSODY_HTTP_URL:
   JABBER_DEFAULT_HOST:
   ACCOUNT_ACTIVATION_DAYS: 10
+
+  # needs review (could be defined elsewhere)
+  ROOT_URLCONF: server.urls
+  USE_ETAGS: true
+  DEFAULT_CONTENT_TYPE: text/html
+  FILE_CHARSET: utf-8

@@ -37,6 +37,13 @@ ldppackages:
 # djangoldp runserver
 ```
 
+### Add a distribution dependency
+
+```
+dependencies:
+  - git+https://git.startinblox.com/djangoldp-packages/djangoldp-account.git
+```
+
 ## With PostgreSQL backend
 
 ```
