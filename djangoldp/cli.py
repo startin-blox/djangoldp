@@ -19,8 +19,7 @@ def main():
 
 @main.command()
 @click.argument('name', nargs=1, required=False)
-@click.option('--production', is_flag=True, default=False, help='Use a production template')
-def startproject(name, production):
+def startproject(name):
 
     """Start a DjangoLDP project."""
 
@@ -39,7 +38,7 @@ def startproject(name, production):
         # wrap the default django-admin startproject command
         # this call import django settings and configure it
         # see: https://docs.djangoproject.com/fr/1.11/topics/settings/#calling-django-setup-is-required-for-standalone-django-usage
-        management.call_command('startproject', name, directory, template=template, production=production)
+        management.call_command('startproject', name, directory, template=template, name=['config.yml'])
 
     except FileExistsError:
         click.echo(f'Error: the folder {directory} already exists')
