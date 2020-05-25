@@ -2,7 +2,7 @@ import json
 import uuid
 from urllib.parse import urlparse
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import BinaryField, DateField
@@ -116,8 +116,18 @@ class Model(models.Model):
 
     @classonlymethod
     def resolve_id(cls, id):
+        '''
+        Resolves the id of a given path (e.g. /container/1/)
+        Raises Resolver404 if the path cannot be found, ValidationError if the path is for a model base
+        and an ObjectDoesNotExist exception if the resource does not exist
+        '''
         id = cls.__clean_path(id)
-        view, args, kwargs = get_resolver().resolve(id)
+        match = get_resolver().resolve(id)
+        kwargs = match.kwargs
+        view = match.func
+
+        if match.url_name.endswith('-list') or len(match.kwargs.keys()) == 0:
+            raise ValidationError('resolve_id received a path for a container or nested container')
         return view.initkwargs['model'].objects.get(**kwargs)
 
     @classonlymethod
@@ -128,12 +138,18 @@ class Model(models.Model):
 
     @classonlymethod
     def resolve_container(cls, path):
+        '''retruns the model container of passed URL path'''
         path = cls.__clean_path(path)
         view, args, kwargs = get_resolver().resolve(path)
         return view.initkwargs['model']
 
     @classonlymethod
     def resolve(cls, path):
+        '''
+        resolves the containing model and associated id in the path. If there is no id in the path returns None
+        :param path: a URL path to check
+        :return: the container model and resolved id in a tuple
+        '''
         if settings.BASE_URL in path:
             path = path[len(settings.BASE_URL):]
         container = cls.resolve_container(path)
