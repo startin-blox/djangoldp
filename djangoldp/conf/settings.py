@@ -125,7 +125,7 @@ class LDPSettings(object):
                     value = getattr(mod, param)
                     logger.debug(f'{param} found in local package {pkg}')
                     return value
-                except (ModuleNotFoundError, NameError):
+                except (ModuleNotFoundError, NameError, AttributeError):
                     pass
 
                 try:
@@ -134,7 +134,7 @@ class LDPSettings(object):
                     value = getattr(mod, param)
                     logger.debug(f'{param} found in installed package {pkg}')
                     return value
-                except (ModuleNotFoundError, NameError):
+                except (ModuleNotFoundError, NameError, AttributeError):
                     pass
 
             # look in default settings

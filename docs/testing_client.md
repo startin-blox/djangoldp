@@ -4,6 +4,7 @@
 
 ### Setup a project
 
+Setup:
 ```
 # docker run --rm -v $PWD:/code -w /code -p 127.0.0.1:8000:8000 -it python:3.6 bash
 # pip install .
@@ -14,9 +15,14 @@
 # djangoldp configure
 ```
 
-Play with it:
+Run:
 ```
 # djangoldp runserver
+```
+
+Test:
+```
+$ curl -IL localhost:8000/admin/
 ```
 
 ### Create a package
@@ -26,15 +32,40 @@ Add a new package:
 # djangoldp startpackage mypkg
 ```
 
+The package template contains test values for middleware and custom var:
+```
+# cat mypkg/mypkg/djangoldp_settings.py
+MIDDLEWARE = ['MY_MIDDLEWARE']
+MYPACKAGE_VAR = 'MY_DEFAULT_VAR'
+```
+
 Reference it in the project config.yml:
 ```
 ldppackages:
   - mypkg
 ```
 
+Configure:
 ```
 # djangoldp configure
-# djangoldp runserver
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, djangoldp, guardian, sessions
+Running migrations:
+  No migrations to apply.
+User "admin" already exists. Skipping...
+Confguration done!
+```
+
+Test:
+```
+# python manage.py shell
+>>> from django.conf import settings
+>>> settings.LDP_PACKAGES
+['mypkg']
+>>> settings.MIDDLEWARE
+['django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware', 'MY_MIDDLEWARE']
+>>> settings.MYPACKAGE_VAR
+'MY_DEFAULT_VAR'
 ```
 
 ### Add a distribution dependency
