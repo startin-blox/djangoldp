@@ -343,9 +343,19 @@ class LDPViewSet(LDPViewSetGenerator):
         return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,),
                                    {'Meta': meta_class})
 
+    def is_safe_create(self, user, validated_data, *args, **kwargs):
+        '''
+        A function which is checked before the create operation to confirm the validated data is safe to add
+        returns True by default
+        :return: True if the operation should be permitted, False to return a 403 response
+        '''
+        return True
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        if not self.is_safe_create(request.user, serializer.validated_data):
+            return Response({'detail': 'You do not have permission to perform this action'}, status=status.HTTP_403_FORBIDDEN)
 
         self.perform_create(serializer)
         response_serializer = self.get_serializer()
