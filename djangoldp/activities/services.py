@@ -33,7 +33,6 @@ class ActivityPubService(object):
             "@id": instance.urlid
         }
         if obj['@type'] is None:
-            logger.warning('[Backlink-Creation] model ' + str(model) + ' has no rdf_type')
             return
 
         # append relations
@@ -49,7 +48,6 @@ class ActivityPubService(object):
                 }
 
                 if sub_object['@type'] is None:
-                    logger.warning('[Backlink-Creation] model ' + str(type(value)) + ' has no rdf_type')
                     continue
 
                 obj[field_name] = sub_object
@@ -256,7 +254,6 @@ def _check_instance_for_backlinks(sender, instance):
 
     # bounds checking
     if not hasattr(instance, 'urlid') or Model.get_model_rdf_type(sender) is None:
-        logger.warning('[Create-Backlink] model ' + str(sender) + ' has no rdf_type')
         return {}
 
     # check each foreign key for a distant resource
@@ -269,7 +266,6 @@ def _check_instance_for_backlinks(sender, instance):
                 target_type = Model.get_model_rdf_type(type(value))
 
                 if target_type is None:
-                    logger.warning('[Create-Backlink] model ' + str(type(value)) + ' has no rdf_type')
                     continue
 
                 targets[value.urlid] = ActivityPubService._discover_inbox(value.urlid)
@@ -345,10 +341,8 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
         container_rdf_type = Model.get_model_rdf_type(type(instance))
 
         if member_rdf_type is None:
-            logger.warning('[Backlink-Creation] model ' + str(member_model) + ' has no rdf_type')
             return
         if container_rdf_type is None:
-            logger.warning('[Backlink-Creation] model ' + str(type(instance)) + ' has no rdf_type')
             return
 
         # build list of targets (models affected by the change)

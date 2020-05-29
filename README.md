@@ -128,7 +128,7 @@ SITE_URL = 'http://localhost:8000'
 BASE_URL = SITE_URL
 ```
 
-* `LDP_RDF_CONTEXT` tells DjangoLDP where our RDF [ontology](https://www.w3.org/standards/semanticweb/ontology) is defined, which will be returned as part of our views in the 'context' field. This is a web URL and you can visit the value to view the full ontology online
+* `LDP_RDF_CONTEXT` tells DjangoLDP where our RDF [ontology](https://www.w3.org/standards/semanticweb/ontology) is defined, which will be returned as part of our views in the 'context' field. This is a web URL and you can visit the value to view the full ontology online. The ontology can be a string, as in the example, but it can also be a dictionary, or a list of ontologies (see the [JSON-LD spec](https://json-ld.org) for examples)
 * `DJANGOLDP_PACKAGES` defines which other [DjangoLDP packages](https://git.happy-dev.fr/startinblox/djangoldp-packages) we're using in this installation
 * `SITE_URL` is the URL serving the site, e.g. `https://example.com/`. Note that if you include the DjangoLDP urls in a nested path (e.g. `https://example.com/api/`), then `SITE_URL` will need to be set to this value
 * `BASE_URL` may be different from SITE_URL, e.g. `https://example.com/app/`
@@ -279,6 +279,19 @@ class Meta:
 ## Custom Meta options on models
 
 ### rdf_type
+
+Indicates the type the model corresponds to in the ontology. E.g. where `'hd:circle'` is defined in an ontology from `settings.LDP_RDF_CONTEXT`
+
+```python
+rdf_type = 'hd:circle'
+```
+
+### rdf_context
+
+Sets added `context` fields to be serialized with model instances
+```python
+rdf_context = {'picture': 'foaf:depiction'}
+```
 
 ### auto_author
 
