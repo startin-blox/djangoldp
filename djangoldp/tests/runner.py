@@ -13,12 +13,8 @@ ldppackages:
   - djangoldp.tests
 
 server:
-  DEBUG: false
   ALLOWED_HOSTS:
     - '*'
-  DATABASES:
-    default:
-      ENGINE: django.db.backends.sqlite3
   LDP_RDF_CONTEXT:
     "@context":
       "@vocab": "http://happy-dev.fr/owl/#"
@@ -44,6 +40,7 @@ server:
       "delete": "acl:Delete"
       "control": "acl:Control"
   AUTH_USER_MODEL: 'tests.User'
+  EMAIL_HOST: somewhere
   ANONYMOUS_USER_NAME: None
   AUTHENTICATION_BACKENDS:
     - django.contrib.auth.backends.ModelBackend
