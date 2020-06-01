@@ -55,6 +55,9 @@ server:
   REST_FRAMEWORK:
     DEFAULT_PAGINATION_CLASS: djangoldp.pagination.LDPPagination
     PAGE_SIZE: 5
+  USE_ETAGS: true
+  DEFAULT_CONTENT_TYPE: text/html
+  FILE_CHARSET: utf-8
 """
 
 # override config loading
