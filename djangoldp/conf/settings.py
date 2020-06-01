@@ -45,6 +45,11 @@ class LDPSettings(object):
 
         return self._config
 
+    @config.setter
+    def config(self, value):
+        """Set a dict has current configuration."""
+        self._config = value
+
     @property
     def LDP_PACKAGES(self):
 
