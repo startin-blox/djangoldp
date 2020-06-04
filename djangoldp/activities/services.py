@@ -332,21 +332,8 @@ def check_delete_for_backlinks(sender, instance, **kwargs):
 
 @receiver([m2m_changed])
 def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
-    if getattr(settings, 'SEND_BACKLINKS', True):
-        member_model = kwargs['model']
-        pk_set = kwargs['pk_set']
-        if pk_set is None:
-            return
-        member_rdf_type = Model.get_model_rdf_type(member_model)
-        container_rdf_type = Model.get_model_rdf_type(type(instance))
-
-        if member_rdf_type is None:
-            return
-        if container_rdf_type is None:
-            return
-
-        # build list of targets (models affected by the change)
-        query_set = member_model.objects.filter(pk__in=pk_set)
+    def build_targets(query_set):
+        '''analyses parameterised queryset (removed or added members) for backlinks'''
         targets = []
 
         for obj in query_set:
@@ -359,6 +346,29 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
                     "@type": member_rdf_type,
                     "@id": obj.urlid
                 })
+
+        return targets
+
+    if getattr(settings, 'SEND_BACKLINKS', True):
+        member_model = kwargs['model']
+        pk_set = kwargs['pk_set']
+
+        # we can only send backlinks on pre_clear because on post_clear the objects are gone
+        if action != "pre_clear" and pk_set is None:
+            return
+        member_rdf_type = Model.get_model_rdf_type(member_model)
+        container_rdf_type = Model.get_model_rdf_type(type(instance))
+
+        if member_rdf_type is None:
+            return
+        if container_rdf_type is None:
+            return
+
+        # build list of targets (models affected by the change)
+        if action == "pre_clear":
+            pk_set = sender.objects.all().values_list(member_model.__name__.lower(), flat=True)
+        query_set = member_model.objects.filter(pk__in=pk_set)
+        targets = build_targets(query_set)
 
         logger.debug('[Sender] checking many2many for backlinks')
         logger.debug('[Sender] built targets: ' + str(targets))
@@ -375,7 +385,7 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
                         "name": "Backlinks Service"
                     }, obj, target)
 
-            elif action == "post_remove":
+            elif action == "post_remove" or action == "pre_clear":
                 for target in targets:
                     ActivityPubService.send_remove_activity({
                         "type": "Service",
