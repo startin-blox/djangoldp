@@ -250,6 +250,10 @@ class LDPViewSetGenerator(ModelViewSet):
     list_actions = {'get': 'list', 'post': 'create'}
     detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.lookup_field = LDPViewSetGenerator.get_lookup_arg(**kwargs)
+
     @classonlymethod
     def get_model(cls, **kwargs):
         '''gets the model in the arguments or in the viewset definition'''
@@ -260,7 +264,8 @@ class LDPViewSetGenerator(ModelViewSet):
 
     @classonlymethod
     def get_lookup_arg(cls, **kwargs):
-        return kwargs.get('lookup_url_kwarg') or cls.lookup_url_kwarg or kwargs.get('lookup_field') or cls.lookup_field
+        return kwargs.get('lookup_url_kwarg') or cls.lookup_url_kwarg or kwargs.get('lookup_field') or \
+               Model.get_meta(kwargs['model'], 'lookup_field', 'pk') or cls.lookup_field
 
     @classonlymethod
     def get_detail_expr(cls, lookup_field=None, **kwargs):
