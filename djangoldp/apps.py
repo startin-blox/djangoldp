@@ -1,36 +1,37 @@
 from django.apps import AppConfig
-from django.db import OperationalError, connection
 
 class DjangoldpConfig(AppConfig):
     name = 'djangoldp'
 
     def ready(self):
-        self.create_local_source()
+        self.auto_register_model_admin()
 
-    def create_local_source(self):
-        from djangoldp.models import LDPSource, Model
+    def auto_register_model_admin(self):
+        '''
+        Automatically registers Model subclasses in the admin panel (which have not already been added manually)
+        '''
+        from importlib import import_module
 
-        model_classes = {}
-        db_tables = []
+        from django.conf import settings
+        from django.contrib import admin
+        from djangoldp.admin import DjangoLDPAdmin
+        from djangoldp.models import Model
 
-        for cls in Model.__subclasses__():
-            model_classes[cls.__name__] = cls
-            db_tables.append(LDPSource.get_meta(cls, "db_table"))
+        for package in settings.DJANGOLDP_PACKAGES:
+            try:
+                import_module('{}.admin'.format(package))
+            except ModuleNotFoundError:
+                pass
 
-        # Check that all model's table already exists
-        existing_tables = connection.introspection.table_names()
-        if not all(db_table in existing_tables for db_table in db_tables):
-            return
+        for package in settings.DJANGOLDP_PACKAGES:
+            try:
+                import_module('{}.models'.format(package))
+            except ModuleNotFoundError:
+                pass
+
+        model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
 
         for class_name in model_classes:
             model_class = model_classes[class_name]
-            if model_class is LDPSource:
-                continue
-            path = model_class.get_container_path().strip("/")
-            try:
-                LDPSource.objects.get(federation=path)
-            except LDPSource.DoesNotExist:
-                LDPSource.objects.create(federation=path, urlid=Model.absolute_url(model_class))
-            except OperationalError:
-                pass
-
+            if not admin.site.is_registered(model_class):
+                admin.site.register(model_class, DjangoLDPAdmin)

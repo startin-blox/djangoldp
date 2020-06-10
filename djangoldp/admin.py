@@ -1,30 +1,30 @@
-from importlib import import_module
-
-from django.conf import settings
-from django.contrib import admin
 from guardian.admin import GuardedModelAdmin
-from .models import LDPSource, Model
+from django.contrib.auth.admin import UserAdmin
 
-# automatically import selected DjangoLDP packages from settings
-for package in settings.DJANGOLDP_PACKAGES:
-    try:
-        import_module('{}.admin'.format(package))
-    except ModuleNotFoundError:
-        pass
 
-for package in settings.DJANGOLDP_PACKAGES:
-    try:
-        import_module('{}.models'.format(package))
-    except ModuleNotFoundError:
-        pass
+class DjangoLDPAdmin(GuardedModelAdmin):
+    '''
+    An admin model representing a federated object. Inherits from GuardedModelAdmin to provide Django-Guardian
+    object-level permissions
+    '''
+    pass
 
-model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
 
-# automatically register models with the admin panel (which have not been added manually)
-# NOTE: by default the models are registered with Django Guardian activated
-for class_name in model_classes:
-    model_class = model_classes[class_name]
-    if not admin.site.is_registered(model_class):
-        admin.site.register(model_class, GuardedModelAdmin)
+class DjangoLDPUserAdmin(UserAdmin, GuardedModelAdmin):
+    '''An extension of UserAdmin providing the functionality of DjangoLDPAdmin'''
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        
+        federated_fields = ['urlid', 'allow_create_backlink']
+        if self.exclude is not None:
+            federated_fields = list(set(federated_fields) - set(self.exclude))
 
-# admin.site.register(LDPSource)
+        for fieldset in fieldsets:
+            federated_fields = list(set(federated_fields) - set(fieldset[1]['fields']))
+
+        if len(federated_fields) == 0:
+            return fieldsets
+
+        fieldsets = [('Federation', {'fields': federated_fields})] + list(fieldsets)
+
+        return fieldsets
