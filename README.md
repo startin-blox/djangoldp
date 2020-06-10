@@ -138,9 +138,10 @@ BASE_URL = SITE_URL
 
 ```python
 from django.contrib import admin
+from djangoldp.admin import DjangoLDPAdmin
 from .models import Todo
 
-admin.site.register(Todo)
+admin.site.register(Todo, DjangoLDPAdmin)
 ```
 
 5. You then need to have your WSGI server pointing on myldpserver/myldpserver/wsgi.py
@@ -186,7 +187,7 @@ class Todo(Model):
 
 See "Custom Meta options" below to see some helpful ways you can tweak the behaviour of DjangoLDP
 
-Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend the GuardedModelAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html)
+Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend djangoldp.DjangoLDPAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html). An alternative version which extends Django's `UserAdmin` is available as djangoldp.DjangoLDPUserAdmin
 
 ### Model Federation
 
