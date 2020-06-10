@@ -204,11 +204,6 @@ It can also be disabled on a model instance
 instance.allow_create_backlinks = False
 ```
 
-When an instance was created as a reverse-link to an external resource, it is marked with `is_backlink`
-```python
-instance.is_backlink = True
-```
-
 For situations where you don't want to include federated resources in a queryset, DjangoLDP Models override `models.Manager`, allowing you to write `Todo.objects.local()`, for example:
 ```python
 Todo.objects.create(name='Local Todo')

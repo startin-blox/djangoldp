@@ -156,9 +156,8 @@ class TestsInbox(APITestCase):
         UserProfile.objects.create(user=user)
 
         # ..but the receiver already knows about it
-        circle = Circle.objects.create(urlid="https://distant.com/circles/1/", is_backlink=True)
-        CircleMember.objects.create(urlid="https://distant.com/circle-members/1/", circle=circle, user=user,
-                                    is_backlink=True)
+        circle = Circle.objects.create(urlid="https://distant.com/circles/1/")
+        CircleMember.objects.create(urlid="https://distant.com/circle-members/1/", circle=circle, user=user)
 
         payload = {
             "@context": [
@@ -248,7 +247,7 @@ class TestsInbox(APITestCase):
         # a local user has a distant project attached
         user = get_user_model().objects.create(username='john', email='jlennon@beatles.com', password='glass onion')
         UserProfile.objects.create(user=user)
-        project = Project.objects.create(urlid="https://distant.com/projects/1/", is_backlink=True)
+        project = Project.objects.create(urlid="https://distant.com/projects/1/")
         user.projects.add(project)
 
         payload = {
@@ -297,8 +296,7 @@ class TestsInbox(APITestCase):
         user = get_user_model().objects.create(username='john', email='jlennon@beatles.com', password='glass onion')
         UserProfile.objects.create(user=user)
         circle = Circle.objects.create(urlid="https://distant.com/circles/1/", allow_create_backlink=False)
-        CircleMember.objects.create(urlid="https://distant.com/circle-members/1/",circle=circle, user=user,
-                                    is_backlink=True)
+        CircleMember.objects.create(urlid="https://distant.com/circle-members/1/",circle=circle, user=user)
 
         payload = {
             "@context": [
@@ -350,7 +348,7 @@ class TestsInbox(APITestCase):
         user = get_user_model().objects.create(username='john', email='jlennon@beatles.com', password='glass onion')
         UserProfile.objects.create(user=user)
 
-        circle = Circle.objects.create(urlid="https://distant.com/circles/1/", owner=user, is_backlink=True)
+        circle = Circle.objects.create(urlid="https://distant.com/circles/1/", owner=user)
         self.assertEqual(circle.owner, user)
 
         payload = {

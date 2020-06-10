@@ -182,7 +182,7 @@ class ActivityPubService(object):
                 '@id': actor.urlid
             }
 
-        summary = str(object['@id']) + " was created"
+        summary = str(object['@id']) + " was updated"
 
         activity = {
             "@context": [
@@ -249,7 +249,7 @@ class ActivityPubService(object):
 
 
 def _check_instance_for_backlinks(sender, instance):
-    '''Auxiliary function returns a dictionary of backlink targets from paramertised instance'''
+    '''Auxiliary function returns a set of backlink targets from paramertised instance'''
     info = model_meta.get_field_info(sender)
 
     # bounds checking
@@ -257,7 +257,7 @@ def _check_instance_for_backlinks(sender, instance):
         return {}
 
     # check each foreign key for a distant resource
-    targets = {}
+    targets = set()
     for field_name, relation_info in info.relations.items():
         if not relation_info.to_many:
             value = getattr(instance, field_name, None)
@@ -268,26 +268,26 @@ def _check_instance_for_backlinks(sender, instance):
                 if target_type is None:
                     continue
 
-                targets[value.urlid] = ActivityPubService._discover_inbox(value.urlid)
+                targets.add(ActivityPubService._discover_inbox(value.urlid))
 
     # append Followers as targets
     followers = Follower.objects.filter(object=instance.urlid)
     for follower in followers:
-        targets[follower.inbox] = follower.inbox
+        targets.add(follower.inbox)
 
-    logger.debug('[Sender] built dict of targets: ' + str(targets))
+    logger.debug('[Sender] built set of targets: ' + str(targets))
     return targets
 
 
 @receiver([post_save])
 def check_save_for_backlinks(sender, instance, created, **kwargs):
-    if getattr(settings, 'SEND_BACKLINKS', True) and not getattr(instance, 'is_backlink', False) \
-            and getattr(instance, 'allow_create_backlink', False)\
+    if getattr(settings, 'SEND_BACKLINKS', True) and getattr(instance, 'allow_create_backlink', False) \
+            and not Model.is_external(instance) \
             and getattr(instance, 'username', None) != 'hubl-workaround-493':
         logger.debug("[Sender] Received created non-backlink instance " + str(instance) + "(" + str(sender) + ")")
         targets = _check_instance_for_backlinks(sender, instance)
 
-        if len(targets.items()) > 0:
+        if len(targets) > 0:
             obj = ActivityPubService.build_object_tree(instance)
             actor = {
                 "type": "Service",
@@ -295,15 +295,15 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
             }
             # Create Activity
             if created:
-                for key in targets.keys():
-                    ActivityPubService.send_create_activity(actor, obj, targets[key])
-                    Follower.objects.create(object=obj['@id'], inbox=targets[key])
+                for target in targets:
+                    ActivityPubService.send_create_activity(actor, obj, target)
+                    Follower.objects.create(object=obj['@id'], inbox=target)
             # Update Activity
             else:
-                for key in targets.keys():
-                    ActivityPubService.send_update_activity(actor, obj, targets[key])
-                    if not Follower.objects.filter(object=obj['@id'], inbox=targets[key]).exists():
-                        Follower.objects.create(object=obj['@id'], inbox=targets[key])
+                for target in targets:
+                    ActivityPubService.send_update_activity(actor, obj, target)
+                    if not Follower.objects.filter(object=obj['@id'], inbox=target).exists():
+                        Follower.objects.create(object=obj['@id'], inbox=target)
 
 
 @receiver([post_delete])
@@ -313,15 +313,15 @@ def check_delete_for_backlinks(sender, instance, **kwargs):
         logger.debug("[Sender] Received deleted non-backlink instance " + str(instance) + "(" + str(sender) + ")")
         targets = _check_instance_for_backlinks(sender, instance)
 
-        if len(targets.items()) > 0:
-            for key in targets.keys():
+        if len(targets) > 0:
+            for target in targets:
                 ActivityPubService.send_delete_activity({
                     "type": "Service",
                     "name": "Backlinks Service"
                 }, {
                     "@id": instance.urlid,
                     "@type": Model.get_model_rdf_type(sender)
-                }, targets[key])
+                }, target)
 
     # remove any Followers on this resource
     urlid = getattr(instance, 'urlid', None)
@@ -339,7 +339,7 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
         for obj in query_set:
             condition = Model.is_external(obj) and getattr(obj, 'allow_create_backlink', False)
             if action == "post_add":
-                condition = condition and not getattr(instance, 'is_backlink', False)
+                condition = condition and not Model.is_external(instance)
 
             if condition:
                 targets.append({

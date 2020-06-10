@@ -31,7 +31,8 @@ class LDPModelManager(models.Manager):
 
 class Model(models.Model):
     urlid = LDPUrlField(blank=True, null=True, unique=True)
-    is_backlink = models.BooleanField(default=False, help_text='set automatically to indicate the Model is a backlink')
+    is_backlink = models.BooleanField(default=False,
+                                      help_text='(DEPRECIATED) set automatically to indicate the Model is a backlink')
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
     objects = LDPModelManager()
