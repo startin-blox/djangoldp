@@ -84,3 +84,18 @@ dependencies:
 # pip install --user -e .[dev]
 # bash tests/integration/run_test.sh
 ```
+
+
+## Test a local package with core beta version
+
+```
+sudo docker run --rm -v $PWD/djangoldp-account:/code/djangoldp_account -w /code -it -p 127.0.0.1:8000:8000 python:3.6 bash
+# pip install -e djangoldp_account[dev]
+# pip install git+https://git.startinblox.com/djangoldp-packages/djangoldp.git@beta
+# djangoldp startproject
+# vim config.yml
+ldppackages:
+  - djangoldp_account
+
+# djangoldp configure
+```
