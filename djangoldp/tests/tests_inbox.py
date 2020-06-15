@@ -205,7 +205,33 @@ class TestsInbox(APITestCase):
         self.assertIn("https://distant.com/circle-members/1/", user_circles.values_list('urlid', flat=True))
         self.assertIn(response["Location"], activities.values_list('urlid', flat=True))
 
-    # TODO: adding to a model which has multiple relationships with this RDF type
+    # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/250
+    def test_add_activity_str_parameter(self):
+        user = get_user_model().objects.create(username='john', email='jlennon@beatles.com', password='glass onion')
+        UserProfile.objects.create(user=user)
+
+        payload = {
+            "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                {"hd": "http://happy-dev.fr/owl/#"}
+            ],
+            "summary": "Test was added to Test Circle",
+            "type": "Add",
+            "actor": {
+                "type": "Service",
+                "name": "Backlinks Service"
+            },
+            "object": "https://distant.com/somethingunknown/1/",
+            "target": {
+                "@type": "foaf:user",
+                "@id": user.urlid
+            }
+        }
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self.assertEqual(response.status_code, 400)
 
     # error behaviour - unknown model
     def test_add_activity_unknown(self):
@@ -238,6 +264,32 @@ class TestsInbox(APITestCase):
         response = self.client.post('/inbox/',
                                     data=json.dumps(payload), content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
         self.assertEqual(response.status_code, 404)
+
+    def test_invalid_activity_missing_actor(self):
+        user = get_user_model().objects.create(username='john', email='jlennon@beatles.com', password='glass onion')
+        UserProfile.objects.create(user=user)
+
+        payload = {
+            "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                {"hd": "http://happy-dev.fr/owl/#"}
+            ],
+            "summary": "Test was added to Test Circle",
+            "type": "Add",
+            "object": {
+                "@type": "hd:somethingunknown",
+                "@id": "https://distant.com/somethingunknown/1/"
+            },
+            "target": {
+                "@type": "foaf:user",
+                "@id": user.urlid
+            }
+        }
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self.assertEqual(response.status_code, 400)
 
     #
     #   REMOVE & DELETE ACTIVITIES
@@ -288,7 +340,49 @@ class TestsInbox(APITestCase):
         self.assertIn(response["Location"], activities.values_list('urlid', flat=True))
 
     # TODO: test_remove_activity_project_using_target
-    # TODO: error behaviour - project does not exist on user
+
+    # error behaviour - project does not exist on user
+    def test_remove_activity_nonexistent_project(self):
+        user = get_user_model().objects.create(username='john', email='jlennon@beatles.com', password='glass onion')
+        UserProfile.objects.create(user=user)
+        Project.objects.create(urlid="https://distant.com/projects/1/")
+
+        payload = {
+            "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                {"hd": "http://happy-dev.fr/owl/#"}
+            ],
+            "summary": user.get_full_name() + " removed Test Project",
+            "type": "Remove",
+            "actor": {
+              "type": "Service",
+              "name": "Backlinks Service"
+            },
+            "object": {
+                "@type": "hd:project",
+                "@id": "https://distant.com/projects/1/"
+            },
+            "origin": {
+                "@type": "foaf:user",
+                "name": user.get_full_name(),
+                "@id": user.urlid
+            }
+        }
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self.assertEqual(response.status_code, 201)
+
+        # assert that the circle backlink(s) were removed & activity were created
+        projects = Project.objects.all()
+        user_projects = user.projects.all()
+        activities = Activity.objects.all()
+        self.assertEquals(len(projects), 1)
+        self.assertEquals(len(user_projects), 0)
+        self.assertEquals(len(activities), 1)
+        self.assertIn("https://distant.com/projects/1/", projects.values_list('urlid', flat=True))
+        self.assertIn(response["Location"], activities.values_list('urlid', flat=True))
 
     # Delete CircleMember
     def test_delete_activity_circle_using_origin(self):
