@@ -1,5 +1,6 @@
 from copy import copy
 
+from django.conf import settings
 from djangoldp.activities import errors
 from djangoldp.activities.objects import ALLOWED_TYPES, Object, Actor
 
@@ -7,6 +8,11 @@ from djangoldp.activities.objects import ALLOWED_TYPES, Object, Actor
 class Activity(Object):
     attributes = Object.attributes + ["actor", "object"]
     type = "Activity"
+    # dictionary defining required attributes -> tuple of acceptable types
+    required_attributes = {
+        "actor": (Actor, str),
+        "object": dict
+    }
 
     def get_audience(self):
         audience = []
@@ -29,30 +35,16 @@ class Activity(Object):
         return new
 
     def validate(self):
-        pass
+        for attr in self.required_attributes.keys():
+            if not isinstance(getattr(self, attr, None), self.required_attributes[attr]):
+                raise errors.ActivityStreamValidationError("required attribute " + attr + " of type "
+                                                           + str(self.required_attributes[attr]))
 
 
 class Add(Activity):
     type = "Add"
     attributes = Activity.attributes + ["target"]
-
-    def validate(self):
-        msg = None
-        if not getattr(self, "actor", None):
-            msg = "Invalid activity, actor is missing"
-        elif not getattr(self, "object", None):
-            msg = "Invalid activity, object is missing"
-        elif not getattr(self, "target", None):
-            msg = "Invalid activity, target is missing"
-        elif not isinstance(self.actor, Actor) and not isinstance(self.actor, str):
-            msg = "Invalid actor type, must be an Actor or a string"
-        elif not isinstance(self.object, dict):
-            msg = "Invalid object type, must be a dict"
-        elif not isinstance(self.target, dict):
-            msg = "Invalid target type, must be a dict"
-
-        if msg:
-            raise errors.ActivityStreamValidationError(msg)
+    required_attributes = {**Activity.required_attributes, "target": dict}
 
 
 class Remove(Activity):
@@ -60,49 +52,24 @@ class Remove(Activity):
     attributes = Activity.attributes + ["target", "origin"]
 
     def validate(self):
-        msg = None
-        if not getattr(self, "actor", None):
-            msg = "Invalid activity, actor is missing"
-        elif not getattr(self, "object", None):
-            msg = "Invalid activity, object is missing"
-        elif not getattr(self, "target", None) and not getattr(self, "origin", None):
-            msg = "Invalid activity, no target or origin given"
-        elif not isinstance(self.actor, Actor) and not isinstance(self.actor, str):
-            msg = "Invalid actor type, must be an Actor or a string"
-        elif not isinstance(self.object, dict):
-            msg = "Invalid object type, must be a dict"
+        super().validate()
+
+        if not getattr(self, "target", None) and not getattr(self, "origin", None):
+            raise errors.ActivityStreamValidationError("Invalid activity, no target or origin given")
 
         if getattr(self, "target", None) is not None:
             if not isinstance(self.target, dict):
-                msg = "Invalid target type, must be a dict"
+                raise errors.ActivityStreamValidationError("Invalid target type, must be a dict")
         if getattr(self, "origin", None) is not None:
             if not isinstance(self.origin, dict):
-                msg = "Invalid origin type, must be a dict"
-
-        if msg:
-            raise errors.ActivityStreamValidationError(msg)
+                raise errors.ActivityStreamValidationError("Invalid origin type, must be a dict")
 
 
 class Create(Activity):
     type = "Create"
 
-    def validate(self):
-        msg = None
 
-        if not getattr(self, "actor", None):
-            msg = "Invalid activity, actor is missing"
-        elif not getattr(self, "object", None):
-            msg = "Invalid activity, object is missing"
-        elif not isinstance(self.actor, Actor) and not isinstance(self.actor, str):
-            msg = "Invalid actor type, must be an Actor or a string"
-        elif not isinstance(self.object, dict):
-            msg = "Invalid object type, must be a dict"
-
-        if msg:
-            raise errors.ActivityStreamValidationError(msg)
-
-
-class Update(Create):
+class Update(Activity):
     type = "Update"
 
 
@@ -110,40 +77,15 @@ class Delete(Activity):
     type = "Delete"
     attributes = Activity.attributes + ["origin"]
 
-    def validate(self):
-        msg = None
-        if not getattr(self, "actor", None):
-            msg = "Invalid activity, actor is missing"
-        elif not getattr(self, "object", None):
-            msg = "Invalid activity, object is missing"
-        elif not isinstance(self.actor, Actor) and not isinstance(self.actor, str):
-            msg = "Invalid actor type, must be an Actor or a string"
-        elif not isinstance(self.object, dict):
-            msg = "Invalid object type, must be a dict"
-
-        if msg:
-            raise errors.ActivityStreamValidationError(msg)
-
 
 class Follow(Activity):
     type = "Follow"
 
     def validate(self):
-        msg = None
+        super().validate()
 
-        if not getattr(self, "actor", None):
-            msg = "Invalid activity, actor is missing"
-        elif not getattr(self, "object", None):
-            msg = "Invalid activity, object is missing"
-        elif not isinstance(self.actor, Actor) and not isinstance(self.actor, str):
-            msg = "Invalid actor type, must be an Actor or a string"
-        elif isinstance(self.actor, Actor) and (self.actor.inbox is None and self.actor.id is None):
-            msg = "Must pass inbox or id with the actor to follow"
-        elif not isinstance(self.object, dict):
-            msg = "Invalid object type, must be a dict"
-
-        if msg:
-            raise errors.ActivityStreamValidationError(msg)
+        if isinstance(self.actor, Actor) and (self.actor.inbox is None and self.actor.id is None):
+            raise errors.ActivityStreamValidationError("Must pass inbox or id with the actor to follow")
 
 
 ALLOWED_TYPES.update({

@@ -26,7 +26,7 @@ from djangoldp.models import LDPSource, Model, Activity, Follower
 from djangoldp.permissions import LDPPermissions
 from djangoldp.filters import LocalObjectOnContainerPathBackend
 from djangoldp.activities import ActivityPubService, as_activitystream
-from djangoldp.activities.errors import ActivityStreamDecodeError
+from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
 
 
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -82,6 +82,8 @@ class InboxView(APIView):
             activity.validate()
         except ActivityStreamDecodeError:
             return Response('Activity type unsupported', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        except ActivityStreamValidationError as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
         if activity.type == 'Add':
             self.handle_add_activity(activity, **kwargs)
@@ -107,7 +109,7 @@ class InboxView(APIView):
 
     def get_or_create_nested_backlinks(self, object, object_model=None, update=False):
         '''
-        recursively constructs a tree of nested objects, using get_or_create on each leaf/branch
+        recursively deconstructs a tree of nested objects, using get_or_create on each leaf/branch
         :param object: Dict representation of the object
         :param object_model: The Model class of the object. Will be discovered if set to None
         :param update: if True will update retrieved objects with new data
@@ -149,19 +151,20 @@ class InboxView(APIView):
         object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
         target_model = self._get_subclass_with_rdf_type_or_404(activity.target['@type'])
 
+        try:
+            target = target_model.objects.get(urlid=activity.target['@id'])
+        except target_model.DoesNotExist:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
+
         # store backlink(s) in database
         backlink = self.get_or_create_nested_backlinks(activity.object, object_model)
 
         # add object to target
-        try:
-            target_info = model_meta.get_field_info(target_model)
-            target = target_model.objects.get(urlid=activity.target['@id'])
+        target_info = model_meta.get_field_info(target_model)
 
-            for field_name, relation_info in target_info.relations.items():
-                if relation_info.related_model == object_model:
-                    getattr(target, field_name).add(backlink)
-        except target_model.DoesNotExist:
-            return Response({}, status=status.HTTP_404_NOT_FOUND)
+        for field_name, relation_info in target_info.relations.items():
+            if relation_info.related_model == object_model:
+                getattr(target, field_name).add(backlink)
 
     def handle_remove_activity(self, activity, **kwargs):
         '''
@@ -174,21 +177,19 @@ class InboxView(APIView):
 
         # get the model reference to saved object
         try:
+            origin = origin_model.objects.get(urlid=activity.origin['@id'])
             object_instance = object_model.objects.get(urlid=activity.object['@id'])
+        except origin_model.DoesNotExist:
+            raise Http404()
         except object_model.DoesNotExist:
             return
 
         # remove object from origin
-        try:
-            origin_info = model_meta.get_field_info(origin_model)
-            origin = origin_model.objects.get(urlid=activity.origin['@id'])
+        origin_info = model_meta.get_field_info(origin_model)
 
-            for field_name, relation_info in origin_info.relations.items():
-                if relation_info.related_model == object_model:
-                    getattr(origin, field_name).remove(object_instance)
-        # TODO: decipher from history if the resource has been moved?
-        except origin_model.DoesNotExist:
-            raise Http404()
+        for field_name, relation_info in origin_info.relations.items():
+            if relation_info.related_model == object_model:
+                getattr(origin, field_name).remove(object_instance)
 
     def handle_create_or_update_activity(self, activity, **kwargs):
         '''
