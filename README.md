@@ -301,7 +301,21 @@ class MyModel(models.Model):
         auto_author = 'author_user'
 ```
 
-Now when an instance of `MyModel` is saved, its `author_user` property will be set to the current user. 
+Now when an instance of `MyModel` is saved, its `author_user` property will be set to the authenticated user. 
+
+### auto_author_field
+
+Set this property to make the value of the `auto_author` field a property on the authenticated use.
+
+```python
+class MyModel(models.Model):
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    class Meta:
+        auto_author = 'author_user'
+	auto_author_field = 'profile'
+```
+
+Now when an instance of `MyModel` is saved, its `author_user` property will be set to the **profile** of the authenticated user.
 
 ## permissions
 
