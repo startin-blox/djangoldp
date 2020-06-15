@@ -86,7 +86,7 @@ class Resource(Model):
 
 class UserProfile(Model):
     description = models.CharField(max_length=255, blank=True, null=True)
-    user = models.OneToOneField(settings.AUTH_USER_MODEL)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='userprofile')
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
@@ -177,11 +177,12 @@ class Task(models.Model):
 
 class Post(Model):
     content = models.CharField(max_length=255)
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True)
+    author = models.ForeignKey(UserProfile, blank=True, null=True)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post")
 
     class Meta(Model.Meta):
         auto_author = 'author'
+        auto_author_field = 'userprofile'
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
