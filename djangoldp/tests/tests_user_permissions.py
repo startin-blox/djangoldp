@@ -1,10 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APITestCase
-from guardian.shortcuts import assign_perm
-
-from djangoldp.permissions import LDPPermissions
-from .models import JobOffer, PermissionlessDummy
-from djangoldp.views import LDPViewSet
+from .models import JobOffer
 
 import json
 

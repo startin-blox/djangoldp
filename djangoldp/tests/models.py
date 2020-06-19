@@ -226,3 +226,17 @@ class Project(Model):
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'
         depth = 1
+
+
+class DateModel(Model):
+    value = models.DateField()
+
+    class Meta(Model.Meta):
+        rdf_type = "hd:date"
+
+
+class DateChild(Model):
+    parent = models.ForeignKey(DateModel, on_delete=models.CASCADE, related_name='children')
+
+    class Meta(Model.Meta):
+        rdf_type = 'hd:datechild'

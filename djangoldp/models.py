@@ -31,8 +31,7 @@ class LDPModelManager(models.Manager):
 
 class Model(models.Model):
     urlid = LDPUrlField(blank=True, null=True, unique=True)
-    is_backlink = models.BooleanField(default=False,
-                                      help_text='(DEPRECIATED) set automatically to indicate the Model is a backlink')
+    is_backlink = models.BooleanField(default=False, help_text='set automatically to indicate the Model is a backlink')
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
     objects = LDPModelManager()
@@ -171,6 +170,14 @@ class Model(models.Model):
 
     @classonlymethod
     def get_or_create(cls, model, urlid, update=False, **field_tuples):
+        '''
+        gets an object with the passed urlid if it exists, creates it if not
+        :param model: the model class which the object belongs to
+        :param update: if set to True the object will be updated with the passed field_tuples
+        :param field_tuples: kwargs for the model creation/updating
+        :return: the object, fetched or created
+        :raises Exception: if the object does not exist, but the data passed is invalid
+        '''
         try:
             logger.debug('[get_or_create] ' + str(model) + ' backlink ' + str(urlid))
             rval = model.objects.get(urlid=urlid)

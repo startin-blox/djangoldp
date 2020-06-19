@@ -6,6 +6,7 @@ from django.conf.urls import url, include
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist
 from django.core.urlresolvers import get_resolver
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import classonlymethod
@@ -13,6 +14,7 @@ from django.views import View
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
@@ -27,8 +29,10 @@ from djangoldp.permissions import LDPPermissions
 from djangoldp.filters import LocalObjectOnContainerPathBackend
 from djangoldp.activities import ActivityPubService, as_activitystream
 from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
+import logging
 
 
+logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
 
 
@@ -85,16 +89,10 @@ class InboxView(APIView):
         except ActivityStreamValidationError as e:
             return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
-        if activity.type == 'Add':
-            self.handle_add_activity(activity, **kwargs)
-        elif activity.type == 'Remove':
-            self.handle_remove_activity(activity, **kwargs)
-        elif activity.type == 'Delete':
-            self.handle_delete_activity(activity, **kwargs)
-        elif activity.type == 'Create' or activity.type == 'Update':
-            self.handle_create_or_update_activity(activity, **kwargs)
-        elif activity.type == 'Follow':
-            self.handle_follow_activity(activity, **kwargs)
+        try:
+            self._handle_activity(activity, **kwargs)
+        except IntegrityError:
+            return Response({'Unable to save due to an IntegrityError in the receiver model'}, status=status.HTTP_200_OK)
 
         # save the activity and return 201
         payload = bytes(json.dumps(activity.to_json()), "utf-8")
@@ -107,21 +105,46 @@ class InboxView(APIView):
 
         return response
 
-    def get_or_create_nested_backlinks(self, object, object_model=None, update=False):
+    def _handle_activity(self, activity, **kwargs):
+        if activity.type == 'Add':
+            self.handle_add_activity(activity, **kwargs)
+        elif activity.type == 'Remove':
+            self.handle_remove_activity(activity, **kwargs)
+        elif activity.type == 'Delete':
+            self.handle_delete_activity(activity, **kwargs)
+        elif activity.type == 'Create' or activity.type == 'Update':
+            self.handle_create_or_update_activity(activity, **kwargs)
+        elif activity.type == 'Follow':
+            self.handle_follow_activity(activity, **kwargs)
+
+    def atomic_get_or_create_nested_backlinks(self, obj, object_model=None, update=False):
+        '''
+        a version of get_or_create_nested_backlinks in which all nested backlinks are created, or none of them are
+        '''
+        try:
+            with transaction.atomic():
+                return self._get_or_create_nested_backlinks(obj, object_model, update)
+        except IntegrityError as e:
+            logger.error(str(e))
+            logger.warning('received a backlink which you were not able to save because of a constraint on the model field.')
+            raise e
+
+    def _get_or_create_nested_backlinks(self, obj, object_model=None, update=False):
         '''
         recursively deconstructs a tree of nested objects, using get_or_create on each leaf/branch
-        :param object: Dict representation of the object
+        :param obj: Dict representation of the object
         :param object_model: The Model class of the object. Will be discovered if set to None
         :param update: if True will update retrieved objects with new data
+        :raises Exception: if get_or_create fails on a branch, the creation will be reversed and the Exception re-thrown
         '''
         # store a list of the object's sub-items
         if object_model is None:
-            object_model = Model.get_subclass_with_rdf_type(object['@type'])
+            object_model = Model.get_subclass_with_rdf_type(obj['@type'])
         if object_model is None:
-            raise Http404('unable to store type ' + object['@type'] + ', model with this rdf_type not found')
+            raise Http404('unable to store type ' + obj['@type'] + ', model with this rdf_type not found')
         branches = {}
 
-        for item in object.items():
+        for item in obj.items():
             # TODO: parse other data types. Match the key to the field_name
             if isinstance(item[1], dict):
                 item_value = item[1]
@@ -130,11 +153,11 @@ class InboxView(APIView):
                     raise Http404('unable to store type ' + item_value['@type'] + ', model with this rdf_type not found')
 
                 # push nested object tuple as a branch
-                backlink = self.get_or_create_nested_backlinks(item_value, item_model)
+                backlink = self._get_or_create_nested_backlinks(item_value, item_model)
                 branches[item[0]] = backlink
 
         # get or create the backlink
-        return Model.get_or_create(object_model, object['@id'], update=update, **branches)
+        return Model.get_or_create(object_model, obj['@id'], update=update, **branches)
 
     # TODO: a fallback here? Saving the backlink as Object or similar
     def _get_subclass_with_rdf_type_or_404(self, rdf_type):
@@ -157,7 +180,7 @@ class InboxView(APIView):
             return Response({}, status=status.HTTP_404_NOT_FOUND)
 
         # store backlink(s) in database
-        backlink = self.get_or_create_nested_backlinks(activity.object, object_model)
+        backlink = self.atomic_get_or_create_nested_backlinks(activity.object, object_model)
 
         # add object to target
         target_info = model_meta.get_field_info(target_model)
@@ -196,7 +219,7 @@ class InboxView(APIView):
         handles Create & Update Activities. See https://www.w3.org/ns/activitystreams
         '''
         object_model = self._get_subclass_with_rdf_type_or_404(activity.object['@type'])
-        self.get_or_create_nested_backlinks(activity.object, object_model, update=True)
+        self.atomic_get_or_create_nested_backlinks(activity.object, object_model, update=True)
 
     def handle_delete_activity(self, activity, **kwargs):
         '''

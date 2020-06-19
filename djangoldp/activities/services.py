@@ -339,7 +339,7 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
         for obj in query_set:
             condition = Model.is_external(obj) and getattr(obj, 'allow_create_backlink', False)
             if action == "post_add":
-                condition = condition and not Model.is_external(instance)
+                condition = condition and not obj.is_backlink
 
             if condition:
                 targets.append({
