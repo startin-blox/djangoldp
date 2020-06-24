@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from rest_framework.utils import model_meta
 
 from djangoldp.models import Model, Follower
+from djangoldp.models import Activity as ActivityModel
 
 from .objects import *
 from .verbs import *
@@ -55,228 +56,184 @@ class ActivityPubService(object):
         return obj
 
     @classmethod
-    def _discover_inbox(cls, target_id):
+    def get_actor_from_user_instance(cls, user):
+        '''Auxiliary function returns valid Actor object from parameterised user instance, None if parameter invalid'''
+        if isinstance(user, get_user_model()) and hasattr(user, 'urlid'):
+            return {
+                '@type': 'foaf:user',
+                '@id': user.urlid
+            }
+        return None
+
+    @classmethod
+    def discover_inbox(cls, target_id):
         url = urlparse(target_id)
         return target_id.replace(url.path, "/") + "inbox/"
 
     @classmethod
-    def send_add_activity(cls, actor, object, target):
-        '''
-        Sends an Add activity
-        :param actor: a valid Actor object, or a user instance
-        :param object: a valid ActivityStreams Object
-        :param target: an object representing the target collection
-        '''
-        # bounds checking
-        if isinstance(actor, get_user_model()):
-            actor = {
-                '@type': 'foaf:user',
-                '@id': actor.urlid
-            }
-
-        summary = str(object['@id']) + " was added to " + str(target['@id'])
-
-        activity = {
+    def _build_activity(self, actor, obj, activity_type='Activity', **kwargs):
+        '''Auxiliary function returns an activity object with kwargs in the body'''
+        res = {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
                 settings.LDP_RDF_CONTEXT
             ],
-            "summary": summary,
-            "type": "Add",
+            "type": activity_type,
             "actor": actor,
-            "object": object,
-            "target": target
+            "object": obj
         }
 
-        logger.debug('[Sender] sending add activity ' + str(activity))
+        for kwarg in kwargs:
+            res.update({kwarg: kwargs[kwarg]})
 
-        inbox = ActivityPubService._discover_inbox(target['@id'])
-
-        # send request
-        t = threading.Thread(target=cls.do_post, args=[inbox, activity])
-        t.start()
+        return res
 
     @classmethod
-    def send_remove_activity(cls, actor, object, origin):
+    def send_add_activity(cls, actor, obj, target):
+        '''
+        Sends an Add activity
+        :param actor: a valid Actor object
+        :param obj: a valid ActivityStreams Object
+        :param target: an object representing the target collection
+        '''
+        summary = str(obj['@id']) + " was added to " + str(target['@id'])
+        activity = cls._build_activity(actor, obj, activity_type='Add', summary=summary, target=target)
+
+        # send request
+        inbox = ActivityPubService.discover_inbox(target['@id'])
+        t = threading.Thread(target=cls.do_post, args=[inbox, activity])
+        t.start()
+        cls._save_sent_activity(activity)
+
+    @classmethod
+    def send_remove_activity(cls, actor, obj, origin):
         '''
         Sends a Remove activity
         :param actor: a valid Actor object, or a user instance
-        :param object: a valid ActivityStreams Object
+        :param obj: a valid ActivityStreams Object
         :param origin: the context the object has been removed from
         '''
-        # bounds checking
-        if isinstance(actor, get_user_model()):
-            actor = {
-                '@type': 'foaf:user',
-                '@id': actor.urlid
-            }
-
-        summary = str(object['@id']) + " was removed from " + str(origin['@id'])
-
-        activity = {
-            "@context": [
-                "https://www.w3.org/ns/activitystreams",
-                settings.LDP_RDF_CONTEXT
-            ],
-            "summary": summary,
-            "type": "Remove",
-            "actor": actor,
-            "object": object,
-            "origin": origin
-        }
-
-        logger.debug('[Sender] sending remove activity ' + str(activity))
-
-        inbox = ActivityPubService._discover_inbox(origin['@id'])
+        summary = str(obj['@id']) + " was removed from " + str(origin['@id'])
+        activity = cls._build_activity(actor, obj, activity_type='Remove', summary=summary, origin=origin)
 
         # send request
+        inbox = ActivityPubService.discover_inbox(origin['@id'])
         t = threading.Thread(target=cls.do_post, args=[inbox, activity])
         t.start()
+        cls._save_sent_activity(activity)
 
     @classmethod
-    def send_create_activity(cls, actor, object, inbox):
+    def send_create_activity(cls, actor, obj, inbox):
         '''
         Sends a Create activity
         :param actor: a valid Actor object, or a user instance
-        :param object: a valid ActivityStreams Object
+        :param obj: a valid ActivityStreams Object
         :param inbox: the inbox to send the activity to
         '''
-        # bounds checking
-        if isinstance(actor, get_user_model()):
-            actor = {
-                '@type': 'foaf:user',
-                '@id': actor.urlid
-            }
-
-        summary = str(object['@id']) + " was created"
-
-        activity = {
-            "@context": [
-                "https://www.w3.org/ns/activitystreams",
-                settings.LDP_RDF_CONTEXT
-            ],
-            "summary": summary,
-            "type": "Create",
-            "actor": actor,
-            "object": object
-        }
-
-        logger.debug('[Sender] sending create activity ' + str(activity))
+        summary = str(obj['@id']) + " was created"
+        activity = cls._build_activity(actor, obj, activity_type='Create', summary=summary)
 
         # send request
         t = threading.Thread(target=cls.do_post, args=[inbox, activity])
         t.start()
+        cls._save_sent_activity(activity)
 
     @classmethod
-    def send_update_activity(cls, actor, object, inbox):
+    def send_update_activity(cls, actor, obj, inbox):
         '''
         Sends an Update activity
         :param actor: a valid Actor object, or a user instance
-        :param object: a valid ActivityStreams Object
+        :param obj: a valid ActivityStreams Object
         :param inbox: the inbox to send the activity to
         '''
-        # bounds checking
-        if isinstance(actor, get_user_model()):
-            actor = {
-                '@type': 'foaf:user',
-                '@id': actor.urlid
-            }
-
-        summary = str(object['@id']) + " was updated"
-
-        activity = {
-            "@context": [
-                "https://www.w3.org/ns/activitystreams",
-                settings.LDP_RDF_CONTEXT
-            ],
-            "summary": summary,
-            "type": "Update",
-            "actor": actor,
-            "object": object
-        }
-
-        logger.debug('[Sender] sending update activity ' + str(activity))
+        summary = str(obj['@id']) + " was updated"
+        activity = cls._build_activity(actor, obj, activity_type='Update', summary=summary)
 
         # send request
         t = threading.Thread(target=cls.do_post, args=[inbox, activity])
         t.start()
+        cls._save_sent_activity(activity)
 
     @classmethod
-    def send_delete_activity(cls, actor, object, inbox):
+    def send_delete_activity(cls, actor, obj, inbox):
         '''
         Sends a Remove activity
         :param actor: a valid Actor object, or a user instance
-        :param object: a valid ActivityStreams Object
+        :param obj: a valid ActivityStreams Object
         :param inbox: the inbox to send the activity to
         '''
-        # bounds checking
-        if isinstance(actor, get_user_model()):
-            actor = {
-                '@type': 'foaf:user',
-                '@id': actor.urlid
-            }
-
-        summary = str(object['@id']) + " was deleted"
-
-        activity = {
-            "@context": [
-                "https://www.w3.org/ns/activitystreams",
-                settings.LDP_RDF_CONTEXT
-            ],
-            "summary": summary,
-            "type": "Delete",
-            "actor": actor,
-            "object": object
-        }
-
-        logger.debug('[Sender] sending delete activity ' + str(activity))
+        summary = str(obj['@id']) + " was deleted"
+        activity = cls._build_activity(actor, obj, activity_type='Delete', summary=summary)
 
         # send request
         t = threading.Thread(target=cls.do_post, args=[inbox, activity])
         t.start()
+        cls._save_sent_activity(activity)
+
+    @classmethod
+    def _save_sent_activity(cls, activity):
+        '''Auxiliary function saves a record of parameterised activity'''
+        payload = bytes(json.dumps(activity), "utf-8")
+        local_id = settings.SITE_URL + "outbox/"
+        obj = ActivityModel.objects.create(local_id=local_id, payload=payload)
+        obj.aid = Model.absolute_url(obj)
+        obj.save()
 
     @classmethod
     def do_post(cls, url, activity, auth=None):
-        '''makes a POST request to passed url'''
+        '''
+        makes a POST request to url, passing activity (json) content
+        :return: response, or None if the request was unsuccessful
+        '''
         headers = {'Content-Type': 'application/ld+json'}
         response = None
         try:
-            response = requests.post(url, data=json.dumps(activity), headers=headers)
-            logger.debug('[Sender] sent, receiver responded ' + response.text)
+            logger.debug('[Sender] sending Activity... ' + str(activity))
+            if not getattr(settings, 'DISABLE_OUTBOX', False):
+                response = requests.post(url, data=json.dumps(activity), headers=headers)
+                logger.debug('[Sender] sent, receiver responded ' + response.text)
         except:
             logger.error('Failed to deliver backlink to ' + str(url) +', was attempting ' + str(activity))
         return response
 
+    @classmethod
+    def get_related_externals(cls, sender, instance):
+        '''Auxiliary function returns a set of urlids of distant resources connected to paramertised instance'''
+        info = model_meta.get_field_info(sender)
 
-def _check_instance_for_backlinks(sender, instance):
-    '''Auxiliary function returns a set of backlink targets from paramertised instance'''
-    info = model_meta.get_field_info(sender)
+        # bounds checking
+        if not hasattr(instance, 'urlid') or Model.get_model_rdf_type(sender) is None:
+            return set()
 
-    # bounds checking
-    if not hasattr(instance, 'urlid') or Model.get_model_rdf_type(sender) is None:
-        return {}
+        # check each foreign key for a distant resource
+        targets = set()
+        for field_name, relation_info in info.relations.items():
+            if not relation_info.to_many:
+                value = getattr(instance, field_name, None)
+                logger.debug('[Sender] model has relation ' + str(value))
+                if value is not None and Model.is_external(value):
+                    target_type = Model.get_model_rdf_type(type(value))
 
-    # check each foreign key for a distant resource
-    targets = set()
-    for field_name, relation_info in info.relations.items():
-        if not relation_info.to_many:
-            value = getattr(instance, field_name, None)
-            logger.debug('[Sender] model has relation ' + str(value))
-            if value is not None and Model.is_external(value):
-                target_type = Model.get_model_rdf_type(type(value))
+                    if target_type is None:
+                        continue
 
-                if target_type is None:
-                    continue
+                    targets.add(value.urlid)
 
-                targets.add(ActivityPubService._discover_inbox(value.urlid))
+        return targets
 
-    # append Followers as targets
-    followers = Follower.objects.filter(object=instance.urlid)
-    for follower in followers:
-        targets.add(follower.inbox)
+    @classmethod
+    def get_target_inboxes(cls, urlids):
+        '''Auxiliary function returns a set of inboxes, from a set of target object urlids'''
+        inboxes = set()
+        for urlid in urlids:
+            inboxes.add(ActivityPubService.discover_inbox(urlid))
+        return inboxes
 
-    logger.debug('[Sender] built set of targets: ' + str(targets))
-    return targets
+    @classmethod
+    def get_follower_inboxes(cls, object_urlid):
+        '''Auxiliary function returns a set of inboxes, from the followers of parameterised object urlid'''
+        inboxes = set(Follower.objects.filter(object=object_urlid).values_list('inbox', flat=True))
+        return inboxes
 
 
 @receiver([post_save])
@@ -284,8 +241,9 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
     if getattr(settings, 'SEND_BACKLINKS', True) and getattr(instance, 'allow_create_backlink', False) \
             and not Model.is_external(instance) \
             and getattr(instance, 'username', None) != 'hubl-workaround-493':
-        logger.debug("[Sender] Received created non-backlink instance " + str(instance) + "(" + str(sender) + ")")
-        targets = _check_instance_for_backlinks(sender, instance)
+        external_urlids = ActivityPubService.get_related_externals(sender, instance)
+        inboxes = ActivityPubService.get_follower_inboxes(instance.urlid)
+        targets = set().union(ActivityPubService.get_target_inboxes(external_urlids), inboxes)
 
         if len(targets) > 0:
             obj = ActivityPubService.build_object_tree(instance)
@@ -297,21 +255,24 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
             if created:
                 for target in targets:
                     ActivityPubService.send_create_activity(actor, obj, target)
-                    Follower.objects.create(object=obj['@id'], inbox=target)
             # Update Activity
             else:
                 for target in targets:
                     ActivityPubService.send_update_activity(actor, obj, target)
-                    if not Follower.objects.filter(object=obj['@id'], inbox=target).exists():
-                        Follower.objects.create(object=obj['@id'], inbox=target)
+
+            # create Followers to update external resources of changes in future
+            existing_followers = Follower.objects.filter(object=obj['@id']).values_list('follower', flat=True)
+            for urlid in external_urlids:
+                if urlid not in existing_followers:
+                    Follower.objects.create(object=obj['@id'], inbox=ActivityPubService.discover_inbox(urlid),
+                                            follower=urlid, is_backlink=True)
 
 
 @receiver([post_delete])
 def check_delete_for_backlinks(sender, instance, **kwargs):
     if getattr(settings, 'SEND_BACKLINKS', True) and getattr(instance, 'allow_create_backlink', False) \
             and getattr(instance, 'username', None) != 'hubl-workaround-493':
-        logger.debug("[Sender] Received deleted non-backlink instance " + str(instance) + "(" + str(sender) + ")")
-        targets = _check_instance_for_backlinks(sender, instance)
+        targets = ActivityPubService.get_follower_inboxes(instance.urlid)
 
         if len(targets) > 0:
             for target in targets:
@@ -384,6 +345,10 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
                         "type": "Service",
                         "name": "Backlinks Service"
                     }, obj, target)
+                    inbox = ActivityPubService.discover_inbox(target['@id'])
+                    if not Follower.objects.filter(object=obj['@id'], follower=target['@id']).exists():
+                        Follower.objects.create(object=obj['@id'], inbox=inbox, follower=target['@id'],
+                                                is_backlink=True)
 
             elif action == "post_remove" or action == "pre_clear":
                 for target in targets:
@@ -391,3 +356,6 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
                         "type": "Service",
                         "name": "Backlinks Service"
                     }, obj, target)
+                    for follower in Follower.objects.filter(object=obj['@id'], follower=target['@id'],
+                                                            is_backlink=True):
+                        follower.delete()

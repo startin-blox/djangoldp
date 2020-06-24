@@ -273,8 +273,9 @@ class Activity(Model):
 
 class Follower(Model):
     '''Models a subscription on a model. When the model is saved, an Update activity will be sent to the inbox'''
-    object = models.URLField()
-    inbox = models.URLField()
+    object = models.URLField(help_text='the object being followed')
+    inbox = models.URLField(help_text='the inbox recipient of updates')
+    follower = models.URLField(help_text='(optional) the resource/actor following the object', blank=True)
 
     def __str__(self):
         return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)

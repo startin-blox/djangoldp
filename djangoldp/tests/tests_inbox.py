@@ -10,9 +10,8 @@ class TestsInbox(APITestCase):
 
     def setUp(self):
         self.client = APIClient(enforce_csrf_checks=True)
-        self.user = get_user_model().objects.create(username='john', email='jlennon@beatles.com',
-                                                    password='glass onion')
-        self.profile = UserProfile.objects.create(user=self.user)
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                         password='glass onion')
 
     def _get_activity_request_template(self, type, obj, target=None, origin=None):
         res = {
