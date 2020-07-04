@@ -1,5 +1,5 @@
 
-# This module is loaded dy DjangoLDP core before Django is configured.
+"""This module is loaded by DjangoLDP core during setup."""
 
 MIDDLEWARE = ['MY_MIDDLEWARE']
 INSTALLED_APPS = ['MY_APP']

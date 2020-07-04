@@ -1,3 +1,4 @@
+"""This module contains YAML configurations for djangoldp testing."""
 
 yaml_config = """
 dependencies:
