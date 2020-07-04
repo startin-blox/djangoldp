@@ -1,6 +1,8 @@
 
 """This module is loaded by DjangoLDP core during setup."""
 
-MIDDLEWARE = ['MY_MIDDLEWARE']
-INSTALLED_APPS = ['MY_APP']
+# define an extra variable (should be prefix with package name)
 MYPACKAGE_VAR = 'MY_DEFAULT_VAR'
+
+# register an extra middleware
+MIDDLEWARE = []

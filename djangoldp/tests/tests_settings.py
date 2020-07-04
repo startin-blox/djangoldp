@@ -16,6 +16,11 @@ class TestSettings(TestCase):
         assert settings.LDP_PACKAGES == ['djangoldp.tests']
 
     def test_overrided_core_by_package_config(self):
+        # FIXME
+        pass
+
+    def test_overrided_package_by_user_config(self):
+        # FIXME
         pass
 
     def test_overrided_core_by_user_config(self):
@@ -36,6 +41,15 @@ class TestSettings(TestCase):
             'djangoldp.tests'
         ]
 
-    def test_add_middleware(self):
+    def test_reference_middleware(self):
         """Asserts middlewares added in packages are added to the settings."""
-        #assert settings.MIDDLEWARE == global_settings.MIDDLEWARE + ['MYMIDDLEWARE']
+        assert settings.MIDDLEWARE == [
+            'django.middleware.security.SecurityMiddleware',
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'django.middleware.common.CommonMiddleware',
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'django.contrib.messages.middleware.MessageMiddleware',
+            'django.middleware.clickjacking.XFrameOptionsMiddleware',
+            'djangoldp.tests.middleware.DummyMiddleware'
+        ]
