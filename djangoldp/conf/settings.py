@@ -4,6 +4,8 @@ import yaml
 import logging
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings as django_settings
+from pathlib import Path
+from typing import Iterable
 from . import global_settings
 
 try:
@@ -50,6 +52,35 @@ class LDPSettings(object):
         """Set a dict has current configuration."""
         self._config = value
 
+    def register(self, obj, name):
+        """
+        Explore packages looking for a param or a list of params to register within the server configuration.
+        If the given object is a list it extends it with found elements.
+        But it doesn't manage duplications or collisions. All elements are returned.
+        """
+
+        for pkg in self.LDP_PACKAGES:
+            try:
+                # import from an installed package
+                mod = import_module(f'{pkg}.djangoldp_settings')
+                value = getattr(mod, name)
+                logger.debug(f'{name} found in installed package {pkg}')
+            except (ModuleNotFoundError, NameError):
+                try:
+                    # import from a local packages in a subfolder (same name)
+                    mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
+                    value = getattr(mod, name)
+                    logger.debug(f'{name} found in local package {pkg}')
+                except (ModuleNotFoundError, NameError):
+                    logger.info(f'No {name} found for package {pkg}')
+                    pass
+
+            # store value found
+            if isinstance(obj, Iterable):
+                obj.extend(value)
+            else:
+                obj = value
+
     @property
     def LDP_PACKAGES(self):
 
@@ -66,8 +97,9 @@ class LDPSettings(object):
         # get default apps
         apps = getattr(global_settings, 'INSTALLED_APPS')
 
-        # add packages
+        # add ldp packages
         apps.extend(self.LDP_PACKAGES)
+
         return apps
 
     @property
@@ -75,28 +107,13 @@ class LDPSettings(object):
 
         """
         Return the default middlewares and the middlewares found in each LDP packages.
-        It doesn't manage duplications or collisions. All middlewares are returned.
         """
 
         # get default middlewares
         middlewares = getattr(global_settings, 'MIDDLEWARE')
 
         # explore packages looking for middleware to reference
-        for pkg in self.LDP_PACKAGES:
-            try:
-                # import from installed package
-                mod = import_module(f'{pkg}.djangoldp_settings')
-                middlewares.extend(getattr(mod, 'MIDDLEWARE'))
-                logger.debug(f'Middleware found in installed package {pkg}')
-            except (ModuleNotFoundError, NameError):
-                try:
-                    # import from local package
-                    mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
-                    middlewares.extend(getattr(mod, 'MIDDLEWARE'))
-                    logger.debug(f'Middleware found in local package {pkg}')
-                except (ModuleNotFoundError, NameError):
-                    logger.info(f'No middleware found for package {pkg}')
-                    pass
+        self.register(middlewares, 'MIDDLEWARE')
 
         return middlewares
 

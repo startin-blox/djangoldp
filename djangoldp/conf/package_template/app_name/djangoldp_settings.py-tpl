@@ -2,4 +2,5 @@
 # This module is loaded dy DjangoLDP core before Django is configured.
 
 MIDDLEWARE = ['MY_MIDDLEWARE']
+INSTALLED_APPS = ['MY_APP']
 MYPACKAGE_VAR = 'MY_DEFAULT_VAR'

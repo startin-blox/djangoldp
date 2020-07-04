@@ -99,3 +99,11 @@ ldppackages:
 
 # djangoldp configure
 ```
+
+## Develop core and package all along
+
+```
+sudo docker run --rm -v $PWD/djangoldp:/code/djangoldp -v $PWD/djangoldp-account:/code/djangoldp_account -w /code -it -p 127.0.0.1:8000:8000 python:3.6 bash
+# pip install -e djangoldp_account[dev]
+# pip install -e djangoldp[dev]
+```
