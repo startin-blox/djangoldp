@@ -10,5 +10,10 @@ MYPACKAGEVAR = 'ok'
 
 # register an extra middleware
 MIDDLEWARE = [
-    'djangoldp.tests.middleware.DummyMiddleware'
+    'djangoldp.tests.dummy.middleware.DummyMiddleware'
+]
+
+# register an extra installed app
+INSTALLED_APPS = [
+    'djangoldp.tests.dummy.apps.DummyConfig'
 ]

@@ -38,7 +38,8 @@ class TestSettings(TestCase):
             'django.contrib.staticfiles',
             'djangoldp',
             'guardian',
-            'djangoldp.tests'
+            'djangoldp.tests',
+            'djangoldp.tests.dummy.apps.DummyConfig'
         ]
 
     def test_reference_middleware(self):
@@ -51,5 +52,5 @@ class TestSettings(TestCase):
             'django.contrib.auth.middleware.AuthenticationMiddleware',
             'django.contrib.messages.middleware.MessageMiddleware',
             'django.middleware.clickjacking.XFrameOptionsMiddleware',
-            'djangoldp.tests.middleware.DummyMiddleware'
+            'djangoldp.tests.dummy.middleware.DummyMiddleware'
         ]
