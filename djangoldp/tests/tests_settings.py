@@ -13,7 +13,7 @@ class TestSettings(TestCase):
 
     def test_only_in_user_config(self):
         """Asserts LDP packages are loaded from YAML file."""
-        assert settings.LDP_PACKAGES == ['djangoldp.tests']
+        assert settings.DJANGOLDP_PACKAGES == ['djangoldp.tests']
 
     def test_overrided_core_by_package_config(self):
         # FIXME

@@ -17,13 +17,13 @@ class DjangoldpConfig(AppConfig):
         from djangoldp.admin import DjangoLDPAdmin
         from djangoldp.models import Model
 
-        for package in settings.LDP_PACKAGES:
+        for package in settings.DJANGOLDP_PACKAGES:
             try:
                 import_module('{}.admin'.format(package))
             except ModuleNotFoundError:
                 pass
 
-        for package in settings.LDP_PACKAGES:
+        for package in settings.DJANGOLDP_PACKAGES:
             try:
                 import_module('{}.models'.format(package))
             except ModuleNotFoundError:

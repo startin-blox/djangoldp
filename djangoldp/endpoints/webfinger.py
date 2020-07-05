@@ -14,7 +14,7 @@ class WebFinger(object):
         return response_dict
 
 
-for package in settings.LDP_PACKAGES:
+for package in settings.DJANGOLDP_PACKAGES:
     try:
         import_module('{}.endpoints.webfinger'.format(package))
     except ModuleNotFoundError:

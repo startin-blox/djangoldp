@@ -85,10 +85,12 @@ def install():
 
         # install them by calling pip command
         cmd = [sys.executable, "-m", "pip", "install"]
-        cmd.extend(dependencies)
-        subprocess.run(cmd).check_returncode()
-
-        click.echo('Installation done!')
+        try:
+            cmd.extend(dependencies)
+            subprocess.run(cmd).check_returncode()
+            click.echo('Installation done!')
+        except TypeError:
+            click.echo('No dependency to install')
 
     except FileNotFoundError:
         click.echo('Config error: no config.yml file in this directory')

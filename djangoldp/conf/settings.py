@@ -54,35 +54,29 @@ class LDPSettings(object):
 
     def register(self, obj, name):
         """
-        Explore packages looking for a param or a list of params to register within the server configuration.
-        If the given object is a list it extends it with found elements.
-        But it doesn't manage duplications or collisions. All elements are returned.
+        Explore packages looking for a list of params to register within the server configuration.
+        It extends it with found elements and doesn't manage duplications or collisions.
+        All elements are returned.
         """
 
-        for pkg in self.LDP_PACKAGES:
+        for pkg in self.DJANGOLDP_PACKAGES:
             try:
                 # import from an installed package
                 mod = import_module(f'{pkg}.djangoldp_settings')
-                value = getattr(mod, name)
+                obj.extend(getattr(mod, name))
                 logger.debug(f'{name} found in installed package {pkg}')
             except (ModuleNotFoundError, NameError):
                 try:
                     # import from a local packages in a subfolder (same name)
                     mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
-                    value = getattr(mod, name)
+                    obj.extend(getattr(mod, name))
                     logger.debug(f'{name} found in local package {pkg}')
                 except (ModuleNotFoundError, NameError):
                     logger.info(f'No {name} found for package {pkg}')
                     pass
 
-            # store value found
-            if isinstance(obj, Iterable):
-                obj.extend(value)
-            else:
-                obj = value
-
     @property
-    def LDP_PACKAGES(self):
+    def DJANGOLDP_PACKAGES(self):
 
         """Returns the list of LDP packages configured."""
 
@@ -97,8 +91,8 @@ class LDPSettings(object):
         # get default apps
         apps = getattr(global_settings, 'INSTALLED_APPS')
 
-        # add ldp packages
-        apps.extend(self.LDP_PACKAGES)
+        # add ldp packages themselves (they are django apps)
+        apps.extend(self.DJANGOLDP_PACKAGES)
 
         return apps
 
@@ -139,7 +133,7 @@ class LDPSettings(object):
                 pass
 
             # look in all packages config
-            for pkg in self.LDP_PACKAGES:
+            for pkg in self.DJANGOLDP_PACKAGES:
 
                 try:
                     # import from local package
