@@ -52,7 +52,7 @@ class LDPSettings(object):
         """Set a dict has current configuration."""
         self._config = value
 
-    def register(self, obj, name):
+    def register(self, _list, name):
         """
         Explore packages looking for a list of params to register within the server configuration.
         It extends it with found elements and doesn't manage duplications or collisions.
@@ -63,13 +63,13 @@ class LDPSettings(object):
             try:
                 # import from an installed package
                 mod = import_module(f'{pkg}.djangoldp_settings')
-                obj.extend(getattr(mod, name))
+                _list.extend(getattr(mod, name))
                 logger.debug(f'{name} found in installed package {pkg}')
             except (ModuleNotFoundError, NameError):
                 try:
-                    # import from a local packages in a subfolder (same name)
+                    # import from a local packages in a subfolder (same name the template is built this way)
                     mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
-                    obj.extend(getattr(mod, name))
+                    _list.extend(getattr(mod, name))
                     logger.debug(f'{name} found in local package {pkg}')
                 except (ModuleNotFoundError, NameError):
                     logger.info(f'No {name} found for package {pkg}')
@@ -93,6 +93,9 @@ class LDPSettings(object):
 
         # add ldp packages themselves (they are django apps)
         apps.extend(self.DJANGOLDP_PACKAGES)
+
+        # add apps referenced in packages
+        self.register(apps, 'INSTALLED_APPS')
 
         return apps
 
