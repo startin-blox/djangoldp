@@ -210,7 +210,6 @@ class ActivityPubService(object):
         for field_name, relation_info in info.relations.items():
             if not relation_info.to_many:
                 value = getattr(instance, field_name, None)
-                logger.debug('[Sender] model has relation ' + str(value))
                 if value is not None and Model.is_external(value):
                     target_type = Model.get_model_rdf_type(type(value))
 
@@ -218,6 +217,7 @@ class ActivityPubService(object):
                         continue
 
                     targets.add(value.urlid)
+                    logger.debug('[Sender] model has external relation ' + str(value.urlid))
 
         return targets
 
