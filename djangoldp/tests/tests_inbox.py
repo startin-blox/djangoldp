@@ -1,5 +1,6 @@
 import json
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.db import IntegrityError
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import Circle, CircleMember, Project, UserProfile, DateModel, DateChild
@@ -74,6 +75,29 @@ class TestsInbox(APITestCase):
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self.assertEqual(circles[0].owner, self.user)
         self._assert_activity_created(response)
+
+    # sender has sent a circle with a local user that doesn't exist
+    def test_create_activity_circle_local(self):
+        urlid = '{}{}'.format(settings.SITE_URL, 'someonewhodoesntexist')
+        obj = {
+            "@type": "hd:circle",
+            "@id": "https://distant.com/circles/1/",
+            "owner": {
+                "@type": "foaf:user",
+                "@id": urlid
+            }
+        }
+        payload = self._get_activity_request_template("Create", obj)
+
+        prior_users_length = get_user_model().objects.count()
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 404)
+
+        # assert that the circle was not created neither a backlinked user
+        self.assertEquals(Circle.objects.count(), 0)
+        self.assertEquals(get_user_model().objects.count(), prior_users_length)
 
     #
     #   ADD ACTIVITIES

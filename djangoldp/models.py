@@ -193,6 +193,16 @@ class Model(models.Model):
             return model.objects.create(urlid=urlid, is_backlink=True, **field_tuples)
 
     @classonlymethod
+    def get_or_create_external(cls, model, urlid, **kwargs):
+        '''
+        checks that the parameterised urlid is external and then returns the result of Model.get_or_create
+        :raises ObjectDoesNotExist: if the urlid is not external and the object doesn't exist
+        '''
+        if not Model.is_external(urlid) and not model.objects.filter(urlid=urlid).exists():
+            raise ObjectDoesNotExist
+        return Model.get_or_create(model, urlid, **kwargs)
+
+    @classonlymethod
     def get_model_rdf_type(cls, model):
         if model is get_user_model():
             return "foaf:user"
@@ -234,9 +244,15 @@ class Model(models.Model):
 
     @classmethod
     def is_external(cls, value):
-        '''returns True if the urlid of the value passed is from an external source'''
+        '''
+        :param value: string urlid or an instance with urlid field
+        :return: True if the urlid is external to the server, False otherwise
+        '''
         try:
-            return value.urlid is not None and not value.urlid.startswith(settings.SITE_URL)
+            if not isinstance(value, str):
+                value = value.urlid
+
+            return value is not None and not value.startswith(settings.SITE_URL)
         except:
             return False
 

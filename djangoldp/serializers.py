@@ -627,7 +627,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         model, sub_inst = Model.resolve(field_dict['urlid'])
                 # remote resource - get backlinked copy
                 elif hasattr(field_model, 'urlid'):
-                    sub_inst = Model.get_or_create(field_model, field_dict['urlid'])
+                    sub_inst = Model.get_or_create_external(field_model, field_dict['urlid'])
             # try slug field, assuming that this is a local resource
             elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}

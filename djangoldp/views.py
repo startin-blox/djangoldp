@@ -4,7 +4,7 @@ from django.apps import apps
 from django.conf import settings
 from django.conf.urls import url, include
 from django.contrib.auth import get_user_model
-from django.core.exceptions import FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.core.urlresolvers import get_resolver
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
@@ -157,7 +157,10 @@ class InboxView(APIView):
                 branches[item[0]] = backlink
 
         # get or create the backlink
-        return Model.get_or_create(object_model, obj['@id'], update=update, **branches)
+        try:
+            return Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+        except ObjectDoesNotExist:
+            raise Http404()
 
     # TODO: a fallback here? Saving the backlink as Object or similar
     def _get_subclass_with_rdf_type_or_404(self, rdf_type):
