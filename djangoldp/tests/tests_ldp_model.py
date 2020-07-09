@@ -3,7 +3,7 @@ import unittest
 from django.test import TestCase
 
 from djangoldp.models import Model
-from djangoldp.tests.models import Dummy, LDPDummy
+from djangoldp.tests.models import Dummy, LDPDummy, Circle, CircleMember
 
 
 class LDPModelTest(TestCase):
@@ -36,3 +36,21 @@ class LDPModelTest(TestCase):
         path = 'http://happy-dev.fr/{}{}/'.format(get_resolver().reverse_dict[view_name][0][0][0], dummy.pk)
 
         self.assertEquals(path, dummy.get_absolute_url())
+
+    def test_ldp_manager_local_objects(self):
+        local = LDPDummy.objects.create(some='text')
+        external = LDPDummy.objects.create(some='text', urlid='https://distant.com/ldpdummys/1/')
+        self.assertEqual(LDPDummy.objects.count(), 2)
+        local_queryset = LDPDummy.objects.local()
+        self.assertEqual(local_queryset.count(), 1)
+        self.assertIn(local, local_queryset)
+        self.assertNotIn(external, local_queryset)
+
+    def test_ldp_manager_nested_fields(self):
+        nested_fields = Circle.objects.nested_fields()
+        expected_nested_fields = ['members']
+        self.assertEqual(nested_fields, expected_nested_fields)
+
+        nested_fields = CircleMember.objects.nested_fields()
+        expected_nested_fields = []
+        self.assertEqual(nested_fields, expected_nested_fields)

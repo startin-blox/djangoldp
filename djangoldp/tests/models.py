@@ -17,7 +17,6 @@ class User(AbstractUser, Model):
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'change']
         owner_perms = ['inherit']
-        nested_fields = ['circles', 'projects']
 
 
 class Skill(Model):
@@ -53,7 +52,6 @@ class JobOffer(Model):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'change', 'add']
         owner_perms = ['inherit', 'delete', 'control']
-        nested_fields = ["skills"]
         serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
         container_path = "job-offers/"
         lookup_field = 'slug'
@@ -80,7 +78,6 @@ class Resource(Model):
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
         serializer_fields = ["@id", "joboffers"]
-        nested_fields = ["joboffers"]
         depth = 1
 
 
@@ -148,7 +145,6 @@ class Invoice(Model):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
-        nested_fields = ["batches"]
 
 
 class Batch(Model):
@@ -160,7 +156,6 @@ class Batch(Model):
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
-        nested_fields = ["tasks", 'invoice']
         depth = 1
 
 
@@ -196,7 +191,7 @@ class Circle(Model):
                               null=True, blank=True)
 
     class Meta(Model.Meta):
-        nested_fields = ["team"]
+        nested_fields_exclude = ["team"]
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:circle'
@@ -221,7 +216,6 @@ class Project(Model):
     team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
 
     class Meta(Model.Meta):
-        nested_fields = ["team"]
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'

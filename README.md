@@ -189,7 +189,7 @@ See "Custom Meta options" below to see some helpful ways you can tweak the behav
 
 Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend djangoldp.DjangoLDPAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html). An alternative version which extends Django's `UserAdmin` is available as djangoldp.DjangoLDPUserAdmin
 
-### Model Federation
+#### Model Federation
 
 Model `urlid`s can be **local** (matching `settings.SITE_URL`), or **external**
 
@@ -205,7 +205,14 @@ It can also be disabled on a model instance
 instance.allow_create_backlinks = False
 ```
 
-For situations where you don't want to include federated resources in a queryset, DjangoLDP Models override `models.Manager`, allowing you to write `Todo.objects.local()`, for example:
+### LDPManager
+
+DjangoLDP Models override `models.Manager`, accessible by `Model.objects`
+
+#### local()
+
+For situations where you don't want to include federated resources in a queryset e.g.
+
 ```python
 Todo.objects.create(name='Local Todo')
 Todo.objects.create(name='Distant Todo', urlid='https://anotherserversomewhere.com/todos/1/')
@@ -216,6 +223,9 @@ Todo.objects.local() # { Local Todo } only
 
 For Views, we also define a FilterBackend to achieve the same purpose. See the section on ViewSets for this purpose
 
+#### nested_fields()
+
+returns a list of all nested field names for the model, built of a union of the model class' `nested_fields` setting, the to-many relations on the model, excluding all fields detailed by `nested_fields_exclude`
 
 ## LDPViewSet
 
@@ -400,6 +410,20 @@ class Todo(Model):
 ```
 
 Only `name` will be serialized
+
+### nested_fields -- DEPRECIATED
+
+Set on a model to auto-generate viewsets and containers for nested relations (e.g. `/circles/<pk>/members/`)
+
+Depreciated in DjangoLDP 0.8.0, as all to-many fields are included as nested fields by default
+
+### nested_fields_exclude
+
+```python
+<Model>._meta.nested_fields_exclude=["skills"]
+```
+
+Will exclude the field `skills` from the model's nested fields, and prevent a container `/model/<pk>/skills/` from being generated
 
 ## Custom urls
 

@@ -12,6 +12,7 @@ from django.dispatch import receiver
 from django.urls import reverse_lazy, get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
+from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
@@ -22,11 +23,27 @@ logger = logging.getLogger('djangoldp')
 
 
 class LDPModelManager(models.Manager):
-    # an alternative to all() which exlcudes external resources
     def local(self):
+        '''an alternative to all() which exlcudes external resources'''
         queryset = super(LDPModelManager, self).all()
         internal_ids = [x.pk for x in queryset if not Model.is_external(x)]
         return queryset.filter(pk__in=internal_ids)
+
+    def nested_fields(self):
+        '''parses the relations on the model, and returns a list of nested field names'''
+        nested_fields = set()
+        # include all many-to-many relations
+        for field_name, relation_info in model_meta.get_field_info(self.model).relations.items():
+            if relation_info.to_many:
+                nested_fields.add(field_name)
+        # include all nested fields explicitly included on the model
+        nested_fields.update(set(Model.get_meta(self.model, 'nested_fields', set())))
+        # exclude anything marked explicitly to be excluded
+        nested_fields = nested_fields.difference(set(Model.get_meta(self.model, 'nested_fields_exclude', set())))
+        return list(nested_fields)
+
+    def fields(self):
+        return self.nested_fields()
 
 
 class Model(models.Model):
@@ -35,6 +52,7 @@ class Model(models.Model):
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
     objects = LDPModelManager()
+    nested = LDPModelManager()
 
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)

@@ -320,7 +320,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                                                         'permission_classes',
                                                                                         [LDPPermissions]),
                                                       fields=Model.get_meta(model_class, 'serializer_fields', []),
-                                                      nested_fields=Model.get_meta(model_class, 'nested_fields', []))
+                                                      nested_fields=model_class.nested.nested_fields())
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
                     serializer_generator.depth = parent_depth
                     serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
