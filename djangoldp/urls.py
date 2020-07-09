@@ -50,4 +50,4 @@ for class_name in model_classes:
                  lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
                  permission_classes=Model.get_meta(model_class, 'permission_classes', [LDPPermissions]),
                  fields=Model.get_meta(model_class, 'serializer_fields', []),
-                 nested_fields=Model.get_meta(model_class, 'nested_fields', [])))))
+                 nested_fields=model_class.nested.fields()))))
