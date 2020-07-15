@@ -1,8 +1,8 @@
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
-
+from datetime import datetime
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch
+from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel
 
 
 class TestGET(APITestCase):
@@ -88,3 +88,16 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
         self.assertEquals(len(response.data['ldp:contains']), 2)
+
+    def test_serializer_excludes(self):
+        date = DateModel.objects.create(excluded='test', value=datetime.now())
+        response = self.client.get('/dates/{}/'.format(date.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('excluded', response.data.keys())
+
+    def test_serializer_excludes_serializer_fields_set_also(self):
+        setattr(DateModel._meta, 'serializer_fields', ['value', 'excluded'])
+        date = DateModel.objects.create(excluded='test', value=datetime.now())
+        response = self.client.get('/dates/{}/'.format(date.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('excluded', response.data.keys())
