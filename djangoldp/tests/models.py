@@ -191,7 +191,6 @@ class Circle(Model):
                               null=True, blank=True)
 
     class Meta(Model.Meta):
-        nested_fields_exclude = ["team"]
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:circle'

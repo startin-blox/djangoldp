@@ -35,7 +35,8 @@ class LDPModelManager(models.Manager):
         # include all many-to-many relations
         for field_name, relation_info in model_meta.get_field_info(self.model).relations.items():
             if relation_info.to_many:
-                nested_fields.add(field_name)
+                if field_name is not None:
+                    nested_fields.add(field_name)
         # include all nested fields explicitly included on the model
         nested_fields.update(set(Model.get_meta(self.model, 'nested_fields', set())))
         # exclude anything marked explicitly to be excluded

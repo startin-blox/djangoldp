@@ -46,11 +46,19 @@ class LDPModelTest(TestCase):
         self.assertIn(local, local_queryset)
         self.assertNotIn(external, local_queryset)
 
-    def test_ldp_manager_nested_fields(self):
+    def test_ldp_manager_nested_fields_auto(self):
         nested_fields = Circle.objects.nested_fields()
-        expected_nested_fields = ['members']
-        self.assertEqual(nested_fields, expected_nested_fields)
+        expected_nested_fields = ['team', 'members']
+        self.assertEqual(len(nested_fields), len(expected_nested_fields))
+        for expected in expected_nested_fields:
+            self.assertIn(expected, nested_fields)
 
         nested_fields = CircleMember.objects.nested_fields()
         expected_nested_fields = []
+        self.assertEqual(nested_fields, expected_nested_fields)
+
+    def test_ldp_manager_nested_fields_exclude(self):
+        setattr(Circle.Meta, 'nested_fields_exclude', ['team'])
+        nested_fields = Circle.objects.nested_fields()
+        expected_nested_fields = ['members']
         self.assertEqual(nested_fields, expected_nested_fields)
