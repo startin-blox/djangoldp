@@ -368,7 +368,7 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.fields:
             meta_args['fields'] = self.fields
         else:
-            meta_args['exclude'] = self.exclude or ()
+            meta_args['exclude'] = self.exclude or Model.get_meta(self.model, 'serializer_fields_exclude') or ()
         meta_class = type('Meta', (), meta_args)
 
         from djangoldp.serializers import LDPSerializer

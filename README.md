@@ -411,6 +411,24 @@ class Todo(Model):
 
 Only `name` will be serialized
 
+### serializer_fields_exclude
+
+```python
+from djangoldp.models import Model
+
+class Todo(Model):
+    name = models.CharField(max_length=255)
+    deadline = models.DateTimeField()
+
+    class Meta:
+        serializer_fields_exclude =  ['name']
+
+```
+
+Only `deadline` will be serialized
+
+This is achieved when `LDPViewSet` sets the `exclude` property on the serializer in `build_serializer` method. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself
+
 ### nested_fields -- DEPRECIATED
 
 Set on a model to auto-generate viewsets and containers for nested relations (e.g. `/circles/<pk>/members/`)

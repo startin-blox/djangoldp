@@ -223,10 +223,12 @@ class Project(Model):
 
 
 class DateModel(Model):
+    excluded = models.CharField(max_length=255, null=True, default='test')
     value = models.DateField()
 
     class Meta(Model.Meta):
         rdf_type = "hd:date"
+        serializer_fields_exclude = ['excluded']
 
 
 class DateChild(Model):
