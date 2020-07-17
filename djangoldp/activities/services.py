@@ -15,6 +15,10 @@ import logging
 
 
 logger = logging.getLogger('djangoldp')
+BACKLINKS_ACTOR = {
+    "type": "Service",
+    "name": "Backlinks Service"
+}
 
 
 class ActivityPubService(object):
@@ -174,7 +178,7 @@ class ActivityPubService(object):
     def _save_sent_activity(cls, activity):
         '''Auxiliary function saves a record of parameterised activity'''
         payload = bytes(json.dumps(activity), "utf-8")
-        local_id = settings.SITE_URL + "outbox/"
+        local_id = settings.SITE_URL + "/outbox/"
         obj = ActivityModel.objects.create(local_id=local_id, payload=payload)
         obj.aid = Model.absolute_url(obj)
         obj.save()
@@ -247,10 +251,7 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
 
         if len(targets) > 0:
             obj = ActivityPubService.build_object_tree(instance)
-            actor = {
-                "type": "Service",
-                "name": "Backlinks Service"
-            }
+            actor = BACKLINKS_ACTOR
             # Create Activity
             if created:
                 for target in targets:
@@ -276,10 +277,7 @@ def check_delete_for_backlinks(sender, instance, **kwargs):
 
         if len(targets) > 0:
             for target in targets:
-                ActivityPubService.send_delete_activity({
-                    "type": "Service",
-                    "name": "Backlinks Service"
-                }, {
+                ActivityPubService.send_delete_activity(BACKLINKS_ACTOR, {
                     "@id": instance.urlid,
                     "@type": Model.get_model_rdf_type(sender)
                 }, target)
@@ -341,10 +339,7 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
             }
             if action == 'post_add':
                 for target in targets:
-                    ActivityPubService.send_add_activity({
-                        "type": "Service",
-                        "name": "Backlinks Service"
-                    }, obj, target)
+                    ActivityPubService.send_add_activity(BACKLINKS_ACTOR, obj, target)
                     inbox = ActivityPubService.discover_inbox(target['@id'])
                     if not Follower.objects.filter(object=obj['@id'], follower=target['@id']).exists():
                         Follower.objects.create(object=obj['@id'], inbox=inbox, follower=target['@id'],
@@ -352,10 +347,8 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
 
             elif action == "post_remove" or action == "pre_clear":
                 for target in targets:
-                    ActivityPubService.send_remove_activity({
-                        "type": "Service",
-                        "name": "Backlinks Service"
-                    }, obj, target)
+                    ActivityPubService.send_remove_activity(BACKLINKS_ACTOR, obj, target)
+                    inbox = ActivityPubService.discover_inbox(target['@id'])
                     for follower in Follower.objects.filter(object=obj['@id'], follower=target['@id'],
-                                                            is_backlink=True):
+                                                            inbox=inbox, is_backlink=True):
                         follower.delete()

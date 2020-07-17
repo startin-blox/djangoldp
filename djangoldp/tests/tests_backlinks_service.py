@@ -81,7 +81,6 @@ class TestsBacklinksService(APITestCase):
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_local_object_with_external_m2m_delete_parent(self):
-        # a local project with three distant users
         project = Project.objects.create(description='Test')
         external_a = self._get_random_external_user()
         project.team.add(external_a)

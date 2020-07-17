@@ -190,7 +190,9 @@ class InboxView(APIView):
 
         for field_name, relation_info in target_info.relations.items():
             if relation_info.related_model == object_model:
-                getattr(target, field_name).add(backlink)
+                attr = getattr(target, field_name)
+                if not attr.filter(urlid=backlink.urlid).exists():
+                    attr.add(backlink)
 
     def handle_remove_activity(self, activity, **kwargs):
         '''
@@ -215,7 +217,9 @@ class InboxView(APIView):
 
         for field_name, relation_info in origin_info.relations.items():
             if relation_info.related_model == object_model:
-                getattr(origin, field_name).remove(object_instance)
+                attr = getattr(origin, field_name)
+                if attr.filter(urlid=object_instance.urlid).exists():
+                    attr.remove(object_instance)
 
     def handle_create_or_update_activity(self, activity, **kwargs):
         '''

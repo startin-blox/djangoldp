@@ -2,6 +2,7 @@ import json
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.db import IntegrityError
+from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import Circle, CircleMember, Project, UserProfile, DateModel, DateChild
 from djangoldp.models import Activity, Follower
@@ -153,6 +154,7 @@ class TestsInbox(APITestCase):
         self._assert_activity_created(response)
 
     # test sending an add activity when the backlink already exists
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_add_activity_object_already_added(self):
         circle = Circle.objects.create(urlid="https://distant.com/circles/1/")
         CircleMember.objects.create(urlid="https://distant.com/circle-members/1/", circle=circle, user=self.user)
@@ -170,6 +172,7 @@ class TestsInbox(APITestCase):
             }
         }
         payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
+        prior_count = Activity.objects.count()
 
         response = self.client.post('/inbox/',
                                     data=json.dumps(payload),
@@ -184,6 +187,7 @@ class TestsInbox(APITestCase):
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self.assertIn("https://distant.com/circle-members/1/", user_circles.values_list('urlid', flat=True))
         self._assert_activity_created(response)
+        self.assertEqual(Activity.objects.count(), prior_count + 1)
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/250
     def test_add_activity_str_parameter(self):
@@ -314,6 +318,34 @@ class TestsInbox(APITestCase):
                                     content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
         self.assertEqual(response.status_code, 201)
         self._assert_activity_created(response)
+
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    def test_removing_object_twice(self):
+        project = Project.objects.create(urlid="https://distant.com/projects/1/")
+        self.user.projects.add(project)
+        prior_count = Activity.objects.all().count()
+
+        # remove once via activity
+        obj = {
+            "@type": "hd:project",
+            "@id": "https://distant.com/projects/1/"
+        }
+        payload = self._get_activity_request_template("Remove", obj, origin=self._build_target_from_user(self.user))
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self.assertEqual(response.status_code, 201)
+        # received and then sent
+        self.assertEqual(Activity.objects.all().count(), prior_count + 2)
+        prior_count = Activity.objects.all().count()
+
+        # sending remove activity again
+        payload = self._get_activity_request_template("Remove", obj, origin=self._build_target_from_user(self.user))
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        # just received, did not send
+        self.assertEqual(Activity.objects.all().count(), prior_count + 1)
 
     # Delete CircleMember
     def test_delete_activity_circle_using_origin(self):
