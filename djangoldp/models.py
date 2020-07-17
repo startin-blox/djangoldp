@@ -301,9 +301,7 @@ class Activity(Model):
         rdf_type = 'as:Activity'
 
     def to_activitystream(self):
-        payload = self.payload.decode("utf-8")
-        data = json.loads(payload)
-        return data
+        return json.loads(self.payload.tobytes())
 
 
 class Follower(Model):
