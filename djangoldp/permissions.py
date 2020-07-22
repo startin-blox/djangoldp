@@ -123,7 +123,7 @@ class LDPPermissions(DjangoObjectPermissions):
 
         # compare them with the permissions I have
         for perm in perms:
-            if not perm.split('.')[1].split('_')[0] in user_perms:
+            if not perm.split('.')[-1].split('_')[0] in user_perms:
                 return False
 
         return True
@@ -146,7 +146,7 @@ class LDPPermissions(DjangoObjectPermissions):
 
         # compare them with the permissions I have
         for perm in perms:
-            if not perm.split('.')[1].split('_')[0] in user_perms:
+            if not perm.split('.')[-1].split('_')[0] in user_perms:
                 return False
 
         return True

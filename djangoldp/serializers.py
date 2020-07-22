@@ -15,7 +15,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS, Hyperlink
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, LIST_SERIALIZER_KWARGS
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -481,8 +481,21 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     @classmethod
     def many_init(cls, *args, **kwargs):
-        kwargs['child'] = cls(**kwargs)
-        serializer = ContainerSerializer(*args, **kwargs)
+        allow_empty = kwargs.pop('allow_empty', None)
+        child_serializer = cls(*args, **kwargs)
+        list_kwargs = {
+            'child': child_serializer,
+        }
+        if allow_empty is not None:
+            list_kwargs['allow_empty'] = allow_empty
+        list_kwargs.update({
+            key: value for key, value in kwargs.items()
+            if key in LIST_SERIALIZER_KWARGS
+        })
+        meta = getattr(cls, 'Meta', None)
+        list_serializer_class = getattr(meta, 'list_serializer_class', ContainerSerializer)
+        serializer = list_serializer_class(*args, **list_kwargs)
+
         if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
             serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
         elif 'context' in kwargs:
