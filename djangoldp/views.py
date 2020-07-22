@@ -306,6 +306,10 @@ class LDPViewSetGenerator(ModelViewSet):
         return r'(?P<{}>{}+)/'.format(lookup_field, lookup_group)
 
     @classonlymethod
+    def nested_urls(cls, nested_field, **kwargs):
+        return LDPNestedViewSet.nested_urls(nested_field, **kwargs)
+
+    @classonlymethod
     def urls(cls, **kwargs):
         '''constructs urls list for model passed in kwargs'''
         kwargs['model'] = cls.get_model(**kwargs)
@@ -322,7 +326,7 @@ class LDPViewSetGenerator(ModelViewSet):
 
         # append nested fields to the urls list
         for field in kwargs.get('nested_fields') or cls.nested_fields:
-            urls.append(url('^' + detail_expr + field + '/', LDPNestedViewSet.nested_urls(field, **kwargs)))
+            urls.append(url('^' + detail_expr + field + '/', cls.nested_urls(field, **kwargs)))
 
         return include(urls)
 
@@ -336,6 +340,7 @@ class LDPViewSet(LDPViewSetGenerator):
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
     filter_backends = [LocalObjectOnContainerPathBackend]
+    write_serializer_class = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -346,8 +351,10 @@ class LDPViewSet(LDPViewSetGenerator):
                 if hasattr(p, 'filter_class') and p.filter_class:
                     self.filter_backends.append(p.filter_class)
 
-        self.serializer_class = self.build_read_serializer()
-        self.write_serializer_class = self.build_write_serializer()
+        if self.serializer_class is None:
+            self.serializer_class = self.build_read_serializer()
+        if self.write_serializer_class is None:
+            self.write_serializer_class = self.build_write_serializer()
 
     def build_read_serializer(self):
         model_name = self.model._meta.object_name.lower()
@@ -422,7 +429,7 @@ class LDPViewSet(LDPViewSetGenerator):
         deserializing input, and for serializing output.
         """
         serializer_class = self.get_write_serializer_class()
-        kwargs['context'] = self.get_serializer_context()
+        kwargs.setdefault('context', self.get_serializer_context())
         return serializer_class(*args, **kwargs)
 
     def get_write_serializer_class(self):
