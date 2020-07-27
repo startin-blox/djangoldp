@@ -3,12 +3,13 @@ from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
 
+from django.db import transaction
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import resolve, Resolver404, get_script_prefix
-from django.urls import get_resolver
+from django.urls.resolvers import get_resolver
 from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
@@ -629,7 +630,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
         nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
         for field_name in nested_fk_fields_name:
             field_dict = validated_data[field_name]
-            field_model = model._meta.get_field(field_name).related_model
+            try:
+                field_model = model._meta.get_field(field_name).related_model
+                print('field_model is ' + str(field_model))
+            except:
+                # not fk
+                print('except! not FK!')
+                continue
 
             slug_field = Model.slug_field(field_model)
             sub_inst = None
@@ -650,11 +657,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 kwargs = {slug_field: field_dict[slug_field]}
                 sub_inst = field_model.objects.get(**kwargs)
             if sub_inst is None:
-                if create:
-                    sub_inst = self.internal_create(field_dict, field_model)
-                else:
-                    continue
-
+                with transaction.atomic():
+                    try:
+                        sub_inst = self.internal_create(field_dict, field_model)
+                    except:
+                        print('whoops')
+                        validated_data[field_name] = field_dict
             validated_data[field_name] = sub_inst
         return validated_data
 

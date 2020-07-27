@@ -1,10 +1,11 @@
 import json
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import re_path, include
+
+from django.conf.urls import include, re_path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
-from django.urls import get_resolver
+from django.urls.resolvers import get_resolver
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -333,18 +334,7 @@ class LDPViewSetGenerator(ModelViewSet):
 
         # append nested fields to the urls list
         for field in kwargs.get('nested_fields') or cls.nested_fields:
-            # the nested property may have a custom viewset defined
-            try:
-                nested_model = kwargs['model']._meta.get_field(field).related_model
-            except FieldDoesNotExist:
-                nested_model = getattr(kwargs['model'], field).field.model
-
-            if hasattr(nested_model, 'get_view_set'):
-                kwargs['view_set'] = nested_model.get_view_set()
-                urls_fct = kwargs['view_set'].nested_urls # our custom view_set may override nested_urls
-            else:
-                urls_fct = cls.nested_urls
-            urls.append(re_path('^' + detail_expr + field + '/', urls_fct(field, **kwargs)))
+            urls.append(re_path('^' + detail_expr + field + '/', cls.nested_urls(field, **kwargs)))
 
         return include(urls)
 
