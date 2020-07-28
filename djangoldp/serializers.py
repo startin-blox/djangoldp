@@ -630,13 +630,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
         for field_name in nested_fk_fields_name:
             field_dict = validated_data[field_name]
-            try:
-                field_model = model._meta.get_field(field_name).related_model
-                print('field_model is ' + str(field_model))
-            except:
-                # not fk
-                print('except! not FK!')
-                continue
+            field_model = model._meta.get_field(field_name).related_model
 
             slug_field = Model.slug_field(field_model)
             sub_inst = None
@@ -661,8 +655,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     try:
                         sub_inst = self.internal_create(field_dict, field_model)
                     except:
-                        print('whoops')
-                        validated_data[field_name] = field_dict
+                        continue
             validated_data[field_name] = sub_inst
         return validated_data
 
