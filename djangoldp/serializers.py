@@ -651,11 +651,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 kwargs = {slug_field: field_dict[slug_field]}
                 sub_inst = field_model.objects.get(**kwargs)
             if sub_inst is None:
-                with transaction.atomic():
-                    try:
-                        sub_inst = self.internal_create(field_dict, field_model)
-                    except:
-                        continue
+                if create:
+                    sub_inst = self.internal_create(field_dict, field_model)
+                else:
+                    continue
+
             validated_data[field_name] = sub_inst
         return validated_data
 
