@@ -7,6 +7,8 @@ from copy import deepcopy
 
 '''
 A script which generates and outputs random test data, into a file used by the performance unit tests
+usage: python test_data_generator.py [number_rows]
+e.g. python test_data_generator.py 2000
 '''
 
 count = int(sys.argv[1])
