@@ -172,7 +172,6 @@ class Circle(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:circle'
-        depth = 1
 
 
 class Batch(Model):
@@ -219,7 +218,6 @@ class Project(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'
-        depth = 1
 
 
 class DateModel(Model):

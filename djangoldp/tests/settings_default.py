@@ -45,7 +45,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 AUTHENTICATION_BACKENDS=(
-   'django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend')
+   'django.contrib.auth.backends.ModelBackend')
 
 ROOT_URLCONF='djangoldp.urls'
 
