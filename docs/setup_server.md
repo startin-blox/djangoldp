@@ -117,3 +117,10 @@ Develop core and package all along:
 # pip install -e djangoldp_account[dev]
 # pip install -e djangoldp[dev]
 ```
+
+Then start a new djangoldp server with the matching config.yml:
+```
+ldppackages:
+  - djangoldp-account
+[...]
+```
