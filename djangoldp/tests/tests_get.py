@@ -88,6 +88,7 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
         self.assertEquals(len(response.data['ldp:contains']), 2)
+        self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], 'http://happy-dev.fr/invoices/{}/'.format(invoice.pk))
 
     def test_serializer_excludes(self):
         date = DateModel.objects.create(excluded='test', value=datetime.now())

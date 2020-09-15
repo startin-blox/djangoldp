@@ -137,40 +137,6 @@ class PermissionlessDummy(Model):
         )
 
 
-class Invoice(Model):
-    title = models.CharField(max_length=255, blank=True, null=True)
-    date = models.DateField(blank=True, null=True)
-
-    class Meta(Model.Meta):
-        depth = 2
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
-
-
-class Batch(Model):
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='batches')
-    title = models.CharField(max_length=255, blank=True, null=True)
-
-    class Meta(Model.Meta):
-        serializer_fields = ['@id', 'title', 'invoice', 'tasks']
-        anonymous_perms = ['view', 'add']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
-        depth = 1
-
-
-class Task(models.Model):
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='tasks')
-    title = models.CharField(max_length=255)
-
-    class Meta(Model.Meta):
-        serializer_fields = ['@id', 'title', 'batch']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
-
-
 class Post(Model):
     content = models.CharField(max_length=255)
     author = models.ForeignKey(UserProfile, blank=True, null=True, on_delete=models.SET_NULL)
@@ -183,6 +149,16 @@ class Post(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
+
+class Invoice(Model):
+    title = models.CharField(max_length=255, blank=True, null=True)
+    date = models.DateField(blank=True, null=True)
+
+    class Meta(Model.Meta):
+        depth = 2
+        anonymous_perms = ['view']
+        authenticated_perms = ['inherit', 'add']
+        owner_perms = ['inherit', 'change', 'delete', 'control']
 
 
 class Circle(Model):
@@ -199,6 +175,18 @@ class Circle(Model):
         depth = 1
 
 
+class Batch(Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='batches')
+    title = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta(Model.Meta):
+        serializer_fields = ['@id', 'title', 'invoice', 'tasks']
+        anonymous_perms = ['view', 'add']
+        authenticated_perms = ['inherit', 'add']
+        owner_perms = ['inherit', 'change', 'delete', 'control']
+        depth = 1
+
+
 class CircleMember(Model):
     circle = models.ForeignKey(Circle, on_delete=models.CASCADE, related_name='members')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="circles")
@@ -209,7 +197,19 @@ class CircleMember(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
         unique_together = ['user', 'circle']
+        # serializer_fields = ['@id', 'user', 'circle']
         rdf_type = 'hd:circlemember'
+
+
+class Task(models.Model):
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=255)
+
+    class Meta(Model.Meta):
+        serializer_fields = ['@id', 'title', 'batch']
+        anonymous_perms = ['view']
+        authenticated_perms = ['inherit', 'add']
+        owner_perms = ['inherit', 'change', 'delete', 'control']
 
 
 class Project(Model):

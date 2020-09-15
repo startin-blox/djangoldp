@@ -5,6 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
 
 from djangoldp.models import LDPSource
+from djangoldp.tests.models import Invoice, Circle
 
 
 class TestTemp(TestCase):
@@ -17,4 +18,5 @@ class TestTemp(TestCase):
 
     def tearDown(self):
         pass
+
 

@@ -548,7 +548,7 @@ class LDPNestedViewSet(LDPViewSet):
         return cls.urls(
             lookup_field=Model.get_meta(related_field.related_model, 'lookup_field', 'pk'),
             model=related_field.related_model,
-            exclude=(nested_related_name,) if related_field.one_to_many else (),
+            # exclude=(nested_related_name,) if related_field.one_to_many else (),
             parent_model=cls.get_model(**kwargs),
             nested_field=nested_field,
             nested_related_name=nested_related_name,
