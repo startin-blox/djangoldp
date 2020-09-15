@@ -7,7 +7,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.urlresolvers import get_resolver, resolve, get_script_prefix, Resolver404
+from django.urls import resolve, Resolver404, get_script_prefix
+from django.urls import get_resolver
 from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
@@ -514,6 +515,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return ret
 
     def get_value(self, dictionary):
+        '''overrides get_value to handle @graph key'''
         try:
             object_list = dictionary["@graph"]
             if self.parent.instance is None:
@@ -549,10 +551,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return instance
 
     def attach_related_object(self, instance, validated_data):
+        '''adds m2m relations included in validated_data to the instance'''
         model_class = self.Meta.model
 
         info = model_meta.get_field_info(model_class)
-        many_to_many = {}
         for field_name, relation_info in info.relations.items():
             if relation_info.to_many and relation_info.reverse and not field_name is None:
                 rel = getattr(instance._meta.model, field_name).rel
@@ -561,7 +563,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     getattr(instance, field_name).add(related)
 
     def internal_create(self, validated_data, model):
-        validated_data = self.resolve_fk_instances(model, validated_data)
+        validated_data = self.resolve_fk_instances(model, validated_data, True)
 
         # build tuples list of nested_field keys and their values
         nested_fields = []
@@ -617,16 +619,18 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         return instance
 
-    def resolve_fk_instances(self, model, validated_data):
-        '''iterates over every dict object in validated_data and resolves them into instances (get or create)'''
+    def resolve_fk_instances(self, model, validated_data, create=False):
+        '''
+        iterates over every dict object in validated_data and resolves them into instances (get or create)
+        :param model: the model being operated on
+        :param validated_data: the data passed to the serializer
+        :param create: set to True, foreign keys will be created if they do not exist
+        '''
         nested_fk_fields_name = list(filter(lambda key: isinstance(validated_data[key], dict), validated_data))
         for field_name in nested_fk_fields_name:
             field_dict = validated_data[field_name]
-            try:
-                field_model = getattr(model, field_name).field.rel.model
-            except:
-                # not fk
-                continue
+            field_model = model._meta.get_field(field_name).related_model
+
             slug_field = Model.slug_field(field_model)
             sub_inst = None
             if 'urlid' in field_dict:
@@ -646,7 +650,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 kwargs = {slug_field: field_dict[slug_field]}
                 sub_inst = field_model.objects.get(**kwargs)
             if sub_inst is None:
-                sub_inst = self.internal_create(field_dict, field_model)
+                if create:
+                    sub_inst = self.internal_create(field_dict, field_model)
+                else:
+                    continue
+
             validated_data[field_name] = sub_inst
         return validated_data
 
@@ -664,13 +672,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if relation_info.to_many:
             value = self.internal_create(validated_data=value, model=relation_info.related_model)
         else:
-            try:
-                reverse_attr_name = instance._meta.fields_map[attr].remote_field.name
-                many = False
-            except:
-                rel = list(filter(lambda field: field.name == attr, instance._meta.fields))[0].rel
-                many = rel.one_to_many
-                reverse_attr_name = rel.related_name
+            rel = instance._meta.get_field(attr)
+            reverse_attr_name = rel.remote_field.name
+            many = rel.one_to_many or rel.many_to_many
             if many:
                 value[reverse_attr_name] = [instance]
                 oldObj = rel.model.object.get(id=value['urlid'])

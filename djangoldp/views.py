@@ -1,11 +1,10 @@
-import copy
 import json
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import url, include
+from django.conf.urls import re_path, include
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
-from django.core.urlresolvers import get_resolver
+from django.urls import get_resolver
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -14,7 +13,6 @@ from django.views import View
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
@@ -328,9 +326,9 @@ class LDPViewSetGenerator(ModelViewSet):
         detail_expr = cls.get_detail_expr(**kwargs)
 
         urls = [
-            url('^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
-            url('^' + detail_expr + '$', cls.as_view(cls.detail_actions, **kwargs),
-                name='{}-detail'.format(model_name)),
+            re_path('^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
+            re_path('^' + detail_expr + '$', cls.as_view(cls.detail_actions, **kwargs),
+                    name='{}-detail'.format(model_name)),
         ]
 
         # append nested fields to the urls list
@@ -346,7 +344,7 @@ class LDPViewSetGenerator(ModelViewSet):
                 urls_fct = kwargs['view_set'].nested_urls # our custom view_set may override nested_urls
             else:
                 urls_fct = cls.nested_urls
-            urls.append(url('^' + detail_expr + field + '/', urls_fct(field, **kwargs)))
+            urls.append(re_path('^' + detail_expr + field + '/', urls_fct(field, **kwargs)))
 
         return include(urls)
 
@@ -496,11 +494,11 @@ class LDPViewSet(LDPViewSetGenerator):
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
         if response.status_code in [201, 200] and '@id' in response.data:
-            response["Location"] = response.data['@id']
+            response["Location"] = str(response.data['@id'])
         else:
             pass
         response["Accept-Post"] = "application/ld+json"
-        if request.user.is_authenticated():
+        if request.user.is_authenticated:
             try:
                 response['User'] = request.user.webid()
             except AttributeError:

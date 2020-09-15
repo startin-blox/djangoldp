@@ -1,7 +1,7 @@
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
 from rest_framework.permissions import DjangoObjectPermissions
-from guardian.shortcuts import get_user_perms
+from django.contrib.auth.models import _user_get_all_permissions
 
 
 class LDPPermissions(DjangoObjectPermissions):
@@ -47,12 +47,10 @@ class LDPPermissions(DjangoObjectPermissions):
         perms = set()
 
         if obj is not None and not user.is_anonymous:
-            guardian_perms = get_user_perms(user, obj)
+            # get permissions from all backends and then remove model name from the permissions
             model_name = model._meta.model_name
-
-            # remove model name from the permissions
             forbidden_string = "_" + model_name
-            perms = set([p.replace(forbidden_string, '') for p in guardian_perms])
+            perms = set([p.replace(forbidden_string, '') for p in _user_get_all_permissions(user, obj)])
 
         # apply anon, owner and auth permissions
         if user.is_anonymous:

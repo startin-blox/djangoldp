@@ -1,16 +1,16 @@
 import threading
+import json
+import requests
 from urllib.parse import urlparse
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
+from django.conf import settings
 from rest_framework.utils import model_meta
 
 from djangoldp.models import Model, Follower
 from djangoldp.models import Activity as ActivityModel
 
-from .objects import *
-from .verbs import *
 import logging
 
 
@@ -298,7 +298,7 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
         for obj in query_set:
             condition = Model.is_external(obj) and getattr(obj, 'allow_create_backlink', False)
             if action == "post_add":
-                condition = condition and not obj.is_backlink
+                condition = condition and not getattr(obj, 'is_backlink', True)
 
             if condition:
                 targets.append({
