@@ -59,8 +59,9 @@ class JobOffer(Model):
 
 class Conversation(models.Model):
     description = models.CharField(max_length=255, blank=True, null=True)
-    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
-    peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_conv")
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_conv",
+                                  on_delete=models.DO_NOTHING)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
@@ -83,7 +84,7 @@ class Resource(Model):
 
 class UserProfile(Model):
     description = models.CharField(max_length=255, blank=True, null=True)
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='userprofile')
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='userprofile', on_delete=models.CASCADE)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
@@ -95,7 +96,7 @@ class UserProfile(Model):
 class Message(models.Model):
     text = models.CharField(max_length=255, blank=True, null=True)
     conversation = models.ForeignKey(Conversation, on_delete=models.DO_NOTHING)
-    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
@@ -172,8 +173,9 @@ class Task(models.Model):
 
 class Post(Model):
     content = models.CharField(max_length=255)
-    author = models.ForeignKey(UserProfile, blank=True, null=True)
-    peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post")
+    author = models.ForeignKey(UserProfile, blank=True, null=True, on_delete=models.SET_NULL)
+    peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post",
+                                  on_delete=models.SET_NULL)
 
     class Meta(Model.Meta):
         auto_author = 'author'

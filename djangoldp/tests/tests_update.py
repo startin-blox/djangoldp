@@ -572,6 +572,7 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('userprofile', response.data)
+        self.assertIsNotNone(response.data['userprofile'])
 
     def test_m2m_user_link_remove_existing_link(self):
         ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')

@@ -1,6 +1,5 @@
 from copy import copy
 
-from django.conf import settings
 from djangoldp.activities import errors
 from djangoldp.activities.objects import ALLOWED_TYPES, Object, Actor
 

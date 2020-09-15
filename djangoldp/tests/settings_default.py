@@ -14,6 +14,8 @@ INSTALLED_APPS=('django.contrib.auth',
                'django.contrib.contenttypes',
                'django.contrib.sessions',
                'django.contrib.admin',
+               'django.contrib.messages',
+               'django.contrib.staticfiles',
                'guardian',
                'djangoldp',
                'djangoldp.tests',
@@ -32,10 +34,36 @@ REST_FRAMEWORK = {
 
 AUTH_USER_MODEL='tests.User'
 ANONYMOUS_USER_NAME = None
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
 AUTHENTICATION_BACKENDS=(
    'django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend')
 
 ROOT_URLCONF='djangoldp.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
 LDP_RDF_CONTEXT={
    "@context": {

@@ -328,6 +328,20 @@ class Save(TestCase):
         saved_post = Post.objects.get(pk=1)
         self.assertEqual(saved_post.urlid, "http://happy-dev.fr/posts/1/")
 
+    def test_save_invalid_nested_user(self):
+        body = {
+            '@id': "./",
+            'content': "post update",
+            'peer_user': {'none': None},
+            '@context': {
+                "@vocab": "http://happy-dev.fr/owl/#",
+            }
+        }
+
+        response = self.client.post('/posts/', data=json.dumps(body),
+                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 400)
+
     def test_nested_container_user_federated(self):
         project = Project.objects.create()
         body = {
