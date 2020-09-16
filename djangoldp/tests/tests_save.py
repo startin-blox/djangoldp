@@ -284,7 +284,7 @@ class Save(TestCase):
                          "http://testserver/resources/{}/".format(resource.pk))
         self.assertEqual(response.data['title'], "new job")
 
-    # Todo : why this test works without giving the parent (eg invoice) but test_nested_container_ter not working ?
+
     def test_nested_container_bis(self):
         invoice = Invoice.objects.create()
         body = {
@@ -299,14 +299,13 @@ class Save(TestCase):
                          "http://happy-dev.fr/invoices/{}/".format(invoice.pk))
         self.assertEqual(response.data['title'], "new batch")
 
-    # Todo : why this test doesn't work without giving the parent (eg invoice) but test_nested_container_bis is working ?
     def test_nested_container_ter(self):
         circle = Circle.objects.create()
         body = {
-            'user' : { # Todo : Should not be mandatory
+            'user' : {
                 "username" : "hubl-workaround-493"
             },
-            'circle' : {}, # Todo : Should not be mandatory
+            # 'circle' : {},
             '@context': {
                 "@vocab": "http://happy-dev.fr/owl/#",
             }
@@ -317,7 +316,8 @@ class Save(TestCase):
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['circle']['@id'],
-                         "http://testserver/circles/{}/".format(circle.pk))
+                     "http://testserver/circles/{}/".format(circle.pk))
+
 
     def test_nested_container_federated(self):
         resource = Resource.objects.create()

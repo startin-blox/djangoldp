@@ -150,6 +150,7 @@ class Post(Model):
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
 
+
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     date = models.DateField(blank=True, null=True)
@@ -165,8 +166,7 @@ class Circle(Model):
     name = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, blank=True)
     team = models.ManyToManyField(settings.AUTH_USER_MODEL, through="CircleMember", blank=True)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING,
-                              null=True, blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING, null=True, blank=True)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
@@ -197,7 +197,6 @@ class CircleMember(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
         unique_together = ['user', 'circle']
-        # serializer_fields = ['@id', 'user', 'circle']
         rdf_type = 'hd:circlemember'
 
 

@@ -19,4 +19,3 @@ class TestTemp(TestCase):
     def tearDown(self):
         pass
 
-
