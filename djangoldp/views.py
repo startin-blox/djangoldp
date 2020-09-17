@@ -381,6 +381,10 @@ class LDPViewSet(LDPViewSetGenerator):
             '@id': {'lookup_field': lookup_field}},
                      'depth': getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0)),
                      'extra_fields': self.nested_fields}
+        if self.fields:
+            meta_args['fields'] = self.fields
+        else:
+            meta_args['exclude'] = Model.get_meta(self.model, 'serializer_fields_exclude') or ()
         return self.build_serializer(meta_args, 'Read')
 
     def build_write_serializer(self):
@@ -390,14 +394,15 @@ class LDPViewSet(LDPViewSetGenerator):
             '@id': {'lookup_field': lookup_field}},
                      'depth': 10,
                      'extra_fields': self.nested_fields}
-        return self.build_serializer(meta_args, 'Write')
-
-    def build_serializer(self, meta_args, name_prefix):
-        # create the Meta class to associate to LDPSerializer, using meta_args param
         if self.fields:
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = self.exclude or Model.get_meta(self.model, 'serializer_fields_exclude') or ()
+        return self.build_serializer(meta_args, 'Write')
+
+    def build_serializer(self, meta_args, name_prefix):
+        # create the Meta class to associate to LDPSerializer, using meta_args param
+
         meta_class = type('Meta', (), meta_args)
 
         from djangoldp.serializers import LDPSerializer
