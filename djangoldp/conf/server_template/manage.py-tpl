@@ -5,7 +5,7 @@ from djangoldp.conf import settings as ldpsettings
 
 if __name__ == "__main__":
 
-    ldpsettings.configure()
+    ldpsettings.configure('settings.yml')
 
     try:
         from django.core.management import execute_from_command_line

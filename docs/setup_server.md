@@ -36,7 +36,7 @@ You can now log on `http://localhost:8000/admin/` and manage the LDP sources.
 
 ## Configure your LDP server
 
-The server comes with a default `config.yml` you can customize.
+The server comes with a default `settings.yml` you can customize.
 
 It contains 3 main sections:
 
@@ -87,7 +87,7 @@ MIDDLEWARE = []
 MYPACKAGE_VAR = 'MY_DEFAULT_VAR'
 ```
 
-Reference it in the project `config.yml`:
+Reference it in the project `settings.yml`:
 ```
 ldppackages:
   - mypkg
@@ -118,9 +118,9 @@ Develop core and package all along:
 # pip install -e djangoldp[dev]
 ```
 
-Then start a new djangoldp server with the matching config.yml:
+Then start a new djangoldp server with the matching settings.yml:
 ```
 ldppackages:
-  - djangoldp-account
+  - djangoldp_account
 [...]
 ```

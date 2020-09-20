@@ -17,10 +17,11 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def configure():
+def configure(filename='settings.yml'):
+    """Helper function to configure django from LDPSettings."""
 
     # ref: https://docs.djangoproject.com/fr/2.2/topics/settings/#custom-default-settings
-    settings = LDPSettings('config.yml')
+    settings = LDPSettings(path=filename)
     django_settings.configure(settings)     # gives a LazySettings
 
 
