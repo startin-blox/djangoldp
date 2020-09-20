@@ -4,7 +4,7 @@ import yaml
 import django
 from django.conf import settings as django_settings
 from djangoldp.conf.settings import LDPSettings
-from djangoldp.tests.settings_yaml import yaml_config
+from djangoldp.tests.settings_default import yaml_config
 
 # override config loading
 ldpsettings = LDPSettings("")
