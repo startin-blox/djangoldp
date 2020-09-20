@@ -49,4 +49,5 @@ server:
   USE_ETAGS: true
   DEFAULT_CONTENT_TYPE: text/html
   FILE_CHARSET: utf-8
+  SEND_BACKLINKS: False
 """
