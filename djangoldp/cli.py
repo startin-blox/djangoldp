@@ -81,7 +81,7 @@ def install():
 
     try:
         # load dependencies from config file
-        path = Path.cwd() / 'config.yml'
+        path = Path.cwd() / 'settings.yml'
         with open(path, 'r') as f:
             dependencies = yaml.safe_load(f).get('dependencies', [])
 
