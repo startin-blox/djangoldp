@@ -37,8 +37,10 @@ def startproject(name):
 
         # wrap the default django-admin startproject command
         # this call import django settings and configure it
-        # see: https://docs.djangoproject.com/fr/1.11/topics/settings/#calling-django-setup-is-required-for-standalone-django-usage
-        management.call_command('startproject', name, directory, template=template, name=['config.yml'])
+        # see: https://docs.djangoproject.com/fr/2.2/topics/settings/#calling-django-setup-is-required-for-standalone-django-usage
+        # see: https://github.com/django/django/blob/stable/2.2.x/django/core/management/templates.py#L108
+        # fix: in 2.2 gabarit files options has been renamed: https://github.com/django/django/blob/stable/2.2.x/django/core/management/templates.py#L53
+        management.call_command('startproject', name, directory, template=template, files=['settings.yml'])
 
     except FileExistsError:
         click.echo(f'Error: the folder {directory} already exists')
