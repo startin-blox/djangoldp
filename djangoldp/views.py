@@ -358,7 +358,6 @@ class LDPViewSet(LDPViewSetGenerator):
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
     filter_backends = [LocalObjectOnContainerPathBackend]
-    write_serializer_class = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -369,10 +368,8 @@ class LDPViewSet(LDPViewSetGenerator):
                 if hasattr(p, 'filter_class') and p.filter_class:
                     self.filter_backends.append(p.filter_class)
 
-        if self.serializer_class is None:
-            self.serializer_class = self.build_read_serializer()
-        if self.write_serializer_class is None:
-            self.write_serializer_class = self.build_write_serializer()
+        self.serializer_class = self.build_read_serializer()
+        self.write_serializer_class = self.build_write_serializer()
 
     def build_read_serializer(self):
         model_name = self.model._meta.object_name.lower()
@@ -402,11 +399,14 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def build_serializer(self, meta_args, name_prefix):
         # create the Meta class to associate to LDPSerializer, using meta_args param
-
         meta_class = type('Meta', (), meta_args)
 
         from djangoldp.serializers import LDPSerializer
-        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,),
+
+        if self.serializer_class is None:
+            self.serializer_class = LDPSerializer
+
+        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (self.serializer_class,),
                                    {'Meta': meta_class})
 
     def is_safe_create(self, user, validated_data, *args, **kwargs):
