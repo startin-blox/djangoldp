@@ -36,6 +36,7 @@ AUTH_USER_MODEL='tests.User'
 ANONYMOUS_USER_NAME = None
 
 MIDDLEWARE = [
+    'django_cookies_samesite.middleware.CookiesSameSite',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

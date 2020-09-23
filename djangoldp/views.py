@@ -52,6 +52,7 @@ class JSONLDRenderer(JSONRenderer):
                 data["@context"] = settings.LDP_RDF_CONTEXT
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
+
 # https://github.com/digitalbazaar/pyld
 class JSONLDParser(JSONParser):
     media_type = 'application/ld+json'
