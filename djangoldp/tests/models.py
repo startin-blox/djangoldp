@@ -1,12 +1,14 @@
-import json
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import BinaryField, DateField
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.datetime_safe import date
 
 from djangoldp.fields import LDPUrlField
 from djangoldp.models import Model
+from djangoldp.permissions import LDPPermissions
 
 
 class User(AbstractUser, Model):
@@ -234,3 +236,8 @@ class DateChild(Model):
 
     class Meta(Model.Meta):
         rdf_type = 'hd:datechild'
+
+
+@receiver(post_save, sender=User)
+def update_perms(sender, instance, created, **kwargs):
+    LDPPermissions.invalidate_cache()

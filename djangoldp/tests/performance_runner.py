@@ -16,7 +16,8 @@ from django.test.runner import DiscoverRunner
 test_runner = DiscoverRunner(verbosity=1)
 
 failures = test_runner.run_tests([
-    'djangoldp.tests.tests_performance',
+    # 'djangoldp.tests.tests_performance',
+    'djangoldp.tests.tests_perf_get'
 ])
 if failures:
     sys.exit(failures)

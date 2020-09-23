@@ -27,16 +27,16 @@ class TestPerformance(APITestCase):
         return pr
 
     def test_get_container(self):
-        pr = self._enable_new_profiler()
+        # pr = self._enable_new_profiler()
         response = self.client.get('/projects/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         print('counted ' + str(len(response.data['ldp:contains'])) + ' projects')
-        pr.disable()
+        # pr.disable()
         #self._print_stats(pr)
 
-        pr = self._enable_new_profiler()
+        # pr = self._enable_new_profiler()
         response = self.client.get('/users/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         print('counted ' + str(len(response.data['ldp:contains'])) + ' users')
-        pr.disable()
+        # pr.disable()
         #self._print_stats(pr)

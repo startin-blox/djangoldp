@@ -409,36 +409,36 @@ class LDPViewSet(LDPViewSetGenerator):
         '''
         return True
 
-    def list(self, request, *args, **kwargs):
-        t1 = time.time()
-        queryset = self.get_queryset()
-        t2 = time.time()
-        print('got queryset in ' + str(t2 - t1))
-
-        t1 = time.time()
-        queryset = self.filter_queryset(queryset)
-        t2 = time.time()
-        print('filtered queryset in ' + str(t2 - t1))
-
-        t1 = time.time()
-        page = self.paginate_queryset(queryset)
-        t2 = time.time()
-        print('paginated queryset in ' + str(t2-t1))
-        if page is not None:
-            t1 = time.time()
-            serializer = self.get_serializer(page, many=True)
-            paginated_response = self.get_paginated_response(serializer.data)
-            t2 = time.time()
-            print('paginated response in ' + str(t2-t1))
-
-            return paginated_response
-
-        t1 = time.time()
-        serializer = self.get_serializer(queryset, many=True)
-        response = Response(serializer.data)
-        t2 = time.time()
-        print('regular response in ' + str(t2-t1))
-        return response
+    # def list(self, request, *args, **kwargs):
+    #     t1 = time.time()
+    #     queryset = self.get_queryset()
+    #     t2 = time.time()
+    #     print('got queryset in ' + str(t2 - t1))
+    #
+    #     t1 = time.time()
+    #     queryset = self.filter_queryset(queryset)
+    #     t2 = time.time()
+    #     print('filtered queryset in ' + str(t2 - t1))
+    #
+    #     t1 = time.time()
+    #     page = self.paginate_queryset(queryset)
+    #     t2 = time.time()
+    #     print('paginated queryset in ' + str(t2-t1))
+    #     if page is not None:
+    #         t1 = time.time()
+    #         serializer = self.get_serializer(page, many=True)
+    #         paginated_response = self.get_paginated_response(serializer.data)
+    #         t2 = time.time()
+    #         print('paginated response in ' + str(t2-t1))
+    #
+    #         return paginated_response
+    #
+    #     t1 = time.time()
+    #     serializer = self.get_serializer(queryset, many=True)
+    #     response = Response(serializer.data)
+    #     t2 = time.time()
+    #     print('regular response in ' + str(t2-t1))
+    #     return response
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)

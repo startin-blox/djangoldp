@@ -1,8 +1,8 @@
+import time
+from django.contrib.auth.models import _user_get_all_permissions
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
 from rest_framework.permissions import DjangoObjectPermissions
-from django.contrib.auth.models import _user_get_all_permissions
-from guardian.shortcuts import get_user_perms
 
 
 class LDPPermissions(DjangoObjectPermissions):
@@ -16,6 +16,13 @@ class LDPPermissions(DjangoObjectPermissions):
     authenticated_perms = ['inherit']
     owner_perms = ['inherit']
 
+    perms_cache = {}
+    with_cache = False
+
+    @classmethod
+    def invalidate_cache(cls):
+        cls.perms_cache = {}
+
     def user_permissions(self, user, obj_or_model, obj=None):
         """
             Filter user permissions for a model class
@@ -27,6 +34,13 @@ class LDPPermissions(DjangoObjectPermissions):
         else:
             obj = obj_or_model
             model = obj_or_model.__class__
+
+        model_name = model._meta.model_name
+        user_key = 'None' if user is None else user.id
+        obj_key = 'None' if obj is None else obj.id
+        perms_cache_key = 'User{}{}{}'.format(user_key, model_name, obj_key)
+        if self.with_cache and perms_cache_key in self.perms_cache:
+            return self.perms_cache[perms_cache_key]
 
         # Get Anonymous permissions from Model's Meta. If not found use default
         anonymous_perms = getattr(model._meta, 'anonymous_perms', self.anonymous_perms)
@@ -43,21 +57,16 @@ class LDPPermissions(DjangoObjectPermissions):
         if 'inherit' in owner_perms:
             owner_perms = owner_perms + list(set(authenticated_perms) - set(owner_perms))
 
+
         # return permissions - using set to avoid duplicates
         # apply Django-Guardian (object-level) permissions
         perms = set()
 
         if obj is not None and not user.is_anonymous:
-
-            '''guardian_perms = get_user_perms(user, obj)
->>>>>>> update: new tests for permissions
+            # get permissions from all backends and then remove model name from the permissions
             model_name = model._meta.model_name
             forbidden_string = "_" + model_name
-<<<<<<< HEAD
             perms = set([p.replace(forbidden_string, '') for p in _user_get_all_permissions(user, obj)])
-=======
-            perms = set([p.replace(forbidden_string, '') for p in guardian_perms])'''
-            perms = _user_get_all_permissions(user, obj)
 
         # apply anon, owner and auth permissions
         if user.is_anonymous:
@@ -73,7 +82,10 @@ class LDPPermissions(DjangoObjectPermissions):
             else:
                 perms = perms.union(set(authenticated_perms))
 
-        return list(perms)
+        self.perms_cache[perms_cache_key] = list(perms)
+
+        return self.perms_cache[perms_cache_key]
+        # return list(perms)
 
     def filter_user_perms(self, user, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP

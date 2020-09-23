@@ -2,6 +2,7 @@ import json
 import uuid
 from urllib.parse import urlparse
 from django.conf import settings
+from django.contrib.auth.models import User, AbstractUser
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -12,6 +13,7 @@ from django.dispatch import receiver
 from django.urls import reverse_lazy, get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
+from guardian.models import UserObjectPermissionBase
 from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
@@ -342,3 +344,8 @@ if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
         return webid
 
     get_user_model().webid = webid
+
+
+@receiver(post_save, sender=User)
+def update_perms(sender, instance, created, **kwargs):
+    LDPPermissions.invalidate_cache()
