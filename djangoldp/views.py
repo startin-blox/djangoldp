@@ -1,10 +1,12 @@
 import json
+import time
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import re_path, include
+
+from django.conf.urls import include, re_path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
-from django.urls import get_resolver
+from django.urls.resolvers import get_resolver
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -49,6 +51,7 @@ class JSONLDRenderer(JSONRenderer):
             else:
                 data["@context"] = settings.LDP_RDF_CONTEXT
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
+
 
 # https://github.com/digitalbazaar/pyld
 class JSONLDParser(JSONParser):
@@ -333,18 +336,7 @@ class LDPViewSetGenerator(ModelViewSet):
 
         # append nested fields to the urls list
         for field in kwargs.get('nested_fields') or cls.nested_fields:
-            # the nested property may have a custom viewset defined
-            try:
-                nested_model = kwargs['model']._meta.get_field(field).related_model
-            except FieldDoesNotExist:
-                nested_model = getattr(kwargs['model'], field).field.model
-
-            if hasattr(nested_model, 'get_view_set'):
-                kwargs['view_set'] = nested_model.get_view_set()
-                urls_fct = kwargs['view_set'].nested_urls # our custom view_set may override nested_urls
-            else:
-                urls_fct = cls.nested_urls
-            urls.append(re_path('^' + detail_expr + field + '/', urls_fct(field, **kwargs)))
+            urls.append(re_path('^' + detail_expr + field + '/', cls.nested_urls(field, **kwargs)))
 
         return include(urls)
 
@@ -416,6 +408,37 @@ class LDPViewSet(LDPViewSetGenerator):
         :return: True if the operation should be permitted, False to return a 403 response
         '''
         return True
+
+    # def list(self, request, *args, **kwargs):
+    #     t1 = time.time()
+    #     queryset = self.get_queryset()
+    #     t2 = time.time()
+    #     print('got queryset in ' + str(t2 - t1))
+    #
+    #     t1 = time.time()
+    #     queryset = self.filter_queryset(queryset)
+    #     t2 = time.time()
+    #     print('filtered queryset in ' + str(t2 - t1))
+    #
+    #     t1 = time.time()
+    #     page = self.paginate_queryset(queryset)
+    #     t2 = time.time()
+    #     print('paginated queryset in ' + str(t2-t1))
+    #     if page is not None:
+    #         t1 = time.time()
+    #         serializer = self.get_serializer(page, many=True)
+    #         paginated_response = self.get_paginated_response(serializer.data)
+    #         t2 = time.time()
+    #         print('paginated response in ' + str(t2-t1))
+    #
+    #         return paginated_response
+    #
+    #     t1 = time.time()
+    #     serializer = self.get_serializer(queryset, many=True)
+    #     response = Response(serializer.data)
+    #     t2 = time.time()
+    #     print('regular response in ' + str(t2-t1))
+    #     return response
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)

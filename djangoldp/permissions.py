@@ -1,7 +1,8 @@
+import time
+from django.contrib.auth.models import _user_get_all_permissions
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
 from rest_framework.permissions import DjangoObjectPermissions
-from django.contrib.auth.models import _user_get_all_permissions
 
 
 class LDPPermissions(DjangoObjectPermissions):
@@ -15,17 +16,41 @@ class LDPPermissions(DjangoObjectPermissions):
     authenticated_perms = ['inherit']
     owner_perms = ['inherit']
 
+    perms_cache = {
+        'time': time.time()
+    }
+    with_cache = False
+
+    @classmethod
+    def invalidate_cache(cls):
+        cls.perms_cache = {
+            'time': time.time()
+        }
+
+    @classmethod
+    def refresh_cache(cls):
+        if time.time() - cls.perms_cache['time'] > 5:
+            cls.invalidate_cache()
+
     def user_permissions(self, user, obj_or_model, obj=None):
         """
             Filter user permissions for a model class
         """
 
         # this may be a permission for the model class, or an instance
+        self.refresh_cache()
         if isinstance(obj_or_model, ModelBase):
             model = obj_or_model
         else:
             obj = obj_or_model
             model = obj_or_model.__class__
+
+        model_name = model._meta.model_name
+        user_key = 'None' if user is None else user.id
+        obj_key = 'None' if obj is None else obj.id
+        perms_cache_key = 'User{}{}{}'.format(user_key, model_name, obj_key)
+        if self.with_cache and perms_cache_key in self.perms_cache:
+            return self.perms_cache[perms_cache_key]
 
         # Get Anonymous permissions from Model's Meta. If not found use default
         anonymous_perms = getattr(model._meta, 'anonymous_perms', self.anonymous_perms)
@@ -66,7 +91,10 @@ class LDPPermissions(DjangoObjectPermissions):
             else:
                 perms = perms.union(set(authenticated_perms))
 
-        return list(perms)
+        self.perms_cache[perms_cache_key] = list(perms)
+
+        return self.perms_cache[perms_cache_key]
+        # return list(perms)
 
     def filter_user_perms(self, user, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP

@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import resolve, Resolver404, get_script_prefix
-from django.urls import get_resolver
+from django.urls.resolvers import get_resolver
 from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
@@ -161,9 +161,6 @@ class ContainerSerializer(LDListMixin, ListSerializer):
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
-    def create(self, validated_data):
-        return super().create(validated_data)
-
     def to_internal_value(self, data):
         try:
             return super().to_internal_value(data[self.parent.url_field_name])
@@ -188,12 +185,6 @@ class JsonLdField(HyperlinkedRelatedField):
             self.lookup_url_kwarg = lookup_field
         except MultiValueDictKeyError:
             pass
-
-    def to_internal_value(self, data):
-        return super().to_internal_value(data)
-
-    def get_value(self, dictionary):
-        return super().get_value(dictionary)
 
 
 class JsonLdRelatedField(JsonLdField):
@@ -237,9 +228,6 @@ class JsonLdIdentityField(JsonLdField):
             return super().to_internal_value(data[self.parent.url_field_name])
         except KeyError:
             return super().to_internal_value(data)
-
-    def get_value(self, dictionary):
-        return super().get_value(dictionary)
 
     def to_representation(self, value: Any) -> Any:
         '''returns hyperlink representation of identity field'''
@@ -301,9 +289,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                     ['view', 'change', 'control', 'delete'])
 
         return data
-
-    def build_field(self, field_name, info, model_class, nested_depth):
-        return super().build_field(field_name, info, model_class, nested_depth)
 
     def build_property_field(self, field_name, model_class):
         class JSonLDPropertyField(ReadOnlyField):
