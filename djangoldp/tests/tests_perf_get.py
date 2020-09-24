@@ -17,7 +17,7 @@ class TestPerformanceGET(APITestCase):
     test_volume = 100
     result_line = []
     withAuth = True
-    withPermsCache = False
+    withPermsCache = True
 
     @classmethod
     def setUpClass(cls):
@@ -34,6 +34,8 @@ class TestPerformanceGET(APITestCase):
                                                          password='glass onion')
             cls.posts.append(Post.objects.create(content="content"))
             cls.skills.append(Skill.objects.create(title="Java", obligatoire="ok", slug=str(i)))
+
+        for i in range(cls.test_volume):
             job = JobOffer.objects.create(title="job", slug=str(i))
             for skill in cls.skills:
                 job.skills.add(skill)

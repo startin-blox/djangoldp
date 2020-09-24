@@ -16,12 +16,21 @@ class LDPPermissions(DjangoObjectPermissions):
     authenticated_perms = ['inherit']
     owner_perms = ['inherit']
 
-    perms_cache = {}
+    perms_cache = {
+        'time': time.time()
+    }
     with_cache = False
 
     @classmethod
     def invalidate_cache(cls):
-        cls.perms_cache = {}
+        cls.perms_cache = {
+            'time': time.time()
+        }
+
+    @classmethod
+    def refresh_cache(cls):
+        if time.time() - cls.perms_cache['time'] > 5:
+            cls.invalidate_cache()
 
     def user_permissions(self, user, obj_or_model, obj=None):
         """
@@ -29,6 +38,7 @@ class LDPPermissions(DjangoObjectPermissions):
         """
 
         # this may be a permission for the model class, or an instance
+        self.refresh_cache()
         if isinstance(obj_or_model, ModelBase):
             model = obj_or_model
         else:
@@ -56,7 +66,6 @@ class LDPPermissions(DjangoObjectPermissions):
         # Extend Owner if inherit is given
         if 'inherit' in owner_perms:
             owner_perms = owner_perms + list(set(authenticated_perms) - set(owner_perms))
-
 
         # return permissions - using set to avoid duplicates
         # apply Django-Guardian (object-level) permissions
