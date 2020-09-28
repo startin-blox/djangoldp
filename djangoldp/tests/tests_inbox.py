@@ -52,9 +52,14 @@ class TestsInbox(APITestCase):
         self.assertEquals(len(activities), activity_len)
         self.assertIn(response["Location"], activities.values_list('urlid', flat=True))
 
+    def _assert_follower_created(self, local_urlid, external_urlid):
+        existing_followers = Follower.objects.filter(object=local_urlid).values_list('follower', flat=True)
+        self.assertTrue(external_urlid in existing_followers)
+
     #
     #   CREATE ACTIVITY
     #
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_create_activity_circle(self):
         obj = {
             "@type": "hd:circle",
@@ -76,6 +81,10 @@ class TestsInbox(APITestCase):
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self.assertEqual(circles[0].owner, self.user)
         self._assert_activity_created(response)
+
+        # assert external circle member now following local user
+        self.assertEquals(Follower.objects.count(), 1)
+        self._assert_follower_created(self.user.urlid, "https://distant.com/circles/1/")
 
     # sender has sent a circle with a local user that doesn't exist
     def test_create_activity_circle_local(self):
@@ -104,6 +113,7 @@ class TestsInbox(APITestCase):
     #   ADD ACTIVITIES
     #
     # project model has a direct many-to-many with User
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_add_activity_project(self):
         obj = {
             "@type": "hd:project",
@@ -124,18 +134,26 @@ class TestsInbox(APITestCase):
         self.assertIn("https://distant.com/projects/1/", user_projects.values_list('urlid', flat=True))
         self._assert_activity_created(response)
 
+        # assert external circle member now following local user
+        self.assertEquals(Follower.objects.count(), 1)
+        self._assert_follower_created(self.user.urlid, "https://distant.com/projects/1/")
+
     # circle model has a many-to-many with user, through an intermediate model
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_add_activity_circle(self):
+        ext_circlemember_urlid = "https://distant.com/circle-members/1/"
+        ext_circle_urlid = "https://distant.com/circles/1/"
+
         obj = {
             "@type": "hd:circlemember",
-            "@id": "https://distant.com/circle-members/1/",
+            "@id": ext_circlemember_urlid,
             "user": {
               "@type": "foaf:user",
               "@id": self.user.urlid
             },
             "circle": {
                 "@type": "hd:circle",
-                "@id": "https://distant.com/circles/1/"
+                "@id": ext_circle_urlid
             }
         }
         payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
@@ -149,15 +167,19 @@ class TestsInbox(APITestCase):
         user_circles = self.user.circles.all()
         self.assertEquals(len(circles), 1)
         self.assertEquals(len(user_circles), 1)
-        self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
-        self.assertIn("https://distant.com/circle-members/1/", user_circles.values_list('urlid', flat=True))
+        self.assertIn(ext_circle_urlid, circles.values_list('urlid', flat=True))
+        self.assertIn(ext_circlemember_urlid, user_circles.values_list('urlid', flat=True))
         self._assert_activity_created(response)
+
+        # assert external circle member now following local user
+        self.assertEquals(Follower.objects.count(), 1)
+        self._assert_follower_created(self.user.urlid, ext_circlemember_urlid)
 
     # test sending an add activity when the backlink already exists
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_add_activity_object_already_added(self):
         circle = Circle.objects.create(urlid="https://distant.com/circles/1/")
-        CircleMember.objects.create(urlid="https://distant.com/circle-members/1/", circle=circle, user=self.user)
+        cm = CircleMember.objects.create(urlid="https://distant.com/circle-members/1/", circle=circle, user=self.user)
 
         obj = {
             "@type": "hd:circlemember",
@@ -188,6 +210,10 @@ class TestsInbox(APITestCase):
         self.assertIn("https://distant.com/circle-members/1/", user_circles.values_list('urlid', flat=True))
         self._assert_activity_created(response)
         self.assertEqual(Activity.objects.count(), prior_count + 1)
+
+        # assert that followers exist for the external urlids
+        self.assertEquals(Follower.objects.count(), 1)
+        self._assert_follower_created(self.user.urlid, cm.urlid)
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/250
     def test_add_activity_str_parameter(self):

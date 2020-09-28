@@ -159,7 +159,24 @@ class InboxView(APIView):
 
         # get or create the backlink
         try:
-            return Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+            external = Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+
+            # creating followers, to inform distant resource of changes to local connection
+            if Model.is_external(external):
+                # this is handled with Followers, where each local child of the branch is followed by its external parent
+                for item in obj.items():
+                    urlid = item[1]
+                    if isinstance(item[1], dict):
+                        urlid = urlid['@id']
+                    if not isinstance(urlid, str):
+                        continue
+
+                    if not Model.is_external(urlid):
+                        ActivityPubService.save_follower_for_target(external.urlid, urlid)
+
+            return external
+
+        # this will be raised when the object was local, but it didn't exist
         except ObjectDoesNotExist:
             raise Http404()
 
@@ -194,6 +211,7 @@ class InboxView(APIView):
                 attr = getattr(target, field_name)
                 if not attr.filter(urlid=backlink.urlid).exists():
                     attr.add(backlink)
+                    ActivityPubService.save_follower_for_target(backlink.urlid, target.urlid)
 
     def handle_remove_activity(self, activity, **kwargs):
         '''
