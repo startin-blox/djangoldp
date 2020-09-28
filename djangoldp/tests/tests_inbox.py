@@ -306,9 +306,13 @@ class TestsInbox(APITestCase):
     #   REMOVE & DELETE ACTIVITIES
     #
     # project model has a direct many-to-many with User
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_remove_activity_project_using_origin(self):
         project = Project.objects.create(urlid="https://distant.com/projects/1/")
         self.user.projects.add(project)
+        Follower.objects.create(object=self.user.urlid, inbox='https://distant.com/inbox/',
+                                follower=project.urlid, is_backlink=True)
+        prior_activity_count = Activity.objects.count()
 
         obj = {
             "@type": "hd:project",
@@ -326,7 +330,8 @@ class TestsInbox(APITestCase):
         self.assertEquals(len(projects), 1)
         self.assertEquals(len(user_projects), 0)
         self.assertIn("https://distant.com/projects/1/", projects.values_list('urlid', flat=True))
-        self._assert_activity_created(response)
+        self._assert_activity_created(response, prior_activity_count + 2)
+        self.assertEqual(Follower.objects.count(), 0)
 
     # TODO: test_remove_activity_project_using_target
 
@@ -374,9 +379,12 @@ class TestsInbox(APITestCase):
         self.assertEqual(Activity.objects.all().count(), prior_count + 1)
 
     # Delete CircleMember
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
     def test_delete_activity_circle_using_origin(self):
         circle = Circle.objects.create(urlid="https://distant.com/circles/1/", allow_create_backlink=False)
-        CircleMember.objects.create(urlid="https://distant.com/circle-members/1/",circle=circle, user=self.user)
+        cm = CircleMember.objects.create(urlid="https://distant.com/circle-members/1/",circle=circle, user=self.user)
+        Follower.objects.create(object=self.user.urlid, inbox='https://distant.com/inbox/',
+                                follower=cm.urlid, is_backlink=True)
 
         obj = {
             "@type": "hd:circlemember",
@@ -400,9 +408,11 @@ class TestsInbox(APITestCase):
         circles = Circle.objects.all()
         user_circles = self.user.circles.all()
         self.assertEquals(len(circles), 1)
+        self.assertEquals(CircleMember.objects.count(), 0)
         self.assertEquals(len(user_circles), 0)
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self._assert_activity_created(response)
+        self.assertEqual(Follower.objects.count(), 0)
 
     # TODO: test_delete_activity_circle_using_target
 

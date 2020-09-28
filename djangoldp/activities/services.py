@@ -260,6 +260,15 @@ class ActivityPubService(object):
                 Follower.objects.create(object=obj_id, inbox=ActivityPubService.discover_inbox(urlid),
                                         follower=urlid, is_backlink=True)
 
+    @classmethod
+    def remove_followers_for_resource(cls, external_urlid, obj_id):
+        '''removes all followers which match the follower urlid, obj urlid combination'''
+        inbox = ActivityPubService.discover_inbox(external_urlid)
+
+        for follower in Follower.objects.filter(object=obj_id, follower=external_urlid,
+                                                inbox=inbox, is_backlink=True):
+            follower.delete()
+
 
 @receiver([post_save])
 def check_save_for_backlinks(sender, instance, created, **kwargs):
@@ -362,7 +371,4 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
             elif action == "post_remove" or action == "pre_clear":
                 for target in targets:
                     ActivityPubService.send_remove_activity(BACKLINKS_ACTOR, obj, target)
-                    inbox = ActivityPubService.discover_inbox(target['@id'])
-                    for follower in Follower.objects.filter(object=obj['@id'], follower=target['@id'],
-                                                            inbox=inbox, is_backlink=True):
-                        follower.delete()
+                    ActivityPubService.remove_followers_for_resource(target['@id'], obj['@id'])

@@ -239,6 +239,7 @@ class InboxView(APIView):
                 attr = getattr(origin, field_name)
                 if attr.filter(urlid=object_instance.urlid).exists():
                     attr.remove(object_instance)
+                    ActivityPubService.remove_followers_for_resource(origin.urlid, object_instance.urlid)
 
     def handle_create_or_update_activity(self, activity, **kwargs):
         '''
@@ -264,6 +265,10 @@ class InboxView(APIView):
         object_instance.allow_create_backlink = False
         object_instance.save()
         object_instance.delete()
+        urlid = getattr(object_instance, 'urlid', None)
+        if urlid is not None:
+            for follower in Follower.objects.filter(follower=urlid):
+                follower.delete()
 
     def handle_follow_activity(self, activity, **kwargs):
         '''
