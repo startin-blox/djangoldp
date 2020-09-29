@@ -78,30 +78,3 @@ class TestTemp(TestCase):
     #                                data=json.dumps(body2),
     #                                content_type='application/ld+json')
 
-    def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
-        user = get_user_model().objects.create(username="alex", password="test")
-        profile = UserProfile.objects.create(user=user, description="user description")
-        body = {
-                '@id': '/users/{}/'.format(user.pk),
-                "first_name": "Alexandre",
-                "last_name": "Bourlier",
-                "username": "alex",
-                'userprofile': {
-                    '@id': "http://happy-dev.fr/userprofiles/{}/".format(profile.pk),
-                    'description': "user update"
-                },
-                '@context': {
-                    "@vocab": "http://happy-dev.fr/owl/#",
-                }
-            }
-
-        response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
-                                   content_type='application/ld+json')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('userprofile', response.data)
-
-        response = self.client.get('/userprofiles/{}/'.format(profile.pk),
-                                   content_type='application/ld+json')
-        self.assertEqual(response.data['description'], "user update")
-
-
