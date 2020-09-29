@@ -538,7 +538,7 @@ class LDPViewSet(LDPViewSetGenerator):
             if auto_author_field is not None:
                 kwargs[self.model._meta.auto_author] = getattr(self.request.user, auto_author_field, None)
             else:
-                kwargs[self.model._meta.auto_author] = self.request.user
+                kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
         serializer.save(**kwargs)
 
     def get_queryset(self, *args, **kwargs):
