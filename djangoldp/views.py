@@ -159,7 +159,24 @@ class InboxView(APIView):
 
         # get or create the backlink
         try:
-            return Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+            external = Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+
+            # creating followers, to inform distant resource of changes to local connection
+            if Model.is_external(external):
+                # this is handled with Followers, where each local child of the branch is followed by its external parent
+                for item in obj.items():
+                    urlid = item[1]
+                    if isinstance(item[1], dict):
+                        urlid = urlid['@id']
+                    if not isinstance(urlid, str):
+                        continue
+
+                    if not Model.is_external(urlid):
+                        ActivityPubService.save_follower_for_target(external.urlid, urlid)
+
+            return external
+
+        # this will be raised when the object was local, but it didn't exist
         except ObjectDoesNotExist:
             raise Http404()
 
@@ -194,6 +211,7 @@ class InboxView(APIView):
                 attr = getattr(target, field_name)
                 if not attr.filter(urlid=backlink.urlid).exists():
                     attr.add(backlink)
+                    ActivityPubService.save_follower_for_target(backlink.urlid, target.urlid)
 
     def handle_remove_activity(self, activity, **kwargs):
         '''
@@ -221,6 +239,7 @@ class InboxView(APIView):
                 attr = getattr(origin, field_name)
                 if attr.filter(urlid=object_instance.urlid).exists():
                     attr.remove(object_instance)
+                    ActivityPubService.remove_followers_for_resource(origin.urlid, object_instance.urlid)
 
     def handle_create_or_update_activity(self, activity, **kwargs):
         '''
@@ -246,6 +265,10 @@ class InboxView(APIView):
         object_instance.allow_create_backlink = False
         object_instance.save()
         object_instance.delete()
+        urlid = getattr(object_instance, 'urlid', None)
+        if urlid is not None:
+            for follower in Follower.objects.filter(follower=urlid):
+                follower.delete()
 
     def handle_follow_activity(self, activity, **kwargs):
         '''
