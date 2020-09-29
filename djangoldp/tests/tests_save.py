@@ -318,7 +318,6 @@ class Save(TestCase):
         self.assertEqual(response.data['circle']['@id'],
                      "http://testserver/circles/{}/".format(circle.pk))
 
-
     def test_nested_container_federated(self):
         resource = Resource.objects.create()
         body = {
