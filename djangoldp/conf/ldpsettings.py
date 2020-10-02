@@ -172,6 +172,8 @@ class LDPSettings(object):
         # get default middlewares
         middlewares = getattr(global_settings, 'MIDDLEWARE')
 
+        print(middlewares)
+
         # explore packages looking for middleware to reference
         middlewares.extend(self.fetch('MIDDLEWARE'))
 
