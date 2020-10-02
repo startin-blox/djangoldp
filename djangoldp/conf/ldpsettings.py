@@ -45,8 +45,11 @@ class LDPSettings(object):
         """Load configuration from file."""
 
         if not self._config:
-            with open(self.path, 'r') as f:
-                self._config = yaml.safe_load(f)
+            try:
+                with open(self.path, 'r') as f:
+                    self._config = yaml.safe_load(f)
+            except FileNotFoundError:
+                logger.info('Starting project without configuration file')
 
         return self._config
 
@@ -55,40 +58,10 @@ class LDPSettings(object):
         """Set a dict has current configuration."""
         self._config = value
 
-    def fetch(self, attributes):
+    def build_settings(self, extend=['INSTALLED_APPS', 'MIDDLEWARE']):
         """
-        Explore packages looking for a list of attributes within the server configuration.
-        It returns all elements found and doesn't manage duplications or collisions.
-        """
-
-        attr = []
-        for pkg in self.DJANGOLDP_PACKAGES:
-            try:
-                # import from an installed package
-                mod = import_module(f'{pkg}.djangoldp_settings')
-                logger.debug(f'Settings found for {pkg} in a installed package')
-            except ModuleNotFoundError:
-                try:
-                    # import from a local packages in a subfolder (same name the template is built this way)
-                    mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
-                    logger.debug(f'Settings found for {pkg} in a local package')
-                except ModuleNotFoundError:
-                    logger.debug(f'No settings found for {pkg}')
-                    break
-
-            # looking for the attribute list in the module
-            try:
-                attr.extend(getattr(mod, attributes))
-                logger.debug(f'{attributes} found in local package {pkg}')
-            except NameError:
-                logger.info(f'No {attributes} found for package {pkg}')
-                pass
-
-        return attr
-
-    def build_settings(self):
-        """
-        Look for the parameter in config. Each step override the value of the previous key found.
+        Look for the parameters in multiple places.
+        Each step overrides the value of the previous key found. Except for "extend" list. Those value must be lists and all values found are added to these lists without managing duplications.
 
         Resolution order of the configuration:
           1. Core default settings
@@ -97,9 +70,19 @@ class LDPSettings(object):
           4. YAML config file
         """
 
+        # helper loop
+        def update_with(config):
+            for k, v in config.items():
+
+                if k in extend:
+                    settings[k].extend(v)
+
+                elif not k.startswith('_'):
+                    settings.update({k: v})
+
         # start from default core settings
         settings = global_settings.__dict__
-        logger.debug(f'building settings from core defaults')
+        logger.debug(f'Building settings from core defaults')
 
         # look settings from packages in the order they are given (local override installed)
         for pkg in self.DJANGOLDP_PACKAGES:
@@ -107,32 +90,32 @@ class LDPSettings(object):
             try:
                 # override with values from installed package
                 mod = import_module(f'{pkg}.djangoldp_settings')
-                settings.update({k: v for k, v in mod.__dict__.items() if not k.startswith('_')})
-                logger.debug(f'updating settings from installed package {pkg}')
+                update_with(mod.__dict__)
+                logger.debug(f'Updating settings from installed package {pkg}')
             except ModuleNotFoundError:
                 pass
 
             try:
                 # override with values from local package
                 mod = import_module(f'{pkg}.{pkg}.djangoldp_settings')
-                settings.update({k: v for k, v in mod.__dict__.items() if not k.startswith('_')})
-                logger.debug(f'updating settings from local package {pkg}')
+                update_with(mod.__dict__)
+                logger.debug(f'Updating settings from local package {pkg}')
             except ModuleNotFoundError:
                 pass
 
         # look in settings.py file in directory
         try:
             mod = import_module('settings')
-            settings.update({k: v for k, v in mod.__dict__.items() if not k.startswith('_')})
-            logger.debug(f'updating settings from local settings.py file')
+            update_with(mod.__dict__)
+            logger.debug(f'Updating settings from local settings.py file')
         except ModuleNotFoundError:
             pass
 
         # look in YAML config file 'server' section
         try:
             conf = self.config.get('server', {})
-            settings.update({k: v for k, v in conf.items() if not k.startswith('_')})
-            logger.debug(f'updating settings with project config')
+            update_with(conf)
+            logger.debug(f'Updating settings with project config')
         except KeyError:
             pass
 
@@ -149,35 +132,15 @@ class LDPSettings(object):
     @property
     def INSTALLED_APPS(self):
 
-        """Return the default installed apps and the LDP packages."""
+        """Return the installed apps and the LDP packages."""
 
         # get default apps
-        apps = getattr(global_settings, 'INSTALLED_APPS')
+        apps = self._settings['INSTALLED_APPS']
 
         # add ldp packages themselves (they are django apps)
         apps.extend(self.DJANGOLDP_PACKAGES)
 
-        # add apps referenced in packages
-        apps.extend(self.fetch('INSTALLED_APPS'))
-
         return apps
-
-    @property
-    def MIDDLEWARE(self):
-
-        """
-        Return the default middlewares and the middlewares found in each LDP packages.
-        """
-
-        # get default middlewares
-        middlewares = getattr(global_settings, 'MIDDLEWARE')
-
-        print(middlewares)
-
-        # explore packages looking for middleware to reference
-        middlewares.extend(self.fetch('MIDDLEWARE'))
-
-        return middlewares
 
     def __getattr__(self, param):
         """Return the requested parameter from cached settings."""
