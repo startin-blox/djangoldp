@@ -52,3 +52,7 @@ class TestSettings(TestCase):
             'django.middleware.clickjacking.XFrameOptionsMiddleware',
             'djangoldp.tests.dummy.middleware.DummyMiddleware'
         ]
+
+    def test_extra_module(self):
+        #FIXME
+        pass

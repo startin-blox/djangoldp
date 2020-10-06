@@ -21,7 +21,7 @@ def configure(filename='settings.yml'):
     """Helper function to configure django from LDPSettings."""
 
     try:
-        with open(self.path, 'r') as f:
+        with open(filename, 'r') as f:
             config = yaml.safe_load(f)
     except FileNotFoundError:
         logger.info('Starting project without configuration file')
@@ -37,6 +37,8 @@ class LDPSettings(object):
     """Class managing the DjangoLDP configuration."""
 
     def __init__(self, config):
+
+        """Build a Django Setting object from a dict."""
 
         if django_settings.configured:
             raise ImproperlyConfigured('Settings have been configured already')
