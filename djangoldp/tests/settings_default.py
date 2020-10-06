@@ -47,6 +47,7 @@ server:
     DEFAULT_PAGINATION_CLASS: djangoldp.pagination.LDPPagination
     PAGE_SIZE: 5
   USE_ETAGS: true
+  USE_TZ: false
   DEFAULT_CONTENT_TYPE: text/html
   FILE_CHARSET: utf-8
   SEND_BACKLINKS: False

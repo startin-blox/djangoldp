@@ -5,8 +5,9 @@ It contains configuration elements imported by djangoldp
 when the django server is setup.
 """
 
-# define an extra variable
+# define an extra variables
 MYPACKAGEVAR = 'ok'
+USE_I18N = False
 
 # register an extra middleware
 MIDDLEWARE = [

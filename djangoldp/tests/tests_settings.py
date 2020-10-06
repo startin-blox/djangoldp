@@ -16,12 +16,10 @@ class TestSettings(TestCase):
         assert settings.DJANGOLDP_PACKAGES == ['djangoldp.tests']
 
     def test_overrided_core_by_package_config(self):
-        # FIXME
-        pass
+        assert settings.USE_I18N == False
 
     def test_overrided_package_by_user_config(self):
-        # FIXME
-        pass
+        assert settings.USE_TZ == False
 
     def test_overrided_core_by_user_config(self):
         """Asserts values overrided from user configuration."""
@@ -38,8 +36,8 @@ class TestSettings(TestCase):
             'django.contrib.staticfiles',
             'djangoldp',
             'guardian',
-            'djangoldp.tests',
-            'djangoldp.tests.dummy.apps.DummyConfig'
+            'djangoldp.tests.dummy.apps.DummyConfig',
+            'djangoldp.tests'
         ]
 
     def test_reference_middleware(self):
@@ -54,3 +52,7 @@ class TestSettings(TestCase):
             'django.middleware.clickjacking.XFrameOptionsMiddleware',
             'djangoldp.tests.dummy.middleware.DummyMiddleware'
         ]
+
+    def test_extra_module(self):
+        #FIXME
+        pass
