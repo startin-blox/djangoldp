@@ -38,8 +38,8 @@ class TestSettings(TestCase):
             'django.contrib.staticfiles',
             'djangoldp',
             'guardian',
-            'djangoldp.tests',
-            'djangoldp.tests.dummy.apps.DummyConfig'
+            'djangoldp.tests.dummy.apps.DummyConfig',
+            'djangoldp.tests'
         ]
 
     def test_reference_middleware(self):
