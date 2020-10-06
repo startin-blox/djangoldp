@@ -20,8 +20,14 @@ logger = logging.getLogger(__name__)
 def configure(filename='settings.yml'):
     """Helper function to configure django from LDPSettings."""
 
+    try:
+        with open(self.path, 'r') as f:
+            config = yaml.safe_load(f)
+    except FileNotFoundError:
+        logger.info('Starting project without configuration file')
+
     # ref: https://docs.djangoproject.com/fr/2.2/topics/settings/#custom-default-settings
-    ldpsettings = LDPSettings(path=filename)
+    ldpsettings = LDPSettings(config)
 
     django_settings.configure(ldpsettings)
 
@@ -30,33 +36,13 @@ class LDPSettings(object):
 
     """Class managing the DjangoLDP configuration."""
 
-    def __init__(self, path):
+    def __init__(self, config):
 
         if django_settings.configured:
             raise ImproperlyConfigured('Settings have been configured already')
 
-        self.path = path
-        self._config = None
+        self._config = config
         self._settings = self.build_settings()
-
-    @property
-    def config(self):
-
-        """Load configuration from file."""
-
-        if not self._config:
-            try:
-                with open(self.path, 'r') as f:
-                    self._config = yaml.safe_load(f)
-            except FileNotFoundError:
-                logger.info('Starting project without configuration file')
-
-        return self._config
-
-    @config.setter
-    def config(self, value):
-        """Set a dict has current configuration."""
-        self._config = value
 
     def build_settings(self, extend=['INSTALLED_APPS', 'MIDDLEWARE']):
         """
@@ -113,7 +99,7 @@ class LDPSettings(object):
 
         # look in YAML config file 'server' section
         try:
-            conf = self.config.get('server', {})
+            conf = self._config.get('server', {})
             update_with(conf)
             logger.debug(f'Updating settings with project config')
         except KeyError:
@@ -126,7 +112,7 @@ class LDPSettings(object):
 
         """Returns the list of LDP packages configured."""
 
-        pkg = self.config.get('ldppackages', [])
+        pkg = self._config.get('ldppackages', [])
         return [] if pkg is None else pkg
 
     @property

@@ -6,9 +6,9 @@ from django.conf import settings as django_settings
 from djangoldp.conf.ldpsettings import LDPSettings
 from djangoldp.tests.settings_default import yaml_config
 
-# override config loading
-ldpsettings = LDPSettings("")
-ldpsettings.config = yaml.safe_load(yaml_config)
+# load test config
+config = yaml.safe_load(yaml_config)
+ldpsettings = LDPSettings(config)
 django_settings.configure(ldpsettings)
 
 django.setup()
