@@ -338,7 +338,10 @@ if not hasattr(get_user_model(), 'webid'):
             webid = self.urlid
         # local user use user-detail URL with primary key
         else:
-            webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
+            base_url = settings.BASE_URL
+            if base_url.endswith('/'):
+                base_url = base_url[:len(base_url) - 1]
+            webid = '{0}{1}'.format(base_url, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
         return webid
 
     get_user_model().webid = webid
