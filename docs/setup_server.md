@@ -1,39 +1,3 @@
-# Setup a DjangoLDP server
-
-## Requirements
-
-`djangoldp` requires:
-
-* python 3.6
-* postgresql database (for production)
-
-## Get started
-
-Install djangoldp:
-```
-$ python -m pip install djangoldp
-```
-
-Setup a project with a server instance:
-```
-$ djangoldp startproject myproject
-$ cd myproject
-```
-
-This step setup a default basic configuration.
-
-Initialize the server:
-```
-$ djangoldp configure
-```
-
-And run the server locally:
-```
-$ djangoldp runserver
-```
-
-You can now log on `http://localhost:8000/admin/` and manage the LDP sources.
-
 ## Configure your LDP server
 
 The server comes with a default `settings.yml` you can customize.
@@ -93,9 +57,7 @@ ldppackages:
   - mypkg
 ```
 
-## Contribute
-
-### Develop DjangoLDP in docker
+### Develop DjangoLDP with docker
 
 Install the code inside a container:
 ```

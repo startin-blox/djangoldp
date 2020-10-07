@@ -19,9 +19,9 @@ def main():
 
 @main.command()
 @click.argument('name', nargs=1, required=False)
-def startproject(name):
+def initserver(name):
 
-    """Start a DjangoLDP project."""
+    """Start a DjangoLDP server."""
 
     try:
         # use directly pwd
