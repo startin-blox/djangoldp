@@ -1,10 +1,12 @@
 import json
+import time
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import re_path, include
+
+from django.conf.urls import include, re_path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
-from django.urls import get_resolver
+from django.urls.resolvers import get_resolver
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -49,6 +51,7 @@ class JSONLDRenderer(JSONRenderer):
             else:
                 data["@context"] = settings.LDP_RDF_CONTEXT
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
+
 
 # https://github.com/digitalbazaar/pyld
 class JSONLDParser(JSONParser):
@@ -156,7 +159,24 @@ class InboxView(APIView):
 
         # get or create the backlink
         try:
-            return Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+            external = Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
+
+            # creating followers, to inform distant resource of changes to local connection
+            if Model.is_external(external):
+                # this is handled with Followers, where each local child of the branch is followed by its external parent
+                for item in obj.items():
+                    urlid = item[1]
+                    if isinstance(item[1], dict):
+                        urlid = urlid['@id']
+                    if not isinstance(urlid, str):
+                        continue
+
+                    if not Model.is_external(urlid):
+                        ActivityPubService.save_follower_for_target(external.urlid, urlid)
+
+            return external
+
+        # this will be raised when the object was local, but it didn't exist
         except ObjectDoesNotExist:
             raise Http404()
 
@@ -191,6 +211,7 @@ class InboxView(APIView):
                 attr = getattr(target, field_name)
                 if not attr.filter(urlid=backlink.urlid).exists():
                     attr.add(backlink)
+                    ActivityPubService.save_follower_for_target(backlink.urlid, target.urlid)
 
     def handle_remove_activity(self, activity, **kwargs):
         '''
@@ -218,6 +239,7 @@ class InboxView(APIView):
                 attr = getattr(origin, field_name)
                 if attr.filter(urlid=object_instance.urlid).exists():
                     attr.remove(object_instance)
+                    ActivityPubService.remove_followers_for_resource(origin.urlid, object_instance.urlid)
 
     def handle_create_or_update_activity(self, activity, **kwargs):
         '''
@@ -243,6 +265,10 @@ class InboxView(APIView):
         object_instance.allow_create_backlink = False
         object_instance.save()
         object_instance.delete()
+        urlid = getattr(object_instance, 'urlid', None)
+        if urlid is not None:
+            for follower in Follower.objects.filter(follower=urlid):
+                follower.delete()
 
     def handle_follow_activity(self, activity, **kwargs):
         '''
@@ -341,9 +367,10 @@ class LDPViewSetGenerator(ModelViewSet):
 
             if hasattr(nested_model, 'get_view_set'):
                 kwargs['view_set'] = nested_model.get_view_set()
-                urls_fct = kwargs['view_set'].nested_urls # our custom view_set may override nested_urls
+                urls_fct = kwargs['view_set'].nested_urls  # our custom view_set may override nested_urls
             else:
                 urls_fct = cls.nested_urls
+
             urls.append(re_path('^' + detail_expr + field + '/', urls_fct(field, **kwargs)))
 
         return include(urls)
@@ -358,7 +385,6 @@ class LDPViewSet(LDPViewSetGenerator):
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
     filter_backends = [LocalObjectOnContainerPathBackend]
-    write_serializer_class = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -369,10 +395,8 @@ class LDPViewSet(LDPViewSetGenerator):
                 if hasattr(p, 'filter_class') and p.filter_class:
                     self.filter_backends.append(p.filter_class)
 
-        if self.serializer_class is None:
-            self.serializer_class = self.build_read_serializer()
-        if self.write_serializer_class is None:
-            self.write_serializer_class = self.build_write_serializer()
+        self.serializer_class = self.build_read_serializer()
+        self.write_serializer_class = self.build_write_serializer()
 
     def build_read_serializer(self):
         model_name = self.model._meta.object_name.lower()
@@ -402,11 +426,14 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def build_serializer(self, meta_args, name_prefix):
         # create the Meta class to associate to LDPSerializer, using meta_args param
-
         meta_class = type('Meta', (), meta_args)
 
         from djangoldp.serializers import LDPSerializer
-        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (LDPSerializer,),
+
+        if self.serializer_class is None:
+            self.serializer_class = LDPSerializer
+
+        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (self.serializer_class,),
                                    {'Meta': meta_class})
 
     def is_safe_create(self, user, validated_data, *args, **kwargs):
@@ -416,6 +443,37 @@ class LDPViewSet(LDPViewSetGenerator):
         :return: True if the operation should be permitted, False to return a 403 response
         '''
         return True
+
+    # def list(self, request, *args, **kwargs):
+    #     t1 = time.time()
+    #     queryset = self.get_queryset()
+    #     t2 = time.time()
+    #     print('got queryset in ' + str(t2 - t1))
+    #
+    #     t1 = time.time()
+    #     queryset = self.filter_queryset(queryset)
+    #     t2 = time.time()
+    #     print('filtered queryset in ' + str(t2 - t1))
+    #
+    #     t1 = time.time()
+    #     page = self.paginate_queryset(queryset)
+    #     t2 = time.time()
+    #     print('paginated queryset in ' + str(t2-t1))
+    #     if page is not None:
+    #         t1 = time.time()
+    #         serializer = self.get_serializer(page, many=True)
+    #         paginated_response = self.get_paginated_response(serializer.data)
+    #         t2 = time.time()
+    #         print('paginated response in ' + str(t2-t1))
+    #
+    #         return paginated_response
+    #
+    #     t1 = time.time()
+    #     serializer = self.get_serializer(queryset, many=True)
+    #     response = Response(serializer.data)
+    #     t2 = time.time()
+    #     print('regular response in ' + str(t2-t1))
+    #     return response
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)
@@ -480,7 +538,7 @@ class LDPViewSet(LDPViewSetGenerator):
             if auto_author_field is not None:
                 kwargs[self.model._meta.auto_author] = getattr(self.request.user, auto_author_field, None)
             else:
-                kwargs[self.model._meta.auto_author] = self.request.user
+                kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
         serializer.save(**kwargs)
 
     def get_queryset(self, *args, **kwargs):

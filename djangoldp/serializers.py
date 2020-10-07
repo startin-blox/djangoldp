@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import resolve, Resolver404, get_script_prefix
-from django.urls import get_resolver
+from django.urls.resolvers import get_resolver
 from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
@@ -161,9 +161,6 @@ class ContainerSerializer(LDListMixin, ListSerializer):
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
 
-    def create(self, validated_data):
-        return super().create(validated_data)
-
     def to_internal_value(self, data):
         try:
             return super().to_internal_value(data[self.parent.url_field_name])
@@ -188,12 +185,6 @@ class JsonLdField(HyperlinkedRelatedField):
             self.lookup_url_kwarg = lookup_field
         except MultiValueDictKeyError:
             pass
-
-    def to_internal_value(self, data):
-        return super().to_internal_value(data)
-
-    def get_value(self, dictionary):
-        return super().get_value(dictionary)
 
 
 class JsonLdRelatedField(JsonLdField):
@@ -237,9 +228,6 @@ class JsonLdIdentityField(JsonLdField):
             return super().to_internal_value(data[self.parent.url_field_name])
         except KeyError:
             return super().to_internal_value(data)
-
-    def get_value(self, dictionary):
-        return super().get_value(dictionary)
 
     def to_representation(self, value: Any) -> Any:
         '''returns hyperlink representation of identity field'''
@@ -301,9 +289,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                     ['view', 'change', 'control', 'delete'])
 
         return data
-
-    def build_field(self, field_name, info, model_class, nested_depth):
-        return super().build_field(field_name, info, model_class, nested_depth)
 
     def build_property_field(self, field_name, model_class):
         class JSonLDPropertyField(ReadOnlyField):
@@ -599,7 +584,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def update(self, instance, validated_data):
         model = self.Meta.model
-        validated_data = self.resolve_fk_instances(model, validated_data)
 
         nested_fields = []
         nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
@@ -635,16 +619,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             sub_inst = None
             if 'urlid' in field_dict:
                 # has urlid and is a local resource
-                if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(field_dict['urlid']).netloc:
-                    # try slug field if it exists
-                    if slug_field in field_dict:
-                        kwargs = {slug_field: field_dict[slug_field]}
-                        sub_inst = field_model.objects.get(**kwargs)
-                    else:
-                        model, sub_inst = Model.resolve(field_dict['urlid'])
-                # remote resource - get backlinked copy
-                elif hasattr(field_model, 'urlid'):
-                    sub_inst = Model.get_or_create_external(field_model, field_dict['urlid'])
+                model, sub_inst = self.get_inst_by_urlid(field_dict, field_model, model, slug_field, sub_inst)
             # try slug field, assuming that this is a local resource
             elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
@@ -658,14 +633,33 @@ class LDPSerializer(HyperlinkedModelSerializer):
             validated_data[field_name] = sub_inst
         return validated_data
 
+    def get_inst_by_urlid(self, field_dict, field_model, model, slug_field, sub_inst):
+        if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(field_dict['urlid']).netloc:
+            # try slug field if it exists
+            if slug_field in field_dict:
+                kwargs = {slug_field: field_dict[slug_field]}
+                sub_inst = field_model.objects.get(**kwargs)
+            else:
+                model, sub_inst = Model.resolve(field_dict['urlid'])
+        # remote resource - get backlinked copy
+        elif hasattr(field_model, 'urlid'):
+            sub_inst = Model.get_or_create_external(field_model, field_dict['urlid'])
+        return model, sub_inst
+
     def update_dict_value(self, attr, instance, value):
         info = model_meta.get_field_info(instance)
         slug_field = Model.slug_field(instance)
         relation_info = info.relations.get(attr)
-        if slug_field in value:
+        if slug_field in value :
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
-            value = self.update_dict_value_without_slug_field(attr, instance, relation_info, value)
+            if 'urlid' in value:
+                if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(value['urlid']).netloc:
+                    model, value = Model.resolve(value['urlid'])
+                elif hasattr(relation_info.related_model, 'urlid'):
+                    value = Model.get_or_create_external(relation_info.related_model, value['urlid'])
+            else:
+                value = self.update_dict_value_without_slug_field(attr, instance, relation_info, value)
         return value
 
     def update_dict_value_without_slug_field(self, attr, instance, relation_info, value):

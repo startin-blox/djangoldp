@@ -239,6 +239,36 @@ class ActivityPubService(object):
         inboxes = set(Follower.objects.filter(object=object_urlid).values_list('inbox', flat=True))
         return inboxes
 
+    @classmethod
+    def save_follower_for_target(cls, external_urlid, obj_id):
+        inbox = ActivityPubService.discover_inbox(external_urlid)
+
+        if not Follower.objects.filter(object=obj_id, follower=external_urlid).exists():
+            Follower.objects.create(object=obj_id, inbox=inbox, follower=external_urlid,
+                                    is_backlink=True)
+
+    @classmethod
+    def save_followers_for_targets(cls, external_urlids, obj_id):
+        '''
+        saves Follower objects for any external urlid which isn't already following the object in question
+        :param external_urlids: list of external urlids to populate the follower inbox
+        :param obj_id: object id to be followed
+        '''
+        existing_followers = Follower.objects.filter(object=obj_id).values_list('follower', flat=True)
+        for urlid in external_urlids:
+            if urlid not in existing_followers:
+                Follower.objects.create(object=obj_id, inbox=ActivityPubService.discover_inbox(urlid),
+                                        follower=urlid, is_backlink=True)
+
+    @classmethod
+    def remove_followers_for_resource(cls, external_urlid, obj_id):
+        '''removes all followers which match the follower urlid, obj urlid combination'''
+        inbox = ActivityPubService.discover_inbox(external_urlid)
+
+        for follower in Follower.objects.filter(object=obj_id, follower=external_urlid,
+                                                inbox=inbox, is_backlink=True):
+            follower.delete()
+
 
 @receiver([post_save])
 def check_save_for_backlinks(sender, instance, created, **kwargs):
@@ -262,11 +292,7 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
                     ActivityPubService.send_update_activity(actor, obj, target)
 
             # create Followers to update external resources of changes in future
-            existing_followers = Follower.objects.filter(object=obj['@id']).values_list('follower', flat=True)
-            for urlid in external_urlids:
-                if urlid not in existing_followers:
-                    Follower.objects.create(object=obj['@id'], inbox=ActivityPubService.discover_inbox(urlid),
-                                            follower=urlid, is_backlink=True)
+            ActivityPubService.save_followers_for_targets(external_urlids, obj['@id'])
 
 
 @receiver([post_delete])
@@ -340,15 +366,9 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
             if action == 'post_add':
                 for target in targets:
                     ActivityPubService.send_add_activity(BACKLINKS_ACTOR, obj, target)
-                    inbox = ActivityPubService.discover_inbox(target['@id'])
-                    if not Follower.objects.filter(object=obj['@id'], follower=target['@id']).exists():
-                        Follower.objects.create(object=obj['@id'], inbox=inbox, follower=target['@id'],
-                                                is_backlink=True)
+                    ActivityPubService.save_follower_for_target(target['@id'], obj['@id'])
 
             elif action == "post_remove" or action == "pre_clear":
                 for target in targets:
                     ActivityPubService.send_remove_activity(BACKLINKS_ACTOR, obj, target)
-                    inbox = ActivityPubService.discover_inbox(target['@id'])
-                    for follower in Follower.objects.filter(object=obj['@id'], follower=target['@id'],
-                                                            inbox=inbox, is_backlink=True):
-                        follower.delete()
+                    ActivityPubService.remove_followers_for_resource(target['@id'], obj['@id'])

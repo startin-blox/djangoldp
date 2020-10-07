@@ -5,3 +5,4 @@ build
 *.pyc
 *~
 *.swp
+djangoldp/tests/tests_temp.py
