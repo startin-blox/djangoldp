@@ -287,7 +287,7 @@ IGNORABLE_404_URLS = []
 SECRET_KEY = ''
 
 # Default server url
-SITE_URL = 'http://localhost:8000/'
+SITE_URL = 'http://localhost:8000'
 BASE_URL = SITE_URL
 
 # Default URL conf
