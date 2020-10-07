@@ -32,9 +32,6 @@ for package in settings.DJANGOLDP_PACKAGES:
     except ModuleNotFoundError:
         pass
 
-if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
-    urlpatterns.append(re_path(r'^users/', LDPViewSet.urls(model=settings.AUTH_USER_MODEL, permission_classes=[])))
-
 # fetch a list of all models which subclass DjangoLDP Model
 model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
 
@@ -51,3 +48,7 @@ for class_name in model_classes:
                  permission_classes=Model.get_meta(model_class, 'permission_classes', [LDPPermissions]),
                  fields=Model.get_meta(model_class, 'serializer_fields', []),
                  nested_fields=model_class.nested.fields())))
+
+# NOTE: this route will be ignored if a custom (subclass of Model) user model is used, or it is registered by a package
+# Django matches the first url it finds for a given path
+urlpatterns.append(re_path(r'^users/', LDPViewSet.urls(model=settings.AUTH_USER_MODEL, permission_classes=[])))
