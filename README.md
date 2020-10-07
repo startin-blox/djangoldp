@@ -44,8 +44,8 @@ You can now log on `http://localhost:8000/admin/` and manage the LDP sources.
 
 ## Check technical documentation
 
-* [Configure the LDP server](./docs/setup_server)
-* [Create a model](./docs/create_model)
+* [Configure the LDP server](./docs/setup_server.md)
+* [Create a model](./docs/create_model.md)
 
 ## Contribute to DjangoLDP
 
