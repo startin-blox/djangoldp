@@ -168,6 +168,7 @@ MANAGERS = ADMINS
 # Default charset to use for all HttpResponse objects, if a MIME type isn't
 # manually specified. It's used to construct the Content-Type header.
 DEFAULT_CHARSET = 'utf-8'
+FILE_CHARSET = 'utf-8'
 
 # Email address that error messages come from.
 SERVER_EMAIL = 'root@localhost'
@@ -298,7 +299,7 @@ DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/var/www/example.com/media/"
-MEDIA_ROOT = 'server.urls'
+MEDIA_ROOT = ''
 
 # URL that handles the media served from MEDIA_ROOT.
 # Examples: "http://example.com/media/", "http://media.example.com/"
@@ -311,6 +312,9 @@ STATIC_ROOT = None
 # URL that handles the static files served from STATIC_ROOT.
 # Example: "http://example.com/static/", "http://static.example.com/"
 STATIC_URL = '/static/'
+
+# ETAGS config
+USE_ETAGS = True
 
 # List of upload handler classes to be applied in order.
 FILE_UPLOAD_HANDLERS = [
@@ -343,6 +347,8 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 # The value should be a mode as you'd pass to os.chmod;
 # see https://docs.python.org/library/os.html#files-and-directories.
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = None
+
+DEFAULT_CONTENT_TYPE = 'text/html'
 
 # Python module path where user will place custom format definition.
 # The directory where this setting is pointing should contain subdirectories
