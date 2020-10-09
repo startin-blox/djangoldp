@@ -20,7 +20,7 @@ class LDPPermissions(DjangoObjectPermissions):
     perms_cache = {
         'time': time.time()
     }
-    with_cache = settings.PERMISSIONS_CACHE
+    with_cache = getattr(settings, 'PERMISSIONS_CACHE', True)
 
     @classmethod
     def invalidate_cache(cls):
