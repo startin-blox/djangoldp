@@ -1,3 +1,4 @@
+from djangoldp.serializers import LDListMixin, LDPSerializer
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from datetime import datetime
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
@@ -10,6 +11,8 @@ class TestGET(APITestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.client = APIClient()
+        LDListMixin.to_representation_cache.invalidate_cache()
+        LDPSerializer.to_representation_cache.invalidate_cache()
 
     def tearDown(self):
         pass

@@ -1,3 +1,4 @@
+import time
 import uuid
 from collections import OrderedDict, Mapping, Iterable
 from typing import Any
@@ -27,9 +28,39 @@ from djangoldp.models import Model
 from djangoldp.permissions import LDPPermissions
 
 
+class InMemoryCache:
+
+    def __init__(self):
+        self.cache = {
+            'time': time.time()
+        }
+
+    def invalidate_cache(self):
+        self.cache = {
+            'time': time.time()
+        }
+
+    def refresh_cache(self):
+        if time.time() - self.cache['time'] > 5:
+            self.invalidate_cache()
+
+    def has(self, cache_key):
+        return cache_key in self.cache
+
+    def get(self, cache_key):
+        return self.cache[cache_key]
+
+    def set(self, cache_key, value):
+        self.cache[cache_key] = value
+
+
 class LDListMixin:
     '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
+
+    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
+
+    to_representation_cache = InMemoryCache()
 
     # converts primitive data representation to the representation used within our application
     def to_internal_value(self, data):
@@ -56,6 +87,7 @@ class LDListMixin:
          - Can Add if add permission on contained object's type
          - Can view the container is view permission on container model : container obj are filtered by view permission
         '''
+        self.to_representation_cache.refresh_cache()
         try:
             child_model = getattr(self, self.child_attr).Meta.model
         except AttributeError:
@@ -67,14 +99,29 @@ class LDListMixin:
             value = list(value)
 
         if not isinstance(value, Iterable):
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_key = self.id
+            if self.with_cache and self.to_representation_cache.has(cache_key):
+                return self.to_representation_cache.get(cache_key)
+
             filtered_values = value
             container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['view', 'add'])
+
         else:
             # this is a container. Parent model is the containing object, child the model contained
             try:
                 parent_model = Model.resolve_parent(self.context['request'].path)
             except:
                 parent_model = child_model
+
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_key = self.id
+            if self.with_cache and self.to_representation_cache.has(cache_key):
+                return self.to_representation_cache.get(cache_key)
 
             # remove objects from the list which I don't have permission to view
             filtered_values = list(
@@ -84,13 +131,14 @@ class LDListMixin:
             container_permissions.extend(
                 Model.get_permissions(parent_model, self.context['request'].user,
                                       ['view']))
-        if not self.id.startswith('http'):
-            self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-        return {'@id': self.id,
+
+        self.to_representation_cache.set(self.id, {'@id': self.id,
                 '@type': 'ldp:Container',
                 'ldp:contains': super().to_representation(filtered_values),
                 'permissions': container_permissions
-                }
+                })
+
+        return self.to_representation_cache.get(self.id)
 
     def get_attribute(self, instance):
         parent_id_field = self.parent.fields[self.parent.url_field_name]
@@ -256,6 +304,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
+    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
+
+    to_representation_cache = InMemoryCache()
+
     def get_default_field_names(self, declared_fields, model_info):
         try:
             fields = list(self.Meta.model._meta.serializer_fields)
@@ -265,10 +317,18 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def to_representation(self, obj):
         # external Models should only be returned with an id (on GET)
+        self.to_representation_cache.refresh_cache()
         if self.context['request'].method == 'GET' and Model.is_external(obj):
             return {'@id': obj.urlid}
 
-        data = super().to_representation(obj)
+        if self.with_cache and hasattr(obj, 'urlid'):
+            if self.to_representation_cache.has(obj.urlid):
+                data = self.to_representation_cache.get(obj.urlid)
+            else:
+                data = super().to_representation(obj)
+                self.to_representation_cache.set(obj.urlid, data)
+        else:
+            data = super().to_representation(obj)
 
         slug_field = Model.slug_field(obj)
         for field in data:

@@ -2,4 +2,3 @@ dist
 *.egg-info
 *.pyc
 *~
-djangoldp/tests/tests_temp.py
