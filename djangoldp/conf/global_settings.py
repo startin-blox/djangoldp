@@ -5,6 +5,36 @@
 def gettext_noop(s):
     return s
 
+####################
+# LDP              #
+####################
+
+LDP_RDF_CONTEXT = {
+    "@context": {
+      "@vocab": "http://happy-dev.fr/owl/#",
+      "foaf": "http://xmlns.com/foaf/0.1/",
+      "doap": "http://usefulinc.com/ns/doap#",
+      "ldp": "http://www.w3.org/ns/ldp#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#",
+      "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#",
+      "acl": "http://www.w3.org/ns/auth/acl#",
+      "name": "rdfs:label",
+      "website": "foaf:homepage",
+      "deadline": "xsd:dateTime",
+      "lat": "geo:lat",
+      "lng": "geo:long",
+      "jabberID": "foaf:jabberID",
+      "permissions": "acl:accessControl",
+      "mode": "acl:mode",
+      "view": "acl:Read",
+      "change": "acl:Write",
+      "add": "acl:Append",
+      "delete": "acl:Delete",
+      "control": "acl:Control"
+    }
+}
 
 ####################
 # CORE             #
@@ -34,7 +64,7 @@ ALLOWED_HOSTS = []
 # https://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
 # systems may support all possibilities). When USE_TZ is True, this is
 # interpreted as the default user time zone.
-TIME_ZONE = 'America/Chicago'
+TIME_ZONE = 'UTC'
 
 # If you set this to True, Django will use timezone-aware datetimes.
 USE_TZ = True

@@ -3,6 +3,10 @@ from django.test import TestCase
 
 class TestSettings(TestCase):
 
+    def test_inexistent_returns_default(self):
+        """Assert a inexistent key returns the provided default value."""
+        assert getattr(settings, 'INEXISTENT', 'something') == 'something'
+
     def test_only_in_core_config(self):
         """Asserts values defined only in core config."""
         assert settings.DEBUG == False
