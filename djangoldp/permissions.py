@@ -1,4 +1,5 @@
 import time
+from django.conf import settings
 from django.contrib.auth.models import _user_get_all_permissions
 from django.core.exceptions import PermissionDenied
 from django.db.models.base import ModelBase
@@ -19,7 +20,7 @@ class LDPPermissions(DjangoObjectPermissions):
     perms_cache = {
         'time': time.time()
     }
-    with_cache = False
+    with_cache = getattr(settings, 'PERMISSIONS_CACHE', True)
 
     @classmethod
     def invalidate_cache(cls):
