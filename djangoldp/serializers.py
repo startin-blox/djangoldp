@@ -58,7 +58,7 @@ class LDListMixin:
     '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
 
-    with_cache = settings.SERIALIZER_CACHE
+    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
 
     to_representation_cache = InMemoryCache()
 
@@ -304,7 +304,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
-    with_cache = settings.SERIALIZER_CACHE
+    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
 
     to_representation_cache = InMemoryCache()
 
