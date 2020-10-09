@@ -404,6 +404,7 @@ class LDPViewSet(LDPViewSetGenerator):
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
                      'depth': getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0)),
+                     # 'depth': getattr(self, 'depth', 4),
                      'extra_fields': self.nested_fields}
         if self.fields:
             meta_args['fields'] = self.fields

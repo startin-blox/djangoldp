@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.models import Model
-from djangoldp.serializers import LDPSerializer
+from djangoldp.serializers import LDPSerializer, LDListMixin
 from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle, Project
 
 
@@ -16,6 +16,8 @@ class Save(TestCase):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
         self.client.force_authenticate(self.user)
+        LDListMixin.to_representation_cache.invalidate_cache()
+        LDPSerializer.to_representation_cache.invalidate_cache()
 
     def tearDown(self):
         pass
