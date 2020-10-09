@@ -126,12 +126,14 @@ LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
 DJANGOLDP_PACKAGES = []
 SITE_URL = 'http://localhost:8000'
 BASE_URL = SITE_URL
+SERIALIZER_CACHE = True
 ```
 
 * `LDP_RDF_CONTEXT` tells DjangoLDP where our RDF [ontology](https://www.w3.org/standards/semanticweb/ontology) is defined, which will be returned as part of our views in the 'context' field. This is a web URL and you can visit the value to view the full ontology online. The ontology can be a string, as in the example, but it can also be a dictionary, or a list of ontologies (see the [JSON-LD spec](https://json-ld.org) for examples)
 * `DJANGOLDP_PACKAGES` defines which other [DjangoLDP packages](https://git.happy-dev.fr/startinblox/djangoldp-packages) we're using in this installation
 * `SITE_URL` is the URL serving the site, e.g. `https://example.com/`. Note that if you include the DjangoLDP urls in a nested path (e.g. `https://example.com/api/`), then `SITE_URL` will need to be set to this value
 * `BASE_URL` may be different from SITE_URL, e.g. `https://example.com/app/`
+* `SERIALIZER_CACHE` Add a cache to Serializer (Set to True recommended)
 
 
 4. You can also register your model for the django administration site
