@@ -107,7 +107,7 @@ class LDListMixin:
                 return self.to_representation_cache.get(cache_key)
 
             filtered_values = value
-            container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['view', 'add'])
+            container_permissions = Model.get_permissions(child_model, self.context, ['view', 'add'])
 
         else:
             # this is a container. Parent model is the containing object, child the model contained
@@ -127,10 +127,9 @@ class LDListMixin:
             filtered_values = list(
                 filter(lambda v: Model.get_permission_classes(v, [LDPPermissions])[0]().has_object_permission(
                     self.context['request'], self.context['view'], v), value))
-            container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['add'])
+            container_permissions = Model.get_permissions(child_model, self.context, ['add'])
             container_permissions.extend(
-                Model.get_permissions(parent_model, self.context['request'].user,
-                                      ['view']))
+                Model.get_permissions(parent_model, self.context, ['view']))
 
         self.to_representation_cache.set(self.id, {'@id': self.id,
                 '@type': 'ldp:Container',
@@ -345,7 +344,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@type'] = rdf_type
         if rdf_context is not None:
             data['@context'] = rdf_context
-        data['permissions'] = Model.get_permissions(obj, self.context['request'].user,
+        data['permissions'] = Model.get_permissions(obj, self.context,
                                                     ['view', 'change', 'control', 'delete'])
 
         return data
@@ -382,7 +381,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                  item
                                                  in data],
                                 'permissions': Model.get_permissions(self.parent.Meta.model,
-                                                                     self.context['request'].user,
+                                                                     self.context,
                                                                      ['view', 'add'])
                                 }
                     else:
