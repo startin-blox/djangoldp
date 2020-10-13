@@ -97,9 +97,9 @@ class LDPPermissions(DjangoObjectPermissions):
         return self.perms_cache[perms_cache_key]
         # return list(perms)
 
-    def filter_user_perms(self, user, obj_or_model, permissions):
+    def filter_user_perms(self, context, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
-        return [perm for perm in permissions if perm in self.user_permissions(user, obj_or_model)]
+        return [perm for perm in permissions if perm in self.user_permissions(context['request'].user, obj_or_model)]
 
     # perms_map defines the permissions required for different methods
     perms_map = {

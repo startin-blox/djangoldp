@@ -257,10 +257,10 @@ class Model(models.Model):
         return getattr(model_class._meta, meta_name, meta)
 
     @staticmethod
-    def get_permissions(obj_or_model, user_or_group, filter):
+    def get_permissions(obj_or_model, context, filter):
         permissions = filter
         for permission_class in Model.get_permission_classes(obj_or_model, [LDPPermissions]):
-            permissions = permission_class().filter_user_perms(user_or_group, obj_or_model, permissions)
+            permissions = permission_class().filter_user_perms(context, obj_or_model, permissions)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
     @classmethod
