@@ -13,7 +13,7 @@ class DjangoLDPAdmin(GuardedModelAdmin):
 class DjangoLDPUserAdmin(UserAdmin, GuardedModelAdmin):
     '''An extension of UserAdmin providing the functionality of DjangoLDPAdmin'''
 
-    list_display = ('urlid', 'email', 'first_name', 'last_name', 'is_staff')
+    list_display = ('urlid', 'email', 'first_name', 'last_name', 'date_joined', 'last_login', 'is_staff')
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
