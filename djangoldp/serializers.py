@@ -42,7 +42,7 @@ class InMemoryCache:
         }
 
     def refresh_cache(self):
-        if time.time() - self.cache['time'] > 5:
+        if (time.time() - self.cache['time']) > 300:
             self.invalidate_cache()
 
     def has(self, cache_key):
