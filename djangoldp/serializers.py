@@ -1,24 +1,25 @@
-import time
 import uuid
 from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
 
+import time
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import QuerySet
 from django.urls import resolve, Resolver404, get_script_prefix
 from django.urls.resolvers import get_resolver
-from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS, Hyperlink
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, LIST_SERIALIZER_KWARGS
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, \
+    LIST_SERIALIZER_KWARGS
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -31,28 +32,31 @@ from djangoldp.permissions import LDPPermissions
 
 class InMemoryCache:
 
-    def __init__(self):
+    def __init__(self, max_age=300):
+        self.max_age = max_age
         self.cache = {
-            'time': time.time()
         }
 
-    def invalidate_cache(self):
+    def reset(self):
         self.cache = {
-            'time': time.time()
         }
-
-    def refresh_cache(self):
-        if (time.time() - self.cache['time']) > 300:
-            self.invalidate_cache()
 
     def has(self, cache_key):
-        return cache_key in self.cache
+        if cache_key in self.cache:
+            if time.time() - self.cache[cache_key]['time'] < self.max_age:
+                return True
+            else:
+                self.invalidate(cache_key)
+        return False
 
     def get(self, cache_key):
-        return self.cache[cache_key]
+        return self.cache[cache_key]['value']
 
     def set(self, cache_key, value):
-        self.cache[cache_key] = value
+        self.cache[cache_key] = {'time': time.time(), 'value': value}
+
+    def invalidate(self, cache_key):
+        self.cache.pop(cache_key, None)
 
 
 class LDListMixin:
@@ -88,7 +92,6 @@ class LDListMixin:
          - Can Add if add permission on contained object's type
          - Can view the container is view permission on container model : container obj are filtered by view permission
         '''
-        self.to_representation_cache.refresh_cache()
         try:
             child_model = getattr(self, self.child_attr).Meta.model
         except AttributeError:
@@ -133,10 +136,10 @@ class LDListMixin:
                 Model.get_permissions(parent_model, self.context, ['view']))
 
         self.to_representation_cache.set(self.id, {'@id': self.id,
-                '@type': 'ldp:Container',
-                'ldp:contains': super().to_representation(filtered_values),
-                'permissions': container_permissions
-                })
+                                                   '@type': 'ldp:Container',
+                                                   'ldp:contains': super().to_representation(filtered_values),
+                                                   'permissions': container_permissions
+                                                   })
 
         return self.to_representation_cache.get(self.id)
 
@@ -262,6 +265,7 @@ class JsonLdRelatedField(JsonLdField):
 
 class JsonLdIdentityField(JsonLdField):
     '''Represents an identity (url) field for a serializer'''
+
     def __init__(self, view_name=None, **kwargs):
         kwargs['read_only'] = True
         kwargs['source'] = '*'
@@ -317,7 +321,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def to_representation(self, obj):
         # external Models should only be returned with an id (on GET)
-        self.to_representation_cache.refresh_cache()
         if self.context['request'].method == 'GET' and Model.is_external(obj):
             return {'@id': obj.urlid}
 
@@ -591,6 +594,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             instance = self.internal_create(validated_data, model=self.Meta.model)
+            LDListMixin.to_representation_cache.invalidate('{}{}'.format(settings.BASE_URL, Model.resource(self.Meta.model)))
             self.attach_related_object(instance, validated_data)
 
         return instance
@@ -660,6 +664,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         self.save_or_update_nested_list(instance, nested_fields)
         instance.save()
+        resource_path = Model.resource(self.Meta.model)
+        LDListMixin.to_representation_cache.invalidate('{}{}'.format(settings.BASE_URL, resource_path))
+        LDPSerializer.to_representation_cache.invalidate('{}{}'.format(settings.BASE_URL, resource_path))
+        LDListMixin.to_representation_cache.invalidate('{}{}{}'.format(settings.BASE_URL, resource_path, instance.id))
+        LDPSerializer.to_representation_cache.invalidate('{}{}{}'.format(settings.BASE_URL, resource_path, instance.id))
 
         return instance
 
@@ -710,7 +719,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(instance)
         slug_field = Model.slug_field(instance)
         relation_info = info.relations.get(attr)
-        if slug_field in value :
+        if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
             if 'urlid' in value:

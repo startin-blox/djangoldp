@@ -30,7 +30,7 @@ class LDPPermissions(DjangoObjectPermissions):
 
     @classmethod
     def refresh_cache(cls):
-        if (time.time() - cls.perms_cache['time']) > 100:
+        if (time.time() - cls.perms_cache['time']) > 5:
             cls.invalidate_cache()
 
     def user_permissions(self, user, obj_or_model, obj=None):
