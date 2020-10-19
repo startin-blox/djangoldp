@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.urls import resolve, Resolver404, get_script_prefix
 from django.urls.resolvers import get_resolver
 from django.db.models import QuerySet
@@ -588,9 +589,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             return super().get_value(dictionary)
 
     def create(self, validated_data):
-        instance = self.internal_create(validated_data, model=self.Meta.model)
-
-        self.attach_related_object(instance, validated_data)
+        with transaction.atomic():
+            instance = self.internal_create(validated_data, model=self.Meta.model)
+            self.attach_related_object(instance, validated_data)
 
         return instance
 
