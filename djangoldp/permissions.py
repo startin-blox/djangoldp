@@ -38,18 +38,15 @@ class LDPPermissions(DjangoObjectPermissions):
             Filter user permissions for a model class
         """
 
-        # this may be a permission for the model class, or an instance
         self.refresh_cache()
+        # this may be a permission for the model class, or an instance
         if isinstance(obj_or_model, ModelBase):
             model = obj_or_model
         else:
             obj = obj_or_model
             model = obj_or_model.__class__
 
-        model_name = model._meta.model_name
-        user_key = 'None' if user is None else user.id
-        obj_key = 'None' if obj is None else obj.id
-        perms_cache_key = 'User{}{}{}'.format(user_key, model_name, obj_key)
+        perms_cache_key = self.cache_key(model, obj, user)
         if self.with_cache and perms_cache_key in self.perms_cache:
             return self.perms_cache[perms_cache_key]
 
@@ -95,7 +92,13 @@ class LDPPermissions(DjangoObjectPermissions):
         self.perms_cache[perms_cache_key] = list(perms)
 
         return self.perms_cache[perms_cache_key]
-        # return list(perms)
+
+    def cache_key(self, model, obj, user):
+        model_name = model._meta.model_name
+        user_key = 'None' if user is None else user.id
+        obj_key = 'None' if obj is None else obj.id
+        perms_cache_key = 'User{}{}{}'.format(user_key, model_name, obj_key)
+        return perms_cache_key
 
     def filter_user_perms(self, context, obj_or_model, permissions):
         # Only used on Model.get_permissions to translate permissions to LDP
