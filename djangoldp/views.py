@@ -24,10 +24,11 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
-from djangoldp.models import LDPSource, Model, Activity, Follower
+from djangoldp.models import LDPSource, Model, Follower
 from djangoldp.permissions import LDPPermissions
 from djangoldp.filters import LocalObjectOnContainerPathBackend
-from djangoldp.activities import ActivityPubService, as_activitystream
+from djangoldp.activities import ActivityQueueService, as_activitystream
+from djangoldp.activities import ActivityPubService
 from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
 import logging
 
@@ -96,13 +97,11 @@ class InboxView(APIView):
             return Response({'Unable to save due to an IntegrityError in the receiver model'}, status=status.HTTP_200_OK)
 
         # save the activity and return 201
-        payload = bytes(json.dumps(activity.to_json()), "utf-8")
-        obj = Activity.objects.create(local_id=request.path_info, payload=payload)
-        obj.aid = Model.absolute_url(obj)
-        obj.save()
+        obj = ActivityQueueService._save_sent_activity(activity.to_json(), local_id=request.path_info, success=True,
+                                                       type=activity.type)
 
         response = Response({}, status=status.HTTP_201_CREATED)
-        response['Location'] = obj.aid
+        response['Location'] = obj.urlid
 
         return response
 

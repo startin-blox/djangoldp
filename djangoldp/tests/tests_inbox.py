@@ -1,10 +1,9 @@
 import json
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from django.db import IntegrityError
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
-from djangoldp.tests.models import Circle, CircleMember, Project, UserProfile, DateModel, DateChild
+from djangoldp.tests.models import Circle, CircleMember, Project, DateModel, DateChild
 from djangoldp.models import Activity, Follower
 
 
@@ -224,6 +223,8 @@ class TestsInbox(APITestCase):
                                     content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
         self.assertEqual(response.status_code, 400)
 
+    # TODO: may pass an object without an explicit urlid e.g. Person actor, or Collection target
+
     # error behaviour - unknown model
     def test_add_activity_unknown(self):
         obj = {
@@ -330,10 +331,10 @@ class TestsInbox(APITestCase):
         self.assertEquals(len(projects), 1)
         self.assertEquals(len(user_projects), 0)
         self.assertIn("https://distant.com/projects/1/", projects.values_list('urlid', flat=True))
-        self._assert_activity_created(response, prior_activity_count + 2)
+        self._assert_activity_created(response, prior_activity_count + 1)
         self.assertEqual(Follower.objects.count(), 0)
 
-    # TODO: test_remove_activity_project_using_target
+    # TODO: test_remove_activity_project_using_target (https://git.startinblox.com/djangoldp-packages/djangoldp/issues/231)
 
     # error behaviour - project does not exist on user
     def test_remove_activity_nonexistent_project(self):
@@ -350,7 +351,7 @@ class TestsInbox(APITestCase):
         self.assertEqual(response.status_code, 201)
         self._assert_activity_created(response)
 
-    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_removing_object_twice(self):
         project = Project.objects.create(urlid="https://distant.com/projects/1/")
         self.user.projects.add(project)
@@ -485,3 +486,6 @@ class TestsInbox(APITestCase):
     def test_get_inbox(self):
         response = self.client.get('/inbox/')
         self.assertEqual(response.status_code, 405)
+
+    # TODO: GET inbox for specific resource - should return a list of activities sent to this inbox
+    # TODO: view to access outbox (https://git.startinblox.com/djangoldp-packages/djangoldp/issues/284)
