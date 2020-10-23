@@ -1,3 +1,4 @@
+import os
 from django.apps import AppConfig
 
 class DjangoldpConfig(AppConfig):
@@ -5,6 +6,12 @@ class DjangoldpConfig(AppConfig):
 
     def ready(self):
         self.auto_register_model_admin()
+        self.start_activity_queue()
+
+    def start_activity_queue(self):
+        from djangoldp.activities.services import ActivityQueueService
+        if os.environ.get('RUN_MAIN') is not None:
+            ActivityQueueService.start()
 
     def auto_register_model_admin(self):
         '''

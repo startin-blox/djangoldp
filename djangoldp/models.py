@@ -2,18 +2,17 @@ import json
 import uuid
 from urllib.parse import urlparse
 from django.conf import settings
-from django.contrib.auth.models import User, AbstractUser
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models import BinaryField, DateField
+from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.urls import reverse_lazy, get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
-from guardian.models import UserObjectPermissionBase
 from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
@@ -200,7 +199,6 @@ class Model(models.Model):
         :raises Exception: if the object does not exist, but the data passed is invalid
         '''
         try:
-            logger.debug('[get_or_create] ' + str(model) + ' backlink ' + str(urlid))
             rval = model.objects.get(urlid=urlid)
             if update:
                 for field in field_tuples.keys():
@@ -208,7 +206,6 @@ class Model(models.Model):
                 rval.save()
             return rval
         except ObjectDoesNotExist:
-            logger.debug('[get_or_create] creating..')
             if model is get_user_model():
                 field_tuples['username'] = str(uuid.uuid4())
             return model.objects.create(urlid=urlid, is_backlink=True, **field_tuples)
@@ -293,17 +290,43 @@ class LDPSource(Model):
 
 class Activity(Model):
     '''Models an ActivityStreams Activity'''
-    aid = LDPUrlField(null=True) # activity id
-    local_id = LDPUrlField()  # /inbox or /outbox full url
+    local_id = LDPUrlField(help_text='/inbox or /outbox url (local - this server)')  # /inbox or /outbox full url
+    external_id = LDPUrlField(null=True, help_text='the /inbox or /outbox url (from the sender or receiver)')
     payload = BinaryField()
-    created_at = DateField(auto_now_add=True)
+    response_location = LDPUrlField(null=True, blank=True, help_text='Location saved activity can be found')
+    response_code = models.CharField(null=True, blank=True, help_text='Response code sent by receiver', max_length=8)
+    response_body = BinaryField(null=True)
+    type = models.CharField(null=True, blank=True, help_text='the ActivityStreams type of the Activity',
+                            max_length=64)
+    is_finished = models.BooleanField(default=True)
+    created_at = DateTimeField(auto_now_add=True)
+    success = models.BooleanField(default=False, help_text='set to True when an Activity is successfully delivered')
 
     class Meta(Model.Meta):
         container_path = "activities"
         rdf_type = 'as:Activity'
 
+    def _bytes_to_json(self, obj):
+        if hasattr(obj, 'tobytes'):
+            obj = obj.tobytes()
+        if obj is None or obj == b'':
+            return {}
+        return json.loads(obj)
+
     def to_activitystream(self):
-        return json.loads(self.payload.tobytes())
+        return self._bytes_to_json(self.payload)
+
+    def response_to_json(self):
+        return self._bytes_to_json(self.response_body)
+
+
+# temporary database-side storage used for scheduled tasks in the ActivityQueue
+class ScheduledActivity(Activity):
+    failed_attempts = models.PositiveIntegerField(default=0, help_text='a log of how many failed retries have been made sending the activity')
+
+    def save(self, *args, **kwargs):
+        self.is_finished = False
+        super(ScheduledActivity, self).save(*args, **kwargs)
 
 
 class Follower(Model):
@@ -314,11 +337,6 @@ class Follower(Model):
 
     def __str__(self):
         return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)
-
-    def save(self, *args, **kwargs):
-        if self.pk is None:
-            logger.debug('[Follower] saving Follower ' + self.__str__())
-        super(Follower, self).save(*args, **kwargs)
 
 
 @receiver([post_save])
