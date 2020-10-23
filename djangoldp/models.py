@@ -370,10 +370,5 @@ def invalidate_caches(instance, **kwargs):
     if isinstance(instance, Model):
         from djangoldp.serializers import LDListMixin, LDPSerializer
         LDPPermissions.invalidate_cache()
-        try:
-            LDListMixin.to_representation_cache.invalidate(Model.absolute_url(instance._meta.model))
-            LDPSerializer.to_representation_cache.invalidate(Model.absolute_url(instance._meta.model))
-            LDListMixin.to_representation_cache.invalidate(Model.absolute_url(instance))
-            LDPSerializer.to_representation_cache.invalidate(Model.absolute_url(instance))
-        except NoReverseMatch:
-            pass
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()
