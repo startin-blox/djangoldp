@@ -32,7 +32,7 @@ from djangoldp.permissions import LDPPermissions
 
 class InMemoryCache:
 
-    def __init__(self, max_age=300):
+    def __init__(self, max_age=30):
         self.max_age = max_age
         self.cache = {
         }
