@@ -47,7 +47,9 @@ class InMemoryCache:
                 return True
             else:
                 self.invalidate(cache_key, vary)
-        return False
+
+        else:
+            return cache_key in self.cache
 
     def get(self, cache_key, vary):
         if self.has(cache_key, vary):
@@ -146,10 +148,11 @@ class LDListMixin:
                 Model.get_permissions(parent_model, self.context, ['view']))
 
         self.to_representation_cache.set(self.id, cache_vary, {'@id': self.id,
-                                                   '@type': 'ldp:Container',
-                                                   'ldp:contains': super().to_representation(filtered_values),
-                                                   'permissions': container_permissions
-                                                   })
+                                                               '@type': 'ldp:Container',
+                                                               'ldp:contains': super().to_representation(
+                                                                   filtered_values),
+                                                               'permissions': container_permissions
+                                                               })
 
         return self.to_representation_cache.get(self.id, cache_vary)
 
@@ -605,8 +608,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             instance = self.internal_create(validated_data, model=self.Meta.model)
-            LDListMixin.to_representation_cache.invalidate(
-                '{}{}'.format(settings.BASE_URL, Model.resource(self.Meta.model)))
             self.attach_related_object(instance, validated_data)
 
         return instance
@@ -676,11 +677,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         self.save_or_update_nested_list(instance, nested_fields)
         instance.save()
-        resource_path = Model.resource(self.Meta.model)
-        LDListMixin.to_representation_cache.invalidate('{}{}'.format(settings.BASE_URL, resource_path))
-        LDPSerializer.to_representation_cache.invalidate('{}{}'.format(settings.BASE_URL, resource_path))
-        LDListMixin.to_representation_cache.invalidate('{}{}{}'.format(settings.BASE_URL, resource_path, instance.id))
-        LDPSerializer.to_representation_cache.invalidate('{}{}{}'.format(settings.BASE_URL, resource_path, instance.id))
 
         return instance
 
