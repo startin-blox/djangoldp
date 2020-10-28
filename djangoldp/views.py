@@ -1,37 +1,35 @@
 import json
-import time
+import logging
+
 from django.apps import apps
 from django.conf import settings
-
 from django.conf.urls import include, re_path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
-from django.urls.resolvers import get_resolver
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
+from django.urls.resolvers import get_resolver
 from django.utils.decorators import classonlymethod
 from django.views import View
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import AllowAny
 from rest_framework.parsers import JSONParser
+from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.utils import model_meta
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from djangoldp.activities import ActivityPubService
+from djangoldp.activities import ActivityQueueService, as_activitystream
+from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
+from djangoldp.filters import LocalObjectOnContainerPathBackend
 from djangoldp.models import LDPSource, Model, Follower
 from djangoldp.permissions import LDPPermissions
-from djangoldp.filters import LocalObjectOnContainerPathBackend
-from djangoldp.activities import ActivityQueueService, as_activitystream
-from djangoldp.activities import ActivityPubService
-from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
-import logging
-
 
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -75,7 +73,7 @@ class InboxView(APIView):
     """
     Receive linked data notifications
     """
-    permission_classes=[AllowAny,]
+    permission_classes = [AllowAny, ]
 
     def post(self, request, *args, **kwargs):
         '''
@@ -94,7 +92,8 @@ class InboxView(APIView):
         try:
             self._handle_activity(activity, **kwargs)
         except IntegrityError:
-            return Response({'Unable to save due to an IntegrityError in the receiver model'}, status=status.HTTP_200_OK)
+            return Response({'Unable to save due to an IntegrityError in the receiver model'},
+                            status=status.HTTP_200_OK)
 
         # save the activity and return 201
         obj = ActivityQueueService._save_sent_activity(activity.to_json(), local_id=request.path_info, success=True,
@@ -126,7 +125,8 @@ class InboxView(APIView):
                 return self._get_or_create_nested_backlinks(obj, object_model, update)
         except IntegrityError as e:
             logger.error(str(e))
-            logger.warning('received a backlink which you were not able to save because of a constraint on the model field.')
+            logger.warning(
+                'received a backlink which you were not able to save because of a constraint on the model field.')
             raise e
 
     def _get_or_create_nested_backlinks(self, obj, object_model=None, update=False):
@@ -150,7 +150,8 @@ class InboxView(APIView):
                 item_value = item[1]
                 item_model = Model.get_subclass_with_rdf_type(item_value['@type'])
                 if item_model is None:
-                    raise Http404('unable to store type ' + item_value['@type'] + ', model with this rdf_type not found')
+                    raise Http404(
+                        'unable to store type ' + item_value['@type'] + ', model with this rdf_type not found')
 
                 # push nested object tuple as a branch
                 backlink = self._get_or_create_nested_backlinks(item_value, item_model)
@@ -337,6 +338,7 @@ class LDPViewSetGenerator(ModelViewSet):
         if view_set is not None:
             class LDPNestedCustomViewSet(LDPNestedViewSet, view_set):
                 pass
+
             return LDPNestedCustomViewSet.nested_urls(nested_field, **kwargs)
 
         return LDPNestedViewSet.nested_urls(nested_field, **kwargs)
@@ -433,7 +435,8 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.serializer_class is None:
             self.serializer_class = LDPSerializer
 
-        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer', (self.serializer_class,),
+        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
+                                   (self.serializer_class,),
                                    {'Meta': meta_class})
 
     def is_safe_create(self, user, validated_data, *args, **kwargs):
@@ -479,7 +482,8 @@ class LDPViewSet(LDPViewSetGenerator):
         serializer = self.get_write_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         if not self.is_safe_create(request.user, serializer.validated_data):
-            return Response({'detail': 'You do not have permission to perform this action'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'You do not have permission to perform this action'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         self.perform_create(serializer)
         response_serializer = self.get_serializer()
@@ -552,7 +556,7 @@ class LDPViewSet(LDPViewSetGenerator):
         response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
         response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
         response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE"
-        response["Access-Control-Allow-Headers"] = "authorization, Content-Type, if-match, accept"
+        response["Access-Control-Allow-Headers"] = "authorization, Content-Type, if-match, accept, sentry-trace"
         response["Access-Control-Expose-Headers"] = "Location, User"
         response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
@@ -650,4 +654,3 @@ class WebFingerView(View):
 
     def post(self, request, *args, **kwargs):
         return self.on_request(request)
-
