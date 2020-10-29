@@ -47,6 +47,7 @@ services:
           STATIC_ROOT: static
           MEDIA_ROOT: media
           JABBER_DEFAULT_HOST: 'localhost'
+          OIDC_ACCESS_CONTROL_ALLOW_HEADERS: 'Content-Type, if-match, sentry-trace'
     command: >
       bash -c "
         pip install git+https://git.startinblox.com/djangoldp-packages/djangoldp.git@beta &&
