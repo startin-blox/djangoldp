@@ -282,8 +282,7 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'],
-                         "http://testserver/resources/{}/".format(resource.pk))
+        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], resource.urlid)
         self.assertEqual(response.data['title'], "new job")
 
 
@@ -317,8 +316,9 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['circle']['@id'],
-                     "http://testserver/circles/{}/".format(circle.pk))
+        self.assertEqual(response.data['circle']['@id'], "http://testserver/circles/{}/".format(circle.pk))
+        # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/293
+        # self.assertEqual(response.data['circle']['@id'], circle.urlid)
 
     def test_nested_container_federated(self):
         resource = Resource.objects.create()
@@ -330,8 +330,7 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'],
-                         "http://testserver/resources/{}/".format(resource.pk))
+        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], resource.urlid)
         self.assertEqual(response.data['@id'], "http://external.job/job/1")
 
     def test_embedded_context_2(self):
@@ -388,6 +387,5 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['projects']['ldp:contains'][0]['@id'],
-                         "http://testserver/projects/{}/".format(project.pk))
+        self.assertEqual(response.data['projects']['ldp:contains'][0]['@id'], project.urlid)
         self.assertEqual(response.data['@id'], "http://external.user/user/1/")
