@@ -226,6 +226,12 @@ class JsonLdField(HyperlinkedRelatedField):
         super().__init__(view_name, **kwargs)
         self.get_lookup_args()
 
+    def get_url(self, obj, view_name, request, format):
+        '''Overridden from DRF to shortcut on urlid-holding objects'''
+        if hasattr(obj, 'urlid') and obj.urlid not in (None, ''):
+            return obj.urlid
+        return super().get_url(obj, view_name, request, format)
+
     def get_lookup_args(self):
         try:
             lookup_field = get_resolver().reverse_dict[self.view_name][0][0][1][0]
