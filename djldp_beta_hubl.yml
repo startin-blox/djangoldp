@@ -50,7 +50,8 @@ services:
           OIDC_ACCESS_CONTROL_ALLOW_HEADERS: 'Content-Type, if-match, sentry-trace'
     command: >
       bash -c "
-        pip install git+https://git.startinblox.com/djangoldp-packages/djangoldp.git@beta &&
+        git clone https://git.startinblox.com/djangoldp-packages/djangoldp.git -b beta /djangoldp ;
+        pip install -e /djangoldp &&
         djangoldp initserver myserver &&
         echo \"$$SETTINGS\" > /app/myserver/settings.yml &&
         cd /app/myserver &&
@@ -59,6 +60,8 @@ services:
         python manage.py creatersakey &&
         djangoldp runserver
       "
+#    volumes:
+#      - ./:/djangoldp
     ports:
       - 127.0.0.1:8000:8000
 
