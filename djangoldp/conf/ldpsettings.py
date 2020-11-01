@@ -20,14 +20,15 @@ logger = logging.getLogger(__name__)
 def configure(filename='settings.yml'):
     """Helper function to configure django from LDPSettings."""
 
+    yaml_config = None
     try:
         with open(filename, 'r') as f:
-            config = yaml.safe_load(f)
+            yaml_config = yaml.safe_load(f)
     except FileNotFoundError:
         logger.info('Starting project without configuration file')
 
     # ref: https://docs.djangoproject.com/fr/2.2/topics/settings/#custom-default-settings
-    ldpsettings = LDPSettings(config)
+    ldpsettings = LDPSettings(yaml_config)
 
     django_settings.configure(ldpsettings)
 
@@ -132,6 +133,9 @@ class LDPSettings(object):
 
     def __getattr__(self, param):
         """Return the requested parameter from cached settings."""
+        if param.startswith('_') or param.islower():
+            # raise the django exception for inexistent parameter
+            raise AttributeError(f'"{param}" is not compliant to django settings format')
         try:
             return self._settings[param]
         except KeyError:
