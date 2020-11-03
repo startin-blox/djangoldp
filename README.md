@@ -166,6 +166,16 @@ To start the server, `cd` to the root of your Django project and run :
 $ python3 manage.py runserver
 ```
 
+## Compression - WARNING!
+
+Security researchers recently revealed that when compression techniques are used on a website, the site may become exposed to a number of possible attacks. Before using compression on your site, you should consider very carefully whether you are subject to these attacks. If you’re in any doubt about whether you’re affected, you should disable this feature in DjangoLDP as described below. For more details, see the the [BREACH paper](http://breachattack.com/resources/BREACH%20-%20SSL,%20gone%20in%2030%20seconds.pdf) (PDF) and [breachattack.com](http://breachattack.com/).
+
+By default, compression is active on all views, using the Brotli algorithm. Whenever the client sends a request including `br` in the `Accept-Encoding` header, the response will be compressed, and the browser will automatically decode it ([excluding the same exceptions as Django's GZipMiddleware](https://docs.djangoproject.com/en/2.2/ref/middleware/#module-django.middleware.gzip))
+
+#### Disabling Compression
+
+To disable the compression (especially important if you believe your server could be subject to [vulnerabilities](http://breachattack.com/)), simply remove the lines including `'django_brotli.middleware.BrotliMiddleware'` and `'django.middleware.gzip.GZipMiddleware'` in your server's `MIDDLEWARE` settings
+
 ## Using DjangoLDP
 
 ### Models
