@@ -3,7 +3,6 @@ from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
 
-import time
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
@@ -32,8 +31,7 @@ from djangoldp.permissions import LDPPermissions
 
 class InMemoryCache:
 
-    def __init__(self, max_age=3000):
-        self.max_age = max_age
+    def __init__(self):
         self.cache = {
         }
 
@@ -43,11 +41,7 @@ class InMemoryCache:
 
     def has(self, cache_key, vary):
         if cache_key in self.cache and vary in self.cache[cache_key]:
-            if time.time() - self.cache[cache_key][vary]['time'] < self.max_age:
-                return True
-            else:
-                self.invalidate(cache_key, vary)
-
+            return True
         else:
             return cache_key in self.cache
 
@@ -60,7 +54,7 @@ class InMemoryCache:
     def set(self, cache_key, vary, value):
         if cache_key not in self.cache:
             self.cache[cache_key] = {}
-        self.cache[cache_key][vary] = {'time': time.time(), 'value': value}
+        self.cache[cache_key][vary] = {'value': value}
 
     def invalidate(self, cache_key, vary=None):
         if vary is None:
