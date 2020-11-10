@@ -13,6 +13,7 @@ test_runner = DiscoverRunner(verbosity=1)
 
 failures = test_runner.run_tests([
     'djangoldp.tests.tests_ldp_model',
+    'djangoldp.tests.tests_ldp_viewset',
     'djangoldp.tests.tests_save',
     'djangoldp.tests.tests_user_permissions',
     'djangoldp.tests.tests_guardian',

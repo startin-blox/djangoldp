@@ -1,6 +1,4 @@
 import json
-import logging
-
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import include, re_path
@@ -23,13 +21,15 @@ from rest_framework.utils import model_meta
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from djangoldp.activities import ActivityPubService
-from djangoldp.activities import ActivityQueueService, as_activitystream
-from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
-from djangoldp.filters import LocalObjectOnContainerPathBackend
 from djangoldp.models import LDPSource, Model, Follower
 from djangoldp.permissions import LDPPermissions
+from djangoldp.filters import LocalObjectOnContainerPathBackend
+from djangoldp.related import get_prefetch_fields
+from djangoldp.activities import ActivityQueueService, as_activitystream
+from djangoldp.activities import ActivityPubService
+from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
+import logging
 
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -386,6 +386,7 @@ class LDPViewSet(LDPViewSetGenerator):
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
     filter_backends = [LocalObjectOnContainerPathBackend]
+    prefetch_fields = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -547,9 +548,13 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def get_queryset(self, *args, **kwargs):
         if self.model:
-            return self.model.objects.all()
+            queryset = self.model.objects.all()
         else:
-            return super(LDPView, self).get_queryset(*args, **kwargs)
+            queryset = super(LDPView, self).get_queryset(*args, **kwargs)
+        if self.prefetch_fields is None:
+            depth = getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0))
+            self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
+        return queryset.prefetch_related(*self.prefetch_fields)
 
     def dispatch(self, request, *args, **kwargs):
         '''overriden dispatch method to append some custom headers'''
