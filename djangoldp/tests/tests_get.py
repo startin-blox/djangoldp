@@ -11,8 +11,8 @@ class TestGET(APITestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.client = APIClient()
-        LDListMixin.to_representation_cache.invalidate_cache()
-        LDPSerializer.to_representation_cache.invalidate_cache()
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()
 
     def tearDown(self):
         pass

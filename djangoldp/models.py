@@ -1,24 +1,23 @@
 import json
+import logging
 import uuid
 from urllib.parse import urlparse
+
 from django.conf import settings
-from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from django.urls import reverse_lazy, get_resolver
+from django.urls import reverse_lazy, get_resolver, NoReverseMatch
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
-import logging
-
 
 logger = logging.getLogger('djangoldp')
 
@@ -322,7 +321,8 @@ class Activity(Model):
 
 # temporary database-side storage used for scheduled tasks in the ActivityQueue
 class ScheduledActivity(Activity):
-    failed_attempts = models.PositiveIntegerField(default=0, help_text='a log of how many failed retries have been made sending the activity')
+    failed_attempts = models.PositiveIntegerField(default=0,
+                                                  help_text='a log of how many failed retries have been made sending the activity')
 
     def save(self, *args, **kwargs):
         self.is_finished = False
@@ -361,9 +361,14 @@ if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
             webid = '{0}{1}'.format(settings.BASE_URL, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
         return webid
 
+
     get_user_model().webid = webid
 
 
-@receiver(post_save, sender=User)
-def update_perms(sender, instance, created, **kwargs):
-    LDPPermissions.invalidate_cache()
+@receiver(pre_save)
+def invalidate_caches(instance, **kwargs):
+    if isinstance(instance, Model):
+        from djangoldp.serializers import LDListMixin, LDPSerializer
+        LDPPermissions.invalidate_cache()
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()

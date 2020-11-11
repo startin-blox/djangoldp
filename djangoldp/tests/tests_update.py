@@ -17,8 +17,8 @@ class Update(TestCase):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
         self.client.force_authenticate(user=self.user)
-        LDListMixin.to_representation_cache.invalidate_cache()
-        LDPSerializer.to_representation_cache.invalidate_cache()
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()
 
     def tearDown(self):
         pass

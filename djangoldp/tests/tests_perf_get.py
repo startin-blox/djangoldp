@@ -18,6 +18,7 @@ class TestPerformanceGET(APITestCase):
     result_line = []
     withAuth = True
     withPermsCache = True
+    # fixtures = ['test_ten_1000.json',]
 
     @classmethod
     def setUpClass(cls):
