@@ -32,6 +32,7 @@ SCHEDULER_SETTINGS = {
 MAX_ACTIVITY_RESCHEDULES = getattr(settings, 'MAX_ACTIVITY_RESCHEDULES', 3)
 DEFAULT_BACKOFF_FACTOR = getattr(settings, 'DEFAULT_BACKOFF_FACTOR', 1)
 DEFAULT_ACTIVITY_DELAY = getattr(settings, 'DEFAULT_ACTIVITY_DELAY', 3)
+DEFAULT_REQUEST_TIMEOUT = getattr(settings, 'DEFAULT_REQUEST_TIMEOUT', 10)
 
 
 activity_sending_finished = Signal()
@@ -82,7 +83,7 @@ class ActivityQueueService:
             cls.revive_activities()
 
     @classmethod
-    def do_post(cls, url, activity, auth=None):
+    def do_post(cls, url, activity, auth=None, timeout=DEFAULT_REQUEST_TIMEOUT):
         '''
         makes a POST request to url, passing activity
         :returns: response from server
@@ -93,7 +94,7 @@ class ActivityQueueService:
 
         if getattr(settings, 'DISABLE_OUTBOX', False) == 'DEBUG':
             return {'data': {}}
-        return requests.post(url, data=json.dumps(activity), headers=headers, timeout=10)
+        return requests.post(url, data=json.dumps(activity), headers=headers, timeout=timeout)
 
     @classmethod
     def _save_activity_from_response(cls, response, url, scheduled_activity):
