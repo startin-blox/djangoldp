@@ -1,18 +1,18 @@
-import uuid
 import json
-import sys
-import random
+import argparse
 from pathlib import Path
-from copy import deepcopy
+from utils import generate_users, generate_projects
 
 '''
 A script which generates and outputs random test data, into a file used by the performance unit tests
-usage: python test_data_generator.py [number_rows]
-e.g. python test_data_generator.py 2000
+for help run python test_data_generator.py -h
 '''
 
-count = int(sys.argv[1])
-fixture = list()
+parser = argparse.ArgumentParser(description='generates and outputs random test data, into a file used by the performance unit tests')
+parser.add_argument(dest='count', metavar='N', type=int, help='the number of users (and projects) to generate')
+
+args = parser.parse_args()
+count = args.count
 
 user_template = {
     'model': 'tests.user',
@@ -32,32 +32,8 @@ project_template = {
     }
 }
 
-def generate_user(i):
-    user = deepcopy(user_template)
-    user['pk'] = i
-    user['fields']['username'] = str(uuid.uuid4())
-    user['fields']['email'] = user['fields']['username'] + "@c.coop"
-    return user
-
-def generate_project(i):
-    project = deepcopy(project_template)
-    project['pk'] = i
-    project['fields']['team'] = list()
-
-    # append random number of users, max 10 for a single project
-    for j in range(random.randint(1, 10)):
-        project['fields']['team'].append(random.randint(1, count-1))
-    return project
-
-# create N users
-for i in range(count):
-    user = generate_user(i)
-    fixture.append(user)
-
-# create N projects
-for i in range(count):
-    project = generate_project(i)
-    fixture.append(project)
+fixture = generate_users(count, user_template)
+fixtue = generate_projects(count, project_template, fixture=fixture)
 
 with open(Path(__file__).parent / "../fixtures/test.json", 'w') as output:
     json.dump(fixture, output)

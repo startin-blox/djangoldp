@@ -7,16 +7,18 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.db.models import QuerySet
 from django.urls import resolve, Resolver404, get_script_prefix
 from django.urls.resolvers import get_resolver
-from django.db.models import QuerySet
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
 from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS, Hyperlink
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, LIST_SERIALIZER_KWARGS
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, \
+    LIST_SERIALIZER_KWARGS
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -27,9 +29,44 @@ from djangoldp.models import Model
 from djangoldp.permissions import LDPPermissions
 
 
+class InMemoryCache:
+
+    def __init__(self):
+        self.cache = {
+        }
+
+    def reset(self):
+        self.cache = {
+        }
+
+    def has(self, cache_key, vary):
+        return cache_key in self.cache and vary in self.cache[cache_key]
+
+    def get(self, cache_key, vary):
+        if self.has(cache_key, vary):
+            return self.cache[cache_key][vary]['value']
+        else:
+            return None
+
+    def set(self, cache_key, vary, value):
+        if cache_key not in self.cache:
+            self.cache[cache_key] = {}
+        self.cache[cache_key][vary] = {'value': value}
+
+    def invalidate(self, cache_key, vary=None):
+        if vary is None:
+            self.cache.pop(cache_key, None)
+        else:
+            self.cache[cache_key].pop(vary, None)
+
+
 class LDListMixin:
     '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
+
+    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
+
+    to_representation_cache = InMemoryCache()
 
     # converts primitive data representation to the representation used within our application
     def to_internal_value(self, data):
@@ -63,12 +100,18 @@ class LDListMixin:
 
         parent_model = None
 
-        if isinstance(value, QuerySet):
-            value = list(value)
+        cache_vary = str(self.context['request'].user)
 
-        if not isinstance(value, Iterable):
-            filtered_values = value
-            container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['view', 'add'])
+        if not isinstance(value, Iterable) and not isinstance(value, QuerySet):
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_key = self.id
+            if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
+                return self.to_representation_cache.get(cache_key, cache_vary)
+
+            container_permissions = Model.get_permissions(child_model, self.context, ['view', 'add'])
+
         else:
             # this is a container. Parent model is the containing object, child the model contained
             try:
@@ -76,21 +119,28 @@ class LDListMixin:
             except:
                 parent_model = child_model
 
-            # remove objects from the list which I don't have permission to view
-            filtered_values = list(
-                filter(lambda v: Model.get_permission_classes(v, [LDPPermissions])[0]().has_object_permission(
-                    self.context['request'], self.context['view'], v), value))
-            container_permissions = Model.get_permissions(child_model, self.context['request'].user, ['add'])
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_key = self.id
+            if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
+                return self.to_representation_cache.get(cache_key, cache_vary)
+
+            # filter the queryset automatically based on child model permissions classes (filter_backends)
+            if isinstance(value, QuerySet) and hasattr(child_model, 'get_queryset'):
+                value = child_model.get_queryset(self.context['request'], self.context['view'], queryset=value,
+                                                 model=child_model)
+
+            container_permissions = Model.get_permissions(child_model, self.context, ['add'])
             container_permissions.extend(
-                Model.get_permissions(parent_model, self.context['request'].user,
-                                      ['view']))
-        if not self.id.startswith('http'):
-            self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-        return {'@id': self.id,
-                '@type': 'ldp:Container',
-                'ldp:contains': super().to_representation(filtered_values),
-                'permissions': container_permissions
-                }
+                Model.get_permissions(parent_model, self.context, ['view']))
+
+        self.to_representation_cache.set(self.id, cache_vary, {'@id': self.id,
+                                                   '@type': 'ldp:Container',
+                                                   'ldp:contains': super().to_representation(value),
+                                                   'permissions': container_permissions})
+
+        return self.to_representation_cache.get(self.id, cache_vary)
 
     def get_attribute(self, instance):
         parent_id_field = self.parent.fields[self.parent.url_field_name]
@@ -178,6 +228,12 @@ class JsonLdField(HyperlinkedRelatedField):
         super().__init__(view_name, **kwargs)
         self.get_lookup_args()
 
+    def get_url(self, obj, view_name, request, format):
+        '''Overridden from DRF to shortcut on urlid-holding objects'''
+        if hasattr(obj, 'urlid') and obj.urlid not in (None, ''):
+            return obj.urlid
+        return super().get_url(obj, view_name, request, format)
+
     def get_lookup_args(self):
         try:
             lookup_field = get_resolver().reverse_dict[self.view_name][0][0][1][0]
@@ -256,6 +312,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
+    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
+
+    to_representation_cache = InMemoryCache()
+
     def get_default_field_names(self, declared_fields, model_info):
         try:
             fields = list(self.Meta.model._meta.serializer_fields)
@@ -268,7 +328,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if self.context['request'].method == 'GET' and Model.is_external(obj):
             return {'@id': obj.urlid}
 
-        data = super().to_representation(obj)
+        cache_vary = str(self.context['request'].user)
+        if self.with_cache and hasattr(obj, 'urlid'):
+            if self.to_representation_cache.has(obj.urlid, cache_vary):
+                data = self.to_representation_cache.get(obj.urlid, cache_vary)
+            else:
+                data = super().to_representation(obj)
+                self.to_representation_cache.set(obj.urlid, cache_vary, data)
+        else:
+            data = super().to_representation(obj)
 
         slug_field = Model.slug_field(obj)
         for field in data:
@@ -285,7 +353,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@type'] = rdf_type
         if rdf_context is not None:
             data['@context'] = rdf_context
-        data['permissions'] = Model.get_permissions(obj, self.context['request'].user,
+        data['permissions'] = Model.get_permissions(obj, self.context,
                                                     ['view', 'change', 'control', 'delete'])
 
         return data
@@ -322,7 +390,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                                                  item
                                                  in data],
                                 'permissions': Model.get_permissions(self.parent.Meta.model,
-                                                                     self.context['request'].user,
+                                                                     self.context,
                                                                      ['view', 'add'])
                                 }
                     else:
@@ -529,9 +597,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             return super().get_value(dictionary)
 
     def create(self, validated_data):
-        instance = self.internal_create(validated_data, model=self.Meta.model)
-
-        self.attach_related_object(instance, validated_data)
+        with transaction.atomic():
+            instance = self.internal_create(validated_data, model=self.Meta.model)
+            self.attach_related_object(instance, validated_data)
 
         return instance
 
@@ -650,7 +718,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(instance)
         slug_field = Model.slug_field(instance)
         relation_info = info.relations.get(attr)
-        if slug_field in value :
+        if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
             if 'urlid' in value:

@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
-from djangoldp.serializers import LDPSerializer
+from djangoldp.serializers import LDPSerializer, LDListMixin
 from djangoldp.tests.models import Post, UserProfile, Resource, Circle
 from djangoldp.tests.models import Skill, JobOffer, Conversation, Message, Project
 
@@ -17,6 +17,8 @@ class Update(TestCase):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
         self.client.force_authenticate(user=self.user)
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()
 
     def tearDown(self):
         pass

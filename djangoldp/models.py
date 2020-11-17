@@ -1,25 +1,23 @@
 import json
+import logging
 import uuid
 from urllib.parse import urlparse
+
 from django.conf import settings
-from django.contrib.auth.models import User, AbstractUser
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
-from django.db.models import BinaryField, DateField
+from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from django.urls import reverse_lazy, get_resolver
+from django.urls import reverse_lazy, get_resolver, NoReverseMatch
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
-from guardian.models import UserObjectPermissionBase
 from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import LDPPermissions
-import logging
-
 
 logger = logging.getLogger('djangoldp')
 
@@ -59,6 +57,32 @@ class Model(models.Model):
 
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
+
+    @classmethod
+    def filter_backends(cls):
+        '''constructs a list of filter_backends configured on the permissions classes applied to this model'''
+        filtered_classes = [p for p in cls.get_permission_classes(cls, [LDPPermissions]) if
+                            hasattr(p, 'filter_backends') and p.filter_backends is not None]
+        filter_backends = list()
+        for p in filtered_classes:
+            filter_backends = list(set(filter_backends).union(set(p.filter_backends)))
+        return filter_backends
+
+    @classmethod
+    def get_queryset(cls, request, view, queryset=None, model=None):
+        '''
+        when serializing as a child of another resource (my model has a many-to-one relationship with some parent),
+        get_queryset is used to obtain the resources which should be displayed. This allows us to exclude those objects
+        which I do not have permission to view in an automatically generated serializer
+        '''
+        if queryset is None:
+            queryset = cls.objects.all()
+        # this is a hack - sorry! https://git.startinblox.com/djangoldp-packages/djangoldp/issues/301/
+        if model is not None:
+            view.model = model
+        for backend in list(cls.filter_backends()):
+            queryset = backend().filter_queryset(request, queryset, view)
+        return queryset
 
     @classmethod
     def get_view_set(cls):
@@ -200,7 +224,6 @@ class Model(models.Model):
         :raises Exception: if the object does not exist, but the data passed is invalid
         '''
         try:
-            logger.debug('[get_or_create] ' + str(model) + ' backlink ' + str(urlid))
             rval = model.objects.get(urlid=urlid)
             if update:
                 for field in field_tuples.keys():
@@ -208,7 +231,6 @@ class Model(models.Model):
                 rval.save()
             return rval
         except ObjectDoesNotExist:
-            logger.debug('[get_or_create] creating..')
             if model is get_user_model():
                 field_tuples['username'] = str(uuid.uuid4())
             return model.objects.create(urlid=urlid, is_backlink=True, **field_tuples)
@@ -243,7 +265,7 @@ class Model(models.Model):
         return None
 
     @classonlymethod
-    def get_permission_classes(cls, related_model, default_permissions_classes):
+    def get_permission_classes(cls, related_model, default_permissions_classes) -> LDPPermissions:
         '''returns the permission_classes set in the models Meta class'''
         return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
 
@@ -257,10 +279,10 @@ class Model(models.Model):
         return getattr(model_class._meta, meta_name, meta)
 
     @staticmethod
-    def get_permissions(obj_or_model, user_or_group, filter):
+    def get_permissions(obj_or_model, context, filter):
         permissions = filter
         for permission_class in Model.get_permission_classes(obj_or_model, [LDPPermissions]):
-            permissions = permission_class().filter_user_perms(user_or_group, obj_or_model, permissions)
+            permissions = permission_class().filter_user_perms(context, obj_or_model, permissions)
         return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
 
     @classmethod
@@ -293,17 +315,44 @@ class LDPSource(Model):
 
 class Activity(Model):
     '''Models an ActivityStreams Activity'''
-    aid = LDPUrlField(null=True) # activity id
-    local_id = LDPUrlField()  # /inbox or /outbox full url
+    local_id = LDPUrlField(help_text='/inbox or /outbox url (local - this server)')  # /inbox or /outbox full url
+    external_id = LDPUrlField(null=True, help_text='the /inbox or /outbox url (from the sender or receiver)')
     payload = BinaryField()
-    created_at = DateField(auto_now_add=True)
+    response_location = LDPUrlField(null=True, blank=True, help_text='Location saved activity can be found')
+    response_code = models.CharField(null=True, blank=True, help_text='Response code sent by receiver', max_length=8)
+    response_body = BinaryField(null=True)
+    type = models.CharField(null=True, blank=True, help_text='the ActivityStreams type of the Activity',
+                            max_length=64)
+    is_finished = models.BooleanField(default=True)
+    created_at = DateTimeField(auto_now_add=True)
+    success = models.BooleanField(default=False, help_text='set to True when an Activity is successfully delivered')
 
     class Meta(Model.Meta):
         container_path = "activities"
         rdf_type = 'as:Activity'
 
+    def _bytes_to_json(self, obj):
+        if hasattr(obj, 'tobytes'):
+            obj = obj.tobytes()
+        if obj is None or obj == b'':
+            return {}
+        return json.loads(obj)
+
     def to_activitystream(self):
-        return json.loads(self.payload.tobytes())
+        return self._bytes_to_json(self.payload)
+
+    def response_to_json(self):
+        return self._bytes_to_json(self.response_body)
+
+
+# temporary database-side storage used for scheduled tasks in the ActivityQueue
+class ScheduledActivity(Activity):
+    failed_attempts = models.PositiveIntegerField(default=0,
+                                                  help_text='a log of how many failed retries have been made sending the activity')
+
+    def save(self, *args, **kwargs):
+        self.is_finished = False
+        super(ScheduledActivity, self).save(*args, **kwargs)
 
 
 class Follower(Model):
@@ -314,11 +363,6 @@ class Follower(Model):
 
     def __str__(self):
         return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)
-
-    def save(self, *args, **kwargs):
-        if self.pk is None:
-            logger.debug('[Follower] saving Follower ' + self.__str__())
-        super(Follower, self).save(*args, **kwargs)
 
 
 @receiver([post_save])
@@ -346,9 +390,14 @@ if not hasattr(get_user_model(), 'webid'):
             webid = '{0}{1}'.format(base_url, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
         return webid
 
+
     get_user_model().webid = webid
 
 
-@receiver(post_save, sender=User)
-def update_perms(sender, instance, created, **kwargs):
-    LDPPermissions.invalidate_cache()
+@receiver(pre_save)
+def invalidate_caches(instance, **kwargs):
+    if isinstance(instance, Model):
+        from djangoldp.serializers import LDListMixin, LDPSerializer
+        LDPPermissions.invalidate_cache()
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()

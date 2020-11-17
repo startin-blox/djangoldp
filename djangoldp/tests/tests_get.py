@@ -1,8 +1,9 @@
-from rest_framework.test import APIRequestFactory, APIClient, APITestCase
+from djangoldp.serializers import LDListMixin, LDPSerializer
+from django.contrib.auth import get_user_model
 from datetime import datetime
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel
+from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, UserProfile
 
 
 class TestGET(APITestCase):
@@ -10,6 +11,8 @@ class TestGET(APITestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.client = APIClient()
+        LDListMixin.to_representation_cache.reset()
+        LDPSerializer.to_representation_cache.reset()
 
     def tearDown(self):
         pass
@@ -20,6 +23,17 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "content")
         self.assertIn('author', response.data)
+
+    # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/293
+    '''def test_get_resource_urlid(self):
+        user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                    password='glass onion')
+        UserProfile.objects.create(user=user)
+        post = Post.objects.create(content="content", author=user.userprofile)
+        response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEquals(response.data['content'], "content")
+        self.assertEqual(response.data['author'], user.userprofile.urlid)'''
 
     def test_get_container(self):
         Post.objects.create(content="content")
@@ -78,7 +92,7 @@ class TestGET(APITestCase):
         response = self.client.get('/job-offers/{}/'.format(job.slug), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('some_skill', response.data)
-        self.assertEqual(response.data['some_skill']['@id'], "http://testserver/skills/1/")
+        self.assertEqual(response.data['some_skill']['@id'], skill.urlid)
 
     def test_get_nested(self):
         invoice = Invoice.objects.create(title="invoice")
