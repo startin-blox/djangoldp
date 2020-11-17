@@ -40,10 +40,7 @@ class InMemoryCache:
         }
 
     def has(self, cache_key, vary):
-        if cache_key in self.cache and vary in self.cache[cache_key]:
-            return True
-        else:
-            return cache_key in self.cache
+        return cache_key in self.cache and vary in self.cache[cache_key]
 
     def get(self, cache_key, vary):
         if self.has(cache_key, vary):
