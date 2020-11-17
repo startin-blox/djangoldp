@@ -105,10 +105,7 @@ class LDListMixin:
 
         cache_vary = str(self.context['request'].user)
 
-        if isinstance(value, QuerySet):
-            value = list(value)
-
-        if not isinstance(value, Iterable):
+        if not isinstance(value, Iterable) and not isinstance(value, QuerySet):
             if not self.id.startswith('http'):
                 self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
 
@@ -116,7 +113,6 @@ class LDListMixin:
             if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
                 return self.to_representation_cache.get(cache_key, cache_vary)
 
-            filtered_values = value
             container_permissions = Model.get_permissions(child_model, self.context, ['view', 'add'])
 
         else:
@@ -133,20 +129,19 @@ class LDListMixin:
             if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
                 return self.to_representation_cache.get(cache_key, cache_vary)
 
-            # remove objects from the list which I don't have permission to view
-            filtered_values = list(
-                filter(lambda v: Model.get_permission_classes(v, [LDPPermissions])[0]().has_object_permission(
-                    self.context['request'], self.context['view'], v), value))
+            # filter the queryset automatically based on child model permissions classes (filter_backends)
+            if isinstance(value, QuerySet) and hasattr(child_model, 'get_queryset'):
+                value = child_model.get_queryset(self.context['request'], self.context['view'], queryset=value,
+                                                 model=child_model)
+
             container_permissions = Model.get_permissions(child_model, self.context, ['add'])
             container_permissions.extend(
                 Model.get_permissions(parent_model, self.context, ['view']))
 
         self.to_representation_cache.set(self.id, cache_vary, {'@id': self.id,
-                                                               '@type': 'ldp:Container',
-                                                               'ldp:contains': super().to_representation(
-                                                                   filtered_values),
-                                                               'permissions': container_permissions
-                                                               })
+                                                   '@type': 'ldp:Container',
+                                                   'ldp:contains': super().to_representation(value),
+                                                   'permissions': container_permissions})
 
         return self.to_representation_cache.get(self.id, cache_vary)
 
@@ -278,7 +273,6 @@ class JsonLdRelatedField(JsonLdField):
 
 class JsonLdIdentityField(JsonLdField):
     '''Represents an identity (url) field for a serializer'''
-
     def __init__(self, view_name=None, **kwargs):
         kwargs['read_only'] = True
         kwargs['source'] = '*'

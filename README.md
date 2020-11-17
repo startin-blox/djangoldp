@@ -263,6 +263,8 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
 
 ## Filter Backends
 
+### LocalObjectFilterBackend: Excluding distant resources
+
 To achieve federation, DjangoLDP includes links to objects from federated servers and stores these as local objects (see 1.0 - Models). In some situations, you will want to exclude these from the queryset of a custom view
 
 To provide for this need, there is defined in `djangoldp.filters` a FilterBackend which can be included in custom viewsets to restrict the queryset to only objects which were created locally:
@@ -337,17 +339,17 @@ class MyModel(models.Model):
 
 Now when an instance of `MyModel` is saved, its `author_user` property will be set to the **profile** of the authenticated user.
 
-## permissions
-
-Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information
-
-## permissions_classes
+### permissions_classes
 
 This allows you to add permissions for anonymous, logged in user, author ... in the url:
 By default `LDPPermissions` is used.
 Specific permissin classes can be developed to fit special needs.
 
-## anonymous_perms, user_perms, owner_perms
+For developing custom permissions classes using `LDPPermissions`, please see the DjangoLDP [guide on permisssions](https://git.startinblox.com/djangoldp-packages/djangoldp/wikis/guides/custom-permissions)
+
+Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information
+
+### anonymous_perms, user_perms, owner_perms
 
 Those allow you to set permissions from your model's meta.
 

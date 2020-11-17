@@ -393,9 +393,9 @@ class LDPViewSet(LDPViewSetGenerator):
         # attach filter backends based on permissions classes, to reduce the queryset based on these permissions
         # https://www.django-rest-framework.org/api-guide/filtering/#generic-filtering
         if self.permission_classes:
-            for p in self.permission_classes:
-                if hasattr(p, 'filter_class') and p.filter_class:
-                    self.filter_backends.append(p.filter_class)
+            filtered_classes = [p for p in self.permission_classes if hasattr(p, 'filter_backends') and p.filter_backends is not None]
+            for p in filtered_classes:
+                self.filter_backends = list(set(self.filter_backends).union(set(p.filter_backends)))
 
         self.serializer_class = self.build_read_serializer()
         self.write_serializer_class = self.build_write_serializer()
@@ -447,37 +447,6 @@ class LDPViewSet(LDPViewSetGenerator):
         :return: True if the operation should be permitted, False to return a 403 response
         '''
         return True
-
-    # def list(self, request, *args, **kwargs):
-    #     t1 = time.time()
-    #     queryset = self.get_queryset()
-    #     t2 = time.time()
-    #     print('got queryset in ' + str(t2 - t1))
-    #
-    #     t1 = time.time()
-    #     queryset = self.filter_queryset(queryset)
-    #     t2 = time.time()
-    #     print('filtered queryset in ' + str(t2 - t1))
-    #
-    #     t1 = time.time()
-    #     page = self.paginate_queryset(queryset)
-    #     t2 = time.time()
-    #     print('paginated queryset in ' + str(t2-t1))
-    #     if page is not None:
-    #         t1 = time.time()
-    #         serializer = self.get_serializer(page, many=True)
-    #         paginated_response = self.get_paginated_response(serializer.data)
-    #         t2 = time.time()
-    #         print('paginated response in ' + str(t2-t1))
-    #
-    #         return paginated_response
-    #
-    #     t1 = time.time()
-    #     serializer = self.get_serializer(queryset, many=True)
-    #     response = Response(serializer.data)
-    #     t2 = time.time()
-    #     print('regular response in ' + str(t2-t1))
-    #     return response
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_write_serializer(data=request.data)

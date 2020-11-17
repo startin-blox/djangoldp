@@ -59,6 +59,32 @@ class Model(models.Model):
         super(Model, self).__init__(*args, **kwargs)
 
     @classmethod
+    def filter_backends(cls):
+        '''constructs a list of filter_backends configured on the permissions classes applied to this model'''
+        filtered_classes = [p for p in cls.get_permission_classes(cls, [LDPPermissions]) if
+                            hasattr(p, 'filter_backends') and p.filter_backends is not None]
+        filter_backends = list()
+        for p in filtered_classes:
+            filter_backends = list(set(filter_backends).union(set(p.filter_backends)))
+        return filter_backends
+
+    @classmethod
+    def get_queryset(cls, request, view, queryset=None, model=None):
+        '''
+        when serializing as a child of another resource (my model has a many-to-one relationship with some parent),
+        get_queryset is used to obtain the resources which should be displayed. This allows us to exclude those objects
+        which I do not have permission to view in an automatically generated serializer
+        '''
+        if queryset is None:
+            queryset = cls.objects.all()
+        # this is a hack - sorry! https://git.startinblox.com/djangoldp-packages/djangoldp/issues/301/
+        if model is not None:
+            view.model = model
+        for backend in list(cls.filter_backends()):
+            queryset = backend().filter_queryset(request, queryset, view)
+        return queryset
+
+    @classmethod
     def get_view_set(cls):
         '''returns the view_set defined in the model Meta or the LDPViewSet class'''
         view_set = getattr(cls._meta, 'view_set', getattr(cls.Meta, 'view_set', None))
@@ -239,7 +265,7 @@ class Model(models.Model):
         return None
 
     @classonlymethod
-    def get_permission_classes(cls, related_model, default_permissions_classes):
+    def get_permission_classes(cls, related_model, default_permissions_classes) -> LDPPermissions:
         '''returns the permission_classes set in the models Meta class'''
         return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
 

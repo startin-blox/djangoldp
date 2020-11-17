@@ -9,6 +9,7 @@ from django.utils.datetime_safe import date
 from djangoldp.fields import LDPUrlField
 from djangoldp.models import Model
 from djangoldp.permissions import LDPPermissions
+from djangoldp.tests.permissions import HalfRandomPermissions
 
 
 class User(AbstractUser, Model):
@@ -129,6 +130,7 @@ class LDPDummy(Model):
 class PermissionlessDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
     slug = models.SlugField(blank=True, null=True, unique=True)
+    parent = models.ForeignKey(LDPDummy, on_delete=models.DO_NOTHING, related_name="anons", blank=True, null=True)
 
     class Meta(Model.Meta):
         anonymous_perms = []
