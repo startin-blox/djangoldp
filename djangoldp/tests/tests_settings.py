@@ -46,16 +46,7 @@ class TestSettings(TestCase):
 
     def test_reference_middleware(self):
         """Asserts middlewares added in packages are added to the settings."""
-        assert settings.MIDDLEWARE == [
-            'django.middleware.security.SecurityMiddleware',
-            'django.contrib.sessions.middleware.SessionMiddleware',
-            'django.middleware.common.CommonMiddleware',
-            'django.middleware.csrf.CsrfViewMiddleware',
-            'django.contrib.auth.middleware.AuthenticationMiddleware',
-            'django.contrib.messages.middleware.MessageMiddleware',
-            'django.middleware.clickjacking.XFrameOptionsMiddleware',
-            'djangoldp.tests.dummy.middleware.DummyMiddleware'
-        ]
+        assert 'djangoldp.tests.dummy.middleware.DummyMiddleware' in settings.MIDDLEWARE
 
     def test_extra_module(self):
         #FIXME
