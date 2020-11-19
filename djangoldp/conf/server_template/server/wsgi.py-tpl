@@ -17,3 +17,10 @@ if not django_settings.configured:
     ldpsettings.configure()
 
 application = get_wsgi_application()
+
+try:
+    from djangoldp.activities.services import ActivityQueueService
+
+    ActivityQueueService.start()
+except:
+    pass
