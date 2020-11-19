@@ -11,8 +11,8 @@ def isstring(target):
 def list_models():
   # Improve me using apps.get_models()
   return {
-    "circles": "/circle/",
-    "circlesjoinable": "/circle/joinable/",
+    "circles": "/circles/",
+    "circlesjoinable": "/circles/joinable/",
     "dashboards": "/dashboards/",
     "joboffers": "/job-offers/current/",
     "projects": "/projects/",
