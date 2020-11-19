@@ -13,7 +13,7 @@ services:
            - djangoldp_circle
            - djangoldp_dashboard
            - djangoldp_conversation
-           - djangoldp_notification==1.0.3
+           - djangoldp_notification
            - djangoldp_profile
            - djangoldp_project
            - djangoldp_skill

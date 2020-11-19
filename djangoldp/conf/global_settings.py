@@ -507,6 +507,7 @@ SECURE_PROXY_SSL_HEADER = None
 # middleware will be applied in the order given, and in the response
 # phase the middleware will be applied in reverse order.
 MIDDLEWARE = [
+    'django_cookies_samesite.middleware.CookiesSameSite',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -551,6 +552,8 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_FILE_PATH = None
 # class to serialize session data
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
+# Same site policy
+DCS_SESSION_COOKIE_SAMESITE = 'none'
 
 #########
 # CACHE #
