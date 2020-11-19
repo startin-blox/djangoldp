@@ -1,3 +1,5 @@
+from django.conf import settings
+from guardian.utils import get_anonymous_user
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 
@@ -13,7 +15,9 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
         # compares the requirement for GET, with what the user has on the MODEL
         if LDPPermissions.has_model_view_permission(request, view.model):
             return queryset
-        if not request.user.is_anonymous:
+        if not request.user.is_anonymous or (
+                getattr(settings, 'ANONYMOUS_USER_NAME', True) is not None and
+                request.user != get_anonymous_user()):
             return super().filter_queryset(request, queryset, view)
         # user is anonymous without anonymous permissions
         return view.model.objects.none()

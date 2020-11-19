@@ -9,7 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
 from django.dispatch import receiver
 from django.urls import reverse_lazy, get_resolver, NoReverseMatch
 from django.utils.datastructures import MultiValueDictKeyError
@@ -394,10 +394,11 @@ if not hasattr(get_user_model(), 'webid'):
     get_user_model().webid = webid
 
 
-@receiver(pre_save)
+@receiver([pre_save, pre_delete, m2m_changed])
 def invalidate_caches(instance, **kwargs):
-    if isinstance(instance, Model):
-        from djangoldp.serializers import LDListMixin, LDPSerializer
-        LDPPermissions.invalidate_cache()
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
+    from djangoldp.serializers import LDListMixin, LDPSerializer
+    LDPPermissions.invalidate_cache()
+    LDListMixin.to_representation_cache.reset()
+
+    if hasattr(instance, 'urlid'):
+        LDPSerializer.to_representation_cache.invalidate(instance.urlid)

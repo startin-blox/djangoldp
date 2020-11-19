@@ -1,15 +1,12 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import BinaryField, DateField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.datetime_safe import date
 
-from djangoldp.fields import LDPUrlField
 from djangoldp.models import Model
 from djangoldp.permissions import LDPPermissions
-from djangoldp.tests.permissions import HalfRandomPermissions
 
 
 class User(AbstractUser, Model):
@@ -65,6 +62,7 @@ class Conversation(models.Model):
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_conv",
                                   on_delete=models.DO_NOTHING)
+    observers = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='observed_conversations')
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
