@@ -86,12 +86,26 @@ class Resource(Model):
 class UserProfile(Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, related_name='userprofile', on_delete=models.CASCADE)
+    slug = models.SlugField(blank=True, null=True, unique=True)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit', 'change', 'control']
+        owner_field = 'user'
+        lookup_field = 'slug'
+        serializer_fields = ['@id', 'description', 'settings', 'user', 'post_set']
         depth = 1
+
+
+class NotificationSetting(Model):
+    user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name="settings")
+    receiveMail = models.BooleanField(default=True)
+
+    class Meta(Model.Meta):
+        anonymous_perms = ['view', 'change']
+        authenticated_perms = ['inherit']
+        owner_perms = ['inherit', 'change', 'control']
 
 
 class Message(models.Model):

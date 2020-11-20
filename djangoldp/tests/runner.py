@@ -27,7 +27,6 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_inbox',
     'djangoldp.tests.tests_backlinks_service',
     'djangoldp.tests.tests_cache'
-
 ])
 if failures:
     sys.exit(failures)

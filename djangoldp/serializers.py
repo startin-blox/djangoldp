@@ -716,14 +716,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def update_dict_value(self, attr, instance, value):
         info = model_meta.get_field_info(instance)
-        slug_field = Model.slug_field(instance)
         relation_info = info.relations.get(attr)
+        slug_field = Model.slug_field(relation_info.related_model)
         if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
             if 'urlid' in value:
                 if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(value['urlid']).netloc:
-                    model, value = Model.resolve(value['urlid'])
+                    model, oldObj = Model.resolve(value['urlid'])
+                    value = self.update(instance=oldObj, validated_data=value)
                 elif hasattr(relation_info.related_model, 'urlid'):
                     value = Model.get_or_create_external(relation_info.related_model, value['urlid'])
             else:
