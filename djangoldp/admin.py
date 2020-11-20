@@ -1,7 +1,7 @@
 from django.contrib import admin
 from guardian.admin import GuardedModelAdmin
 from django.contrib.auth.admin import UserAdmin
-from djangoldp.models import Activity, ScheduledActivity
+from djangoldp.models import Activity, ScheduledActivity, Follower
 
 
 class DjangoLDPAdmin(GuardedModelAdmin):
@@ -48,5 +48,12 @@ class ActivityAdmin(DjangoLDPAdmin):
         return str(obj.response_to_json())
 
 
+class FollowerAdmin(DjangoLDPAdmin):
+    fields = ['urlid', 'object', 'inbox', 'follower']
+    list_display = ['urlid', 'object', 'inbox', 'follower']
+    search_fields = ['object', 'inbox', 'follower']
+
+
 admin.site.register(Activity, ActivityAdmin)
 admin.site.register(ScheduledActivity, ActivityAdmin)
+admin.site.register(Follower, FollowerAdmin)
