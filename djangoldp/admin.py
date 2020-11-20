@@ -40,6 +40,7 @@ class ActivityAdmin(DjangoLDPAdmin):
               'response_location', 'response_body_view']
     list_display = ['created_at', 'type', 'local_id', 'external_id', 'success', 'response_code']
     readonly_fields = ['created_at', 'payload_view', 'response_location', 'response_code', 'response_body_view']
+    search_fields = ['urlid', 'type', 'local_id', 'external_id', 'response_code']
 
     def payload_view(self, obj):
         return str(obj.to_activitystream())
