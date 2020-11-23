@@ -13,6 +13,7 @@ from django.views import View
 from pyld import jsonld
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
@@ -60,7 +61,10 @@ class JSONLDParser(JSONParser):
         data = super(JSONLDParser, self).parse(stream, media_type, parser_context)
         # compact applies the context to the data and makes it a format which is easier to work with
         # see: http://json-ld.org/spec/latest/json-ld/#compacted-document-form
-        return jsonld.compact(data, ctx=settings.LDP_RDF_CONTEXT)
+        try:
+            return jsonld.compact(data, ctx=settings.LDP_RDF_CONTEXT)
+        except jsonld.JsonLdError as e:
+            raise ParseError(str(e.cause))
 
 
 # an authentication class which exempts CSRF authentication

@@ -403,6 +403,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         return field_class, field_kwargs
 
+    def handle_value_object(self, value):
+        '''
+        In JSON-LD value-objects can be passed in, which store some context on the field passed. By overriding this
+        function you can react to this context on a field without overriding build_standard_field
+        '''
+        return value['@value']
+
     def build_standard_field(self, field_name, model_field):
         class JSonLDStandardField:
             parent_view_name = None
@@ -432,6 +439,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 if self.field_name == '@id' and value == './':
                     self.field_name = 'urlid'
                     return None
+
+                if isinstance(value, dict) and '@value' in value:
+                    value = self.parent.handle_value_object(value)
+
                 return self.manage_empty(value)
 
             def manage_empty(self, value):
