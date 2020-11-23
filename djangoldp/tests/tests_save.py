@@ -206,6 +206,42 @@ class Save(TestCase):
         self.assertEquals(response.data['title'], "title")
         self.assertEquals(response.data['invoice']['title'], "title 3")
 
+    # https://www.w3.org/TR/json-ld/#value-objects
+    def test_save_field_with_value_object(self):
+        post = {
+            'http://happy-dev.fr/owl/#title': {
+                '@value': "title",
+                '@language': "en"
+            }
+        }
+        response = self.client.post('/invoices/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEquals(response.data['title'], "title")
+
+    # from JSON-LD spec: "The value associated with the @value key MUST be either a string, a number, true, false or null"
+    def test_save_field_with_invalid_value_object(self):
+        invoice = Invoice.objects.create(title="title 3")
+        post = {
+            'http://happy-dev.fr/owl/#invoice': {
+                '@value': {'title': 'title', '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)}
+            }
+        }
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 400)
+
+    # TODO: bug with PyLD: https://github.com/digitalbazaar/pyld/issues/142
+    # from JSON-LD spec: "If the value associated with the @type key is @json, the value MAY be either an array or an object"
+    '''def test_save_field_with_object_value_object(self):
+        invoice = Invoice.objects.create(title="title 3")
+        post = {
+            'http://happy-dev.fr/owl/#invoice': {
+                '@value': {'title': 'title', '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)},
+                '@type': '@json'
+            }
+        }
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)'''
+
     def test_post_should_accept_missing_field_id_nullable(self):
             body = [
                 {
