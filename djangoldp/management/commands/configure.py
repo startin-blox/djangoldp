@@ -8,6 +8,14 @@ class Command(BaseCommand):
 
     help = 'Initialize the DjangoLDP backend'
 
+    def add_arguments(self, parser):
+
+        """Define the same arguments as the ones in CLI."""
+
+        parser.add_argument('--with-admin', nargs='?', type=str, help='Create an administrator user.')
+        parser.add_argument('--email', nargs='?', type=str, help='Provide an email for administrator.')
+        parser.add_argument('--with-dummy-admin', action='store_true', help='Create a default "admin" user with "admin" password.')
+
     def handle(self, *args, **options):
 
         """Wrapper command around default django initialization commands."""
@@ -19,24 +27,25 @@ class Command(BaseCommand):
         except CommandError as e:
             setf.stdout.write(self.style.ERROR(f'Data migration failed: {e}'))
 
-        try:
-            if settings.DEBUG:
+        if options['with_dummy_admin']:
+            try:
                 # create a default super user
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
                 User.objects.create_superuser('admin', 'admin@example.org', 'admin')
 
-            else:
+            except (ValidationError, IntegrityError):
+                self.stdout.write('User "admin" already exists. Skipping...')
+                pass
+
+        elif options['with_admin']:
+            try:
                 # call default createsuperuser command
-                management.call_command('createsuperuser', interactive=True)
+                management.call_command('createsuperuser', '--noinput', '--username', options['with_admin'], '--email', options['email'])
 
-        except (ValidationError, IntegrityError):
-            self.stdout.write('User "admin" already exists. Skipping...')
-            pass
-
-        except CommandError as e:
-            self.stdout.write(self.style.ERROR(f'Superuser creation failed: {e}'))
-            pass
+            except CommandError as e:
+                self.stdout.write(self.style.ERROR(f'Superuser {e}'))
+                pass
 
         #try:
         #    # creatersakey

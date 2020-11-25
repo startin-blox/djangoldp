@@ -14,7 +14,7 @@ from . import __version__
 @click.version_option(__version__)
 def main():
 
-    """DjangoLDP"""
+    """DjangoLDP CLI"""
 
 
 @main.command()
@@ -95,14 +95,17 @@ def install():
             click.echo('No dependency to install')
 
     except FileNotFoundError:
-        click.echo('Config error: no config.yml file in this directory')
+        click.echo('Config error: no settings.yml file in this directory')
 
     except subprocess.CalledProcessError as e:
         click.echo(f'Installation error: {e}')
 
 
 @main.command()
-def configure():
+@click.option('--with-admin', 'admin', help='Create an administrator user with email.')
+@click.option('--email', help='Provide an email for administrator.')
+@click.option('--with-dummy-admin', 'dummy_admin', is_flag=True, help='Create a default "admin" user.')
+def configure(admin, dummy_admin, email):
 
     """Configure the project."""
 
@@ -110,6 +113,13 @@ def configure():
         # shortcut to the djangoldp.management command
         path = str(Path.cwd() / 'manage.py')
         cmd = [sys.executable, path, 'configure']
+        if admin:
+            if not email:
+                click.echo('Error: missing email for admin user')
+                return
+            cmd.extend(['--with-admin', admin, '--email', email])
+        elif dummy_admin:
+            cmd.append('--with-dummy-admin')
         subprocess.run(cmd).check_returncode()
 
         click.echo('Confguration done!')
