@@ -1,4 +1,34 @@
-## Configure your LDP server
+# Installation guide
+
+## DjangoLDP CLI
+
+```
+$ djangoldp --help
+Usage: djangoldp [OPTIONS] COMMAND [ARGS]...
+
+  DjangoLDP CLI
+
+Options:
+  --version  Show the version and exit.
+  --help     Show this message and exit.
+
+Commands:
+  configure     Configure the project.
+  initserver    Start a DjangoLDP server.
+  install       Install project dependencies.
+  runserver     Run the Django embeded webserver.
+  startpackage  Start a DjangoLDP package.
+```
+
+The `djangoldp` server is built ontop of `django` framework. The `django` core commands are also available. Check `python manage.py --help` and [the official Django documentation](https://docs.djangoproject.com/en/2.2/)
+
+### The "configure" command
+
+This is a command meant to tell the server a new version has been installed and it should run some maintenance operations to check data integrity.
+
+It has options to create new administrator users during the configuration process.
+
+## The settings file
 
 The server comes with a default `settings.yml` you can customize.
 

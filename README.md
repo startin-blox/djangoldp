@@ -32,7 +32,7 @@ This step setup a default basic configuration (see: .
 
 Initialize the server:
 ```
-$ djangoldp configure
+$ djangoldp configure --with-dummy-admin
 ```
 
 And run the server locally:
