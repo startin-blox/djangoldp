@@ -36,6 +36,11 @@ LDP_RDF_CONTEXT = {
     }
 }
 
+MAX_ACTIVITY_RESCHEDULES = 3
+DEFAULT_BACKOFF_FACTOR = 1
+DEFAULT_ACTIVITY_DELAY = 3
+DEFAULT_REQUEST_TIMEOUT = 10
+
 ####################
 # CORE             #
 ####################
