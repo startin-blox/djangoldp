@@ -36,7 +36,7 @@ if 'djangoldp_account' not in settings.DJANGOLDP_PACKAGES:
     urlpatterns.append(re_path(r'^users/', LDPViewSet.urls(model=settings.AUTH_USER_MODEL, permission_classes=[])))
 
 # fetch a list of all models which subclass DjangoLDP Model
-model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
+model_classes = {cls.__name__: cls for cls in Model.__subclasses__() if not Model.get_meta(cls, 'abstract', False)}
 
 # append urls for all DjangoLDP Model subclasses
 for class_name in model_classes:

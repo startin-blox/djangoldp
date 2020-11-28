@@ -252,6 +252,15 @@ class DateChild(Model):
         rdf_type = 'hd:datechild'
 
 
+class MyAbstractModel(Model):
+    defaultsomething = models.CharField(max_length=255, blank=True)
+
+    class Meta(Model.Meta):
+        permission_classes = [LDPPermissions]
+        abstract = True
+        rdf_type = "wow:defaultrdftype"
+
+
 @receiver(post_save, sender=User)
 def update_perms(sender, instance, created, **kwargs):
     LDPPermissions.invalidate_cache()
