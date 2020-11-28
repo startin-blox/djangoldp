@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from datetime import datetime
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, UserProfile
+from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember
 
 
 class TestGET(APITestCase):
@@ -13,6 +13,8 @@ class TestGET(APITestCase):
         self.client = APIClient()
         LDListMixin.to_representation_cache.reset()
         LDPSerializer.to_representation_cache.reset()
+        setattr(Circle._meta, 'depth', 0)
+        setattr(Circle._meta, 'empty_containers', [])
 
     def tearDown(self):
         pass
@@ -116,3 +118,64 @@ class TestGET(APITestCase):
         response = self.client.get('/dates/{}/'.format(date.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('excluded', response.data.keys())
+
+    def _set_up_circle_and_user(self):
+        circle = Circle.objects.create(name='test', description='test')
+        user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                    password='glass onion')
+        self.client.force_authenticate(user)
+        CircleMember.objects.create(user=user, circle=circle)
+
+    # tests for functionality allowing me to set containers to be serialized without content\
+    # test for normal functioning (without setting)
+    def test_empty_container_serialization_nested_serializer_no_empty(self):
+        setattr(Circle._meta, 'depth', 1)
+        self._set_up_circle_and_user()
+
+        response = self.client.get('/circles/', content_type='application/ld+json')
+        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertIn('@id', response.data)
+        self.assertIn('permissions', response.data)
+        self.assertIn('members', response.data['ldp:contains'][0])
+        self.assertEqual(response.data['ldp:contains'][0]['members']['@type'], 'ldp:Container')
+        self.assertIn('@id', response.data['ldp:contains'][0]['members'])
+        self.assertIn('ldp:contains', response.data['ldp:contains'][0]['members'])
+        self.assertIn('permissions', response.data['ldp:contains'][0]['members'])
+
+    # test for functioning with setting
+    def test_empty_container_serialization_nested_serializer_empty(self):
+        setattr(Circle._meta, 'depth', 1)
+        setattr(Circle._meta, 'empty_containers', ['members'])
+        self._set_up_circle_and_user()
+
+        response = self.client.get('/circles/', content_type='application/ld+json')
+        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertIn('members', response.data['ldp:contains'][0])
+        self.assertIn('@id', response.data['ldp:contains'][0]['members'])
+        self.assertNotIn('@type', response.data['ldp:contains'][0]['members'])
+        self.assertNotIn('permissions', response.data['ldp:contains'][0]['members'])
+        self.assertNotIn('ldp:contains', response.data['ldp:contains'][0]['members'])
+
+    # should serialize as normal on the nested viewset (directly asking for the container)
+    # test for normal functioning (without setting)
+    def test_empty_container_serialization_nested_viewset_no_empty(self):
+        self._set_up_circle_and_user()
+
+        response = self.client.get('/circles/1/members/', content_type='application/ld+json')
+        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertIn('@id', response.data)
+        self.assertIn('ldp:contains', response.data)
+        self.assertIn('permissions', response.data)
+        self.assertIn('circle', response.data['ldp:contains'][0])
+
+    # test for functioning with setting
+    def test_empty_container_serialization_nested_viewset_empty(self):
+        setattr(Circle._meta, 'empty_containers', ['members'])
+        self._set_up_circle_and_user()
+
+        response = self.client.get('/circles/1/members/', content_type='application/ld+json')
+        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertIn('@id', response.data)
+        self.assertIn('ldp:contains', response.data)
+        self.assertIn('permissions', response.data)
+        self.assertIn('circle', response.data['ldp:contains'][0])
