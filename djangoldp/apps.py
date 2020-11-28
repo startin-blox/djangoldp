@@ -36,7 +36,7 @@ class DjangoldpConfig(AppConfig):
             except ModuleNotFoundError:
                 pass
 
-        model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
+        model_classes = {cls.__name__: cls for cls in Model.__subclasses__() if not Model.get_meta(cls, 'abstract', False)}
 
         for class_name in model_classes:
             model_class = model_classes[class_name]
