@@ -148,8 +148,7 @@ class LDListMixin:
             empty_containers = getattr(self.parent.Meta.model._meta, 'empty_containers', None)
 
             if empty_containers is not None and self.field_name in empty_containers:
-                self.to_representation_cache.set(self.id, cache_vary, _ldp_container_representation(self.id))
-                return self.to_representation_cache.get(self.id, cache_vary)
+                return _ldp_container_representation(self.id)
 
         self.to_representation_cache.set(self.id, cache_vary,
                                          _ldp_container_representation(self.id,
