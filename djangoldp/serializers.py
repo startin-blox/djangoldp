@@ -60,6 +60,16 @@ class InMemoryCache:
             self.cache[cache_key].pop(vary, None)
 
 
+def _ldp_container_representation(id, container_permissions=None, value=None):
+    '''Utility function builds a LDP-format dictionary for passed container data'''
+    represented_object = {'@id': id}
+    if value is not None:
+        represented_object.update({'@type': 'ldp:Container', 'ldp:contains': value})
+    if container_permissions is not None:
+        represented_object.update({'permissions': container_permissions})
+    return represented_object
+
+
 class LDListMixin:
     '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
@@ -113,7 +123,6 @@ class LDListMixin:
             container_permissions = Model.get_permissions(child_model, self.context, ['view', 'add'])
 
         else:
-            # this is a container. Parent model is the containing object, child the model contained
             try:
                 parent_model = Model.resolve_parent(self.context['request'].path)
             except:
@@ -126,19 +135,25 @@ class LDListMixin:
             if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
                 return self.to_representation_cache.get(cache_key, cache_vary)
 
-            # filter the queryset automatically based on child model permissions classes (filter_backends)
+            container_permissions = Model.get_permissions(child_model, self.context, ['add'])
+            container_permissions.extend(Model.get_permissions(parent_model, self.context, ['view']))
+
+            # optimize: filter the queryset automatically based on child model permissions classes (filter_backends)
             if isinstance(value, QuerySet) and hasattr(child_model, 'get_queryset'):
                 value = child_model.get_queryset(self.context['request'], self.context['view'], queryset=value,
                                                  model=child_model)
 
-            container_permissions = Model.get_permissions(child_model, self.context, ['add'])
-            container_permissions.extend(
-                Model.get_permissions(parent_model, self.context, ['view']))
+        # if this field is listed as an "empty_container" it means that it should only be serialized with @id
+        if getattr(self, 'parent', None) is not None and getattr(self, 'field_name', None) is not None:
+            empty_containers = getattr(self.parent.Meta.model._meta, 'empty_containers', None)
 
-        self.to_representation_cache.set(self.id, cache_vary, {'@id': self.id,
-                                                   '@type': 'ldp:Container',
-                                                   'ldp:contains': super().to_representation(value),
-                                                   'permissions': container_permissions})
+            if empty_containers is not None and self.field_name in empty_containers:
+                return _ldp_container_representation(self.id)
+
+        self.to_representation_cache.set(self.id, cache_vary,
+                                         _ldp_container_representation(self.id,
+                                                                       container_permissions=container_permissions,
+                                                                       value=super().to_representation(value)))
 
         return self.to_representation_cache.get(self.id, cache_vary)
 
@@ -384,15 +399,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     if isinstance(instance, QuerySet):
                         data = list(instance)
 
-                        return {'@id': '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source),
-                                '@type': 'ldp:Container',
-                                'ldp:contains': [serializer.to_representation(item) if item is not None else None for
-                                                 item
-                                                 in data],
-                                'permissions': Model.get_permissions(self.parent.Meta.model,
-                                                                     self.context,
-                                                                     ['view', 'add'])
-                                }
+                        id = '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source)
+                        permissions = Model.get_permissions(self.parent.Meta.model, self.context, ['view', 'add'])
+                        data = [serializer.to_representation(item) if item is not None else None for item in data]
+                        return _ldp_container_representation(id, container_permissions=permissions, value=data)
                     else:
                         return serializer.to_representation(instance)
                 else:
@@ -402,6 +412,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
         field_kwargs = {}
 
         return field_class, field_kwargs
+
+    def handle_value_object(self, value):
+        '''
+        In JSON-LD value-objects can be passed in, which store some context on the field passed. By overriding this
+        function you can react to this context on a field without overriding build_standard_field
+        '''
+        return value['@value']
 
     def build_standard_field(self, field_name, model_field):
         class JSonLDStandardField:
@@ -432,6 +449,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
                 if self.field_name == '@id' and value == './':
                     self.field_name = 'urlid'
                     return None
+
+                if isinstance(value, dict) and '@value' in value:
+                    value = self.parent.handle_value_object(value)
+
                 return self.manage_empty(value)
 
             def manage_empty(self, value):
@@ -716,14 +737,15 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def update_dict_value(self, attr, instance, value):
         info = model_meta.get_field_info(instance)
-        slug_field = Model.slug_field(instance)
         relation_info = info.relations.get(attr)
+        slug_field = Model.slug_field(relation_info.related_model)
         if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
             if 'urlid' in value:
                 if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(value['urlid']).netloc:
-                    model, value = Model.resolve(value['urlid'])
+                    model, oldObj = Model.resolve(value['urlid'])
+                    value = self.update(instance=oldObj, validated_data=value)
                 elif hasattr(relation_info.related_model, 'urlid'):
                     value = Model.get_or_create_external(relation_info.related_model, value['urlid'])
             else:

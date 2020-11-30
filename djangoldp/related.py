@@ -23,6 +23,7 @@ def get_prefetch_fields(model, serializer, depth, prepend_string=''):
     # meta_class = type('Meta', (), meta_args)
     # serializer = (type(LDPSerializer)('TestSerializer', (LDPSerializer,), {'Meta': meta_class}))()
     serializer_fields = set([f for f in serializer.get_fields()])
+    empty_containers = getattr(model._meta, 'empty_containers', [])
 
     # we are only interested in foreign keys (and many-to-many relationships)
     model_relations = model_meta.get_field_info(model).relations
@@ -33,7 +34,7 @@ def get_prefetch_fields(model, serializer, depth, prepend_string=''):
             continue
 
         # nested fields should be added if serialized
-        if field_name in serializer_fields:
+        if field_name in serializer_fields and field_name not in empty_containers:
             fields.add((prepend_string + field_name))
 
             # and they should also have their immediate foreign keys prefetched if depth not reached

@@ -33,7 +33,7 @@ for package in settings.DJANGOLDP_PACKAGES:
         pass
 
 # fetch a list of all models which subclass DjangoLDP Model
-model_classes = {cls.__name__: cls for cls in Model.__subclasses__()}
+model_classes = {cls.__name__: cls for cls in Model.__subclasses__() if not Model.get_meta(cls, 'abstract', False)}
 
 # append urls for all DjangoLDP Model subclasses
 for class_name in model_classes:

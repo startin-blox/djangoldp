@@ -1,7 +1,7 @@
 from django.contrib import admin
 from guardian.admin import GuardedModelAdmin
 from django.contrib.auth.admin import UserAdmin
-from djangoldp.models import Activity, ScheduledActivity
+from djangoldp.models import Activity, ScheduledActivity, Follower
 
 
 class DjangoLDPAdmin(GuardedModelAdmin):
@@ -40,6 +40,7 @@ class ActivityAdmin(DjangoLDPAdmin):
               'response_location', 'response_body_view']
     list_display = ['created_at', 'type', 'local_id', 'external_id', 'success', 'response_code']
     readonly_fields = ['created_at', 'payload_view', 'response_location', 'response_code', 'response_body_view']
+    search_fields = ['urlid', 'type', 'local_id', 'external_id', 'response_code']
 
     def payload_view(self, obj):
         return str(obj.to_activitystream())
@@ -48,5 +49,12 @@ class ActivityAdmin(DjangoLDPAdmin):
         return str(obj.response_to_json())
 
 
+class FollowerAdmin(DjangoLDPAdmin):
+    fields = ['urlid', 'object', 'inbox', 'follower']
+    list_display = ['urlid', 'object', 'inbox', 'follower']
+    search_fields = ['object', 'inbox', 'follower']
+
+
 admin.site.register(Activity, ActivityAdmin)
 admin.site.register(ScheduledActivity, ActivityAdmin)
+admin.site.register(Follower, FollowerAdmin)

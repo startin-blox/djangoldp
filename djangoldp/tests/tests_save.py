@@ -5,7 +5,8 @@ from rest_framework.utils import json
 
 from djangoldp.models import Model
 from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle, Project
+from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle, Project, \
+    UserProfile, NotificationSetting
 
 
 class Save(TestCase):
@@ -205,17 +206,53 @@ class Save(TestCase):
         self.assertEquals(response.data['title'], "title")
         self.assertEquals(response.data['invoice']['title'], "title 3")
 
-    def test_post_should_accept_missing_field_id_nullable(self):
-        body = [
-            {
-                '@id': "./",
-                'http://happy-dev.fr/owl/#content': "post update",
+    # https://www.w3.org/TR/json-ld/#value-objects
+    def test_save_field_with_value_object(self):
+        post = {
+            'http://happy-dev.fr/owl/#title': {
+                '@value': "title",
+                '@language': "en"
             }
-        ]
-        response = self.client.post('/posts/', data=json.dumps(body),
-                                    content_type='application/ld+json')
+        }
+        response = self.client.post('/invoices/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertIn('peer_user', response.data)
+        self.assertEquals(response.data['title'], "title")
+
+    # from JSON-LD spec: "The value associated with the @value key MUST be either a string, a number, true, false or null"
+    def test_save_field_with_invalid_value_object(self):
+        invoice = Invoice.objects.create(title="title 3")
+        post = {
+            'http://happy-dev.fr/owl/#invoice': {
+                '@value': {'title': 'title', '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)}
+            }
+        }
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 400)
+
+    # TODO: bug with PyLD: https://github.com/digitalbazaar/pyld/issues/142
+    # from JSON-LD spec: "If the value associated with the @type key is @json, the value MAY be either an array or an object"
+    '''def test_save_field_with_object_value_object(self):
+        invoice = Invoice.objects.create(title="title 3")
+        post = {
+            'http://happy-dev.fr/owl/#invoice': {
+                '@value': {'title': 'title', '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)},
+                '@type': '@json'
+            }
+        }
+        response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)'''
+
+    def test_post_should_accept_missing_field_id_nullable(self):
+            body = [
+                {
+                    '@id': "./",
+                    'http://happy-dev.fr/owl/#content': "post update",
+                }
+            ]
+            response = self.client.post('/posts/', data=json.dumps(body),
+                                        content_type='application/ld+json')
+            self.assertEqual(response.status_code, 201)
+            self.assertIn('peer_user', response.data)
 
     def test_post_should_accept_empty_field_if_nullable(self):
         body = [
@@ -389,3 +426,70 @@ class Save(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['projects']['ldp:contains'][0]['@id'], project.urlid)
         self.assertEqual(response.data['@id'], "http://external.user/user/1/")
+
+    # unit tests for a specific bug: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/307
+    def test_direct_boolean_field(self):
+        profile = UserProfile.objects.create(user=self.user)
+        setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
+        body = {
+            'http://happy-dev.fr/owl/#@id': setting.urlid,
+            'receiveMail': True,
+            "@context": {"@vocab": "http://happy-dev.fr/owl/#", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                         "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
+                         "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
+                         "acl": "http://www.w3.org/ns/auth/acl#", "permissions": "acl:accessControl",
+                         "mode": "acl:mode", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#", "lat": "geo:lat",
+                         "lng": "geo:long"}
+        }
+
+        response = self.client.patch('/notificationsettings/{}/'.format(setting.pk),
+                                     data=json.dumps(body),
+                                     content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['receiveMail'], True)
+
+    def test_nested_container_boolean_field_no_slug(self):
+        profile = UserProfile.objects.create(user=self.user)
+        setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
+        body = {
+            'settings': {
+                'http://happy-dev.fr/owl/#@id': setting.urlid,
+                'receiveMail': True
+            },
+            "@context": {"@vocab": "http://happy-dev.fr/owl/#", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                         "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
+                         "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
+                         "acl": "http://www.w3.org/ns/auth/acl#", "permissions": "acl:accessControl",
+                         "mode": "acl:mode", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#", "lat": "geo:lat",
+                         "lng": "geo:long"}
+        }
+
+        response = self.client.patch('/userprofiles/{}/'.format(profile.slug),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['settings']['receiveMail'], True)
+
+    # variation where the lookup_field for NotificationSetting (pk) is provided
+    def test_nested_container_boolean_field_with_slug(self):
+        profile = UserProfile.objects.create(user=self.user)
+        setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
+        body = {
+            'settings': {
+                'pk': setting.pk,
+                'http://happy-dev.fr/owl/#@id': setting.urlid,
+                'receiveMail': True
+            },
+            "@context": {"@vocab": "http://happy-dev.fr/owl/#", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                         "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
+                         "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
+                         "acl": "http://www.w3.org/ns/auth/acl#", "permissions": "acl:accessControl",
+                         "mode": "acl:mode", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#", "lat": "geo:lat",
+                         "lng": "geo:long"}
+        }
+
+        response = self.client.patch('/userprofiles/{}/'.format(profile.slug),
+                                   data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['settings']['receiveMail'], True)

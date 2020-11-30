@@ -128,7 +128,7 @@ $ python3 manage.py runserver
 
 ## Using DjangoLDP
 
-### Models
+### Models
 
 To use DjangoLDP in your models you just need to extend djangoldp.Model
 
@@ -403,6 +403,22 @@ Depreciated in DjangoLDP 0.8.0, as all to-many fields are included as nested fie
 
 Will exclude the field `skills` from the model's nested fields, and prevent a container `/model/<pk>/skills/` from being generated
 
+### empty_containers
+
+Slightly different from `serializer_fields` and `nested_fields` is the `empty_containers`, which allows for a list of nested containers which should be serialized, but without content, i.e. producing something like the following:
+```
+{ ..., 'members': {'@id': 'https://myserver.com/circles/x/members/'}, ... }
+```
+
+Where normally the serializer would output:
+```
+{ ..., 'members': {'@id': 'https://myserver.com/circles/x/members/',}, ... }
+```
+
+Note that this only applies when the field is nested in the serializer, i.e.:
+* `https://myserver.com/circles/x/members/` **would not** serialize the container members
+* `https://myserver.com/circles/x/members/` **would** serialize the container members
+
 ## Custom urls
 
 To add customs urls who can not be add through the `Model` class, it's possible de create a file named `djangoldp_urls.py`. It will be executed like an `urls.py` file
@@ -441,4 +457,3 @@ MIDDLEWARE = [
 ```
 
 Notice tht it'll redirect only HTTP 200 Code.
-
