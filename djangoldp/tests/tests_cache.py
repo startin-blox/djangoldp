@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Conversation, Project
+from djangoldp.tests.models import Conversation, Project, Circle, CircleMember
 
 
 class TestCache(TestCase):
@@ -19,7 +19,8 @@ class TestCache(TestCase):
         LDPSerializer.to_representation_cache.reset()
 
     def tearDown(self):
-        pass
+        setattr(Circle._meta, 'depth', 0)
+        setattr(Circle._meta, 'empty_containers', [])
 
     # test container cache after new resource added
     @override_settings(SERIALIZER_CACHE=True)
@@ -161,4 +162,32 @@ class TestCache(TestCase):
         response = self.client.get('/conversations/{}/observers/'.format(conversation.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 0)
+
+    # test the cache behaviour when empty_containers is an active setting
+    @override_settings(SERIALIZER_CACHE=True)
+    def test_cache_empty_container(self):
+        setattr(Circle._meta, 'depth', 1)
+        setattr(Circle._meta, 'empty_containers', ['members'])
+
+        circle = Circle.objects.create(name='test', description='test')
+        CircleMember.objects.create(user=self.user, circle=circle)
+
+        # make one call on the parent
+        response = self.client.get('/circles/', content_type='application/ld+json')
+        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertIn('members', response.data['ldp:contains'][0])
+        self.assertIn('@id', response.data['ldp:contains'][0]['members'])
+        self.assertNotIn('@type', response.data['ldp:contains'][0]['members'])
+        self.assertNotIn('permissions', response.data['ldp:contains'][0]['members'])
+        self.assertNotIn('ldp:contains', response.data['ldp:contains'][0]['members'])
+
+        # and a second on the child
+        response = self.client.get('/circles/1/members/', content_type='application/ld+json')
+        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertIn('@id', response.data)
+        self.assertIn('ldp:contains', response.data)
+        self.assertIn('permissions', response.data)
+        self.assertIn('circle', response.data['ldp:contains'][0])
+
+
 
