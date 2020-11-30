@@ -44,10 +44,12 @@ def initserver(name):
 
     except FileExistsError:
         click.echo(f'Error: the folder {directory} already exists')
+        sys.exit(1)
 
     except CommandError as e:
         click.echo(f'Error: {e}')
         directory.rmdir()
+        sys.exit(1)
 
 @main.command()
 @click.argument('name', nargs=1)
@@ -70,9 +72,11 @@ def startpackage(name):
 
     except FileExistsError:
         click.echo(f'Error: the folder {directory} already exists')
+        sys.exit(1)
 
     except CommandError as e:
         click.echo(f'Error: {e}')
+        sys.exit(1)
 
 @main.command()
 def install():
@@ -96,9 +100,11 @@ def install():
 
     except FileNotFoundError:
         click.echo('Config error: no settings.yml file in this directory')
+        sys.exit(1)
 
     except subprocess.CalledProcessError as e:
         click.echo(f'Installation error: {e}')
+        sys.exit(1)
 
 
 @main.command()
@@ -126,6 +132,7 @@ def configure(admin, dummy_admin, email):
 
     except subprocess.CalledProcessError as e:
         click.echo(f'Configuration error: {e}')
+        sys.exit(1)
 
 
 @main.command()
@@ -141,3 +148,4 @@ def runserver():
 
     except subprocess.CalledProcessError as e:
         click.echo(f'Execution error: {e}')
+        sys.exit(1)
