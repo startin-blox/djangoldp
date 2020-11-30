@@ -90,7 +90,7 @@ def install():
             dependencies = yaml.safe_load(f).get('dependencies', [])
 
         # install them by calling pip command
-        cmd = [sys.executable, "-m", "pip", "install"]
+        cmd = [sys.executable, "-m", "pip", "install", "--upgrade"]
         try:
             cmd.extend(dependencies)
             subprocess.run(cmd).check_returncode()
