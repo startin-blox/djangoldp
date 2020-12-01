@@ -334,18 +334,15 @@ class LDPViewSetGenerator(ModelViewSet):
         return r'(?P<{}>{}+)/'.format(lookup_field, lookup_group)
 
     @classonlymethod
-    def nested_urls(cls, nested_field, view_set=None, **kwargs):
-        '''
-        constructs url patterns for parameterised nested_field
-        :param view_set: an optional CustomViewSet to mixin with the LDPNestedViewSet implementation
-        '''
+    def build_nested_view_set(cls, view_set=None):
+        '''returns the the view_set parameter mixed into the LDPNestedViewSet class'''
         if view_set is not None:
             class LDPNestedCustomViewSet(LDPNestedViewSet, view_set):
                 pass
 
-            return LDPNestedCustomViewSet.nested_urls(nested_field, **kwargs)
+            return LDPNestedCustomViewSet
 
-        return LDPNestedViewSet.nested_urls(nested_field, **kwargs)
+        return LDPNestedViewSet
 
     @classonlymethod
     def urls(cls, **kwargs):
@@ -366,17 +363,38 @@ class LDPViewSetGenerator(ModelViewSet):
         for field in kwargs.get('nested_fields') or cls.nested_fields:
             # the nested property may have a custom viewset defined
             try:
-                nested_model = kwargs['model']._meta.get_field(field).related_model
+                related_field = kwargs['model']._meta.get_field(field)
+                nested_model = related_field.related_model
             except FieldDoesNotExist:
-                nested_model = getattr(kwargs['model'], field).field.model
+                related_field = getattr(kwargs['model'], field).field
+                nested_model = related_field.model
 
-            if hasattr(nested_model, 'get_view_set'):
-                kwargs['view_set'] = nested_model.get_view_set()
-                urls_fct = kwargs['view_set'].nested_urls  # our custom view_set may override nested_urls
+            if related_field.related_query_name:
+                nested_related_name = related_field.related_query_name()
             else:
-                urls_fct = cls.nested_urls
+                nested_related_name = related_field.remote_field.name
 
-            urls.append(re_path('^' + detail_expr + field + '/', urls_fct(field, **kwargs)))
+            # urls should be called from _nested_ view set, which may need a custom view set mixed in
+            view_set = None
+            if hasattr(nested_model, 'get_view_set'):
+                view_set = nested_model.get_view_set()
+            nested_view_set = cls.build_nested_view_set(view_set)
+
+            urls.append(re_path('^' + detail_expr + field + '/',
+                                nested_view_set.urls(
+                                    model=nested_model,
+                                    model_prefix=kwargs['model']._meta.object_name.lower(), # prefix with parent name
+                                    lookup_field=Model.get_meta(nested_model, 'lookup_field', 'pk'),
+                                    lookup_url_kwarg=kwargs['model']._meta.object_name.lower() + '_id',
+                                    exclude=(nested_related_name,) if related_field.one_to_many else (),
+                                    permission_classes=Model.get_meta(nested_model, 'permission_classes', [LDPPermissions]),
+                                    nested_field=field,
+                                    fields=Model.get_meta(nested_model, 'serializer_fields', []),
+                                    nested_fields=[],
+                                    parent_model=kwargs['model'],
+                                    parent_lookup_field=cls.get_lookup_arg(**kwargs),
+                                    related_field=related_field,
+                                    nested_related_name=nested_related_name)))
 
         return include(urls)
 
@@ -574,35 +592,6 @@ class LDPNestedViewSet(LDPViewSet):
             return getattr(self.get_parent(), self.nested_field).all()
         if self.related_field.many_to_one or self.related_field.one_to_one:
             return [getattr(self.get_parent(), self.nested_field)]
-
-    @classonlymethod
-    def get_related_fields(cls, model):
-        return {field.get_accessor_name(): field for field in model._meta.fields_map.values()}
-
-    @classonlymethod
-    def nested_urls(cls, nested_field, **kwargs):
-        try:
-            related_field = cls.get_model(**kwargs)._meta.get_field(nested_field)
-        except FieldDoesNotExist:
-            related_field = cls.get_related_fields(cls.get_model(**kwargs))[nested_field]
-        if related_field.related_query_name:
-            nested_related_name = related_field.related_query_name()
-        else:
-            nested_related_name = related_field.remote_field.name
-
-        return cls.urls(
-            lookup_field=Model.get_meta(related_field.related_model, 'lookup_field', 'pk'),
-            model=related_field.related_model,
-            exclude=(nested_related_name,) if related_field.one_to_many else (),
-            parent_model=cls.get_model(**kwargs),
-            nested_field=nested_field,
-            nested_related_name=nested_related_name,
-            related_field=related_field,
-            parent_lookup_field=cls.get_lookup_arg(**kwargs),
-            model_prefix=cls.get_model(**kwargs)._meta.object_name.lower(),
-            permission_classes=Model.get_permission_classes(related_field.related_model,
-                                                            kwargs.get('permission_classes', [LDPPermissions])),
-            lookup_url_kwarg=related_field.related_model._meta.object_name.lower() + '_id')
 
 
 class LDPSourceViewSet(LDPViewSet):
