@@ -338,10 +338,21 @@ class LDPSerializer(HyperlinkedModelSerializer):
             fields = super().get_default_field_names(declared_fields, model_info)
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
+    def _serialize_rdf_fields(self, obj, data):
+        rdf_type = Model.get_meta(obj, 'rdf_type', None)
+        rdf_context = Model.get_meta(obj, 'rdf_context', None)
+        if rdf_type is not None:
+            data['@type'] = rdf_type
+        if rdf_context is not None:
+            data['@context'] = rdf_context
+
+        return data
+
     def to_representation(self, obj):
         # external Models should only be returned with an id (on GET)
         if self.context['request'].method == 'GET' and Model.is_external(obj):
-            return {'@id': obj.urlid}
+            data = {'@id': obj.urlid}
+            return self._serialize_rdf_fields(obj, data)
 
         cache_vary = str(self.context['request'].user)
         if self.with_cache and hasattr(obj, 'urlid'):
@@ -362,12 +373,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@id'] = data.pop('urlid')['@id']
         if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
-        rdf_type = Model.get_meta(obj, 'rdf_type', None)
-        rdf_context = Model.get_meta(obj, 'rdf_context', None)
-        if rdf_type is not None:
-            data['@type'] = rdf_type
-        if rdf_context is not None:
-            data['@context'] = rdf_context
+        data = self._serialize_rdf_fields(obj, data)
         data['permissions'] = Model.get_permissions(obj, self.context,
                                                     ['view', 'change', 'control', 'delete'])
 

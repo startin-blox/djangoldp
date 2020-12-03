@@ -81,6 +81,7 @@ class Resource(Model):
         owner_perms = ['inherit']
         serializer_fields = ["@id", "joboffers"]
         depth = 1
+        rdf_type = 'hd:Resource'
 
 
 class UserProfile(Model):
@@ -165,6 +166,7 @@ class Post(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
+        rdf_type = 'hd:post'
 
 
 class Invoice(Model):
@@ -200,6 +202,7 @@ class Batch(Model):
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
         depth = 1
+        rdf_type = 'hd:batch'
 
 
 class CircleMember(Model):
