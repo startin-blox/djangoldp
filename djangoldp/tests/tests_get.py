@@ -25,6 +25,7 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "content")
         self.assertIn('author', response.data)
+        self.assertIn('@type', response.data)
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/293
     '''def test_get_resource_urlid(self):
@@ -45,6 +46,8 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('permissions', response.data)
         self.assertEquals(1, len(response.data['ldp:contains']))
+        self.assertIn('@type', response.data)
+        self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertEquals(2, len(response.data['permissions']))  # read and add
 
         Invoice.objects.create(title="content")
@@ -104,6 +107,8 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
         self.assertEquals(len(response.data['ldp:contains']), 2)
+        self.assertIn('@type', response.data['ldp:contains'][0])
+        self.assertIn('@type', response.data['ldp:contains'][1])
         self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], 'http://happy-dev.fr/invoices/{}/'.format(invoice.pk))
 
     def test_serializer_excludes(self):
