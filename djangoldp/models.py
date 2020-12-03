@@ -304,7 +304,7 @@ class LDPSource(Model):
     federation = models.CharField(max_length=255)
 
     class Meta(Model.Meta):
-        rdf_type = 'ldp:Container'
+        rdf_type = 'sib:federatedContainer'
         ordering = ('federation',)
         container_path = 'sources'
         lookup_field = 'federation'
