@@ -87,7 +87,7 @@ class TestsInbox(APITestCase):
 
     # sender has sent a circle with a local user that doesn't exist
     def test_create_activity_circle_local(self):
-        urlid = '{}{}'.format(settings.SITE_URL, 'someonewhodoesntexist')
+        urlid = '{}/{}'.format(settings.SITE_URL, 'someonewhodoesntexist')
         obj = {
             "@type": "hd:circle",
             "@id": "https://distant.com/circles/1/",

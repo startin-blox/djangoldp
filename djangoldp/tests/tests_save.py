@@ -1,5 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
@@ -66,8 +67,8 @@ class Save(TestCase):
                "slug": "slug1",
                "skills": {
                    "ldp:contains": [
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug), "title": "skill2 UP"},
+                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
+                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug), "title": "skill2 UP"},
                        {"title": "skill3", "obligatoire": "obligatoire", "slug": "slug3"},
                    ]}
                }
@@ -85,6 +86,31 @@ class Save(TestCase):
         self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
         self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
         self.assertEquals(result.skills.all()[2].title, "skill3")  # creation on the fly
+
+    # variation switching the http prefix of the BASE_URL in the request
+    @override_settings(BASE_URL='http://happy-dev.fr/')
+    def test_save_m2m_switch_base_url_prefix(self):
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
+
+        job = {"title": "job test",
+               "slug": "slug1",
+               "skills": {
+                   "ldp:contains": [
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                   ]}
+               }
+
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
+
+        meta_class = type('Meta', (), meta_args)
+        serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=job)
+        serializer.is_valid()
+        result = serializer.save()
+
+        self.assertEquals(result.title, "job test")
+        self.assertIs(result.skills.count(), 1)
+        self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
 
     def test_save_m2m_graph_simple(self):
         job = {"@graph": [

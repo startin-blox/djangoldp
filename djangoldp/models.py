@@ -12,6 +12,7 @@ from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
 from django.dispatch import receiver
 from django.urls import reverse_lazy, get_resolver, NoReverseMatch
+from urllib import parse
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 from rest_framework.utils import model_meta
@@ -295,7 +296,7 @@ class Model(models.Model):
             if not isinstance(value, str):
                 value = value.urlid
 
-            return value is not None and not value.startswith(settings.SITE_URL)
+            return value is not None and not parse.urlparse(value).netloc == parse.urlparse(settings.SITE_URL).netloc
         except:
             return False
 

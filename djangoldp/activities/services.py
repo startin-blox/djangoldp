@@ -4,8 +4,6 @@ import time
 import requests
 from queue import Queue
 from requests.exceptions import Timeout, ConnectionError
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 from urllib.parse import urlparse
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save, post_delete, m2m_changed
@@ -342,7 +340,7 @@ class ActivityQueueService:
                             response_location=None, response_code=None, local_id=None, response_body=None):
         '''
         Auxiliary function saves a record of parameterised activity
-        :param model_represenation: the model class which should be used to store the activity. Defaults to djangoldp.Activity, must be a subclass
+        :param model_represenation: the model class which should be used to store the activity. Defaults to djangol.Activity, must be a subclass
         '''
         payload = bytes(json.dumps(activity), "utf-8")
         if response_body is not None:
@@ -650,7 +648,12 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
 
         # build list of targets (models affected by the change)
         if action == "pre_clear":
-            pk_set = sender.objects.all().values_list(member_model.__name__.lower(), flat=True)
+            sender_info = model_meta.get_field_info(sender)
+            for field_name, relation_info in sender_info.relations.items():
+                if relation_info.related_model == member_model:
+                    pk_set = sender.objects.all().values_list(field_name, flat=True)
+        if pk_set is None or len(pk_set) == 0:
+            return
         query_set = member_model.objects.filter(pk__in=pk_set)
         targets = build_targets(query_set)
 

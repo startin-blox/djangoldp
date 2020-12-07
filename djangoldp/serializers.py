@@ -528,23 +528,26 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     if errors:
                         raise ValidationError(errors)
 
-                    # resolve path of the resource
+                    # if it's a local resource - use the path to resolve the slug_field on the model
                     uri = data[self.url_field_name]
-                    http_prefix = uri.startswith(('http:', 'https:'))
+                    if not Model.is_external(uri):
+                        http_prefix = uri.startswith(('http:', 'https:'))
 
-                    if http_prefix:
-                        uri = parse.urlparse(uri).path
-                        prefix = get_script_prefix()
-                        if uri.startswith(prefix):
-                            uri = '/' + uri[len(prefix):]
+                        if http_prefix:
+                            uri = parse.urlparse(uri).path
+                            prefix = get_script_prefix()
+                            if uri.startswith(prefix):
+                                uri = '/' + uri[len(prefix):]
 
-                    try:
-                        match = resolve(uri_to_iri(uri))
-                        slug_field = Model.slug_field(self.__class__.Meta.model)
-                        ret[slug_field] = match.kwargs[slug_field]
-                    except Resolver404:
-                        if 'urlid' in data:
-                            ret['urlid'] = data['urlid']
+                        try:
+                            match = resolve(uri_to_iri(uri))
+                            slug_field = Model.slug_field(self.__class__.Meta.model)
+                            ret[slug_field] = match.kwargs[slug_field]
+                        except Resolver404:
+                            pass
+
+                    if 'urlid' in data:
+                        ret['urlid'] = data['urlid']
 
                 else:
                     ret = super().to_internal_value(data)
@@ -745,6 +748,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(instance)
         relation_info = info.relations.get(attr)
         slug_field = Model.slug_field(relation_info.related_model)
+
         if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:

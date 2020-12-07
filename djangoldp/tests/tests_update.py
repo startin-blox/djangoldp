@@ -1,4 +1,5 @@
 import uuid
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
@@ -30,13 +31,13 @@ class Update(TestCase):
         job1 = JobOffer.objects.create(title="job test")
         job1.skills.add(skill)
 
-        job = {"@id": "https://happy-dev.fr/job-offers/{}/".format(job1.slug),
+        job = {"@id": "{}/job-offers/{}/".format(settings.BASE_URL, job1.slug),
                "title": "job test updated",
                "skills": {
                    "ldp:contains": [
                        {"title": "new skill", "obligatoire": "okay"},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug), "title": "skill2 UP"},
+                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
+                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug), "title": "skill2 UP"},
                    ]}
                }
 
@@ -65,12 +66,12 @@ class Update(TestCase):
         job = {"@graph":
             [
                 {
-                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.slug),
+                    "@id": "{}/job-offers/{}/".format(settings.BASE_URL, job1.slug),
                     "title": "job test updated",
                     "skills": {
                         "ldp:contains": [
-                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
-                            {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug)},
+                            {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
+                            {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug)},
                             {"@id": "_.123"},
                         ]}
                 },
@@ -80,10 +81,10 @@ class Update(TestCase):
                     "obligatoire": "okay"
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug),
+                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug),
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug),
+                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug),
                     "title": "skill2 UP"
                 }
             ]
@@ -115,10 +116,10 @@ class Update(TestCase):
         job = {"@graph":
             [
                 {
-                    "@id": "https://happy-dev.fr/job-offers/{}/".format(job1.slug),
+                    "@id": "{}/job-offers/{}/".format(settings.BASE_URL, job1.slug),
                     "title": "job test updated",
                     "skills": {
-                        "@id": "https://happy-dev.fr/job-offers/{}/skills/".format(job1.slug)
+                        "@id": "{}/job-offers/{}/skills/".format(settings.BASE_URL, job1.slug)
                     }
                 },
                 {
@@ -127,17 +128,17 @@ class Update(TestCase):
                     "obligatoire": "okay"
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug),
+                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug),
                 },
                 {
-                    "@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug),
+                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug),
                     "title": "skill2 UP"
                 },
                 {
-                    '@id': "https://happy-dev.fr/job-offers/{}/skills/".format(job1.slug),
+                    '@id': "{}/job-offers/{}/skills/".format(settings.BASE_URL, job1.slug),
                     "ldp:contains": [
-                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
-                        {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug)},
+                        {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
+                        {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug)},
                         {"@id": "_.123"},
                     ]
                 }
@@ -161,6 +162,11 @@ class Update(TestCase):
         self.assertEquals(skills[2].title, "skill2 UP")  # title updated
         self.assertEquals(skill, skill._meta.model.objects.get(pk=skill.pk))  # title updated
 
+    # TODO: test update with external urlid which doesn't exist
+    # TODO: test update with internal urlid which doesn't exist
+    # TODO: test update with internal urlid which refers to a different type of object entirely
+    # TODO: test update with internal urlid which refers to a container
+
     def test_update_list_with_reverse_relation(self):
         user1 = get_user_model().objects.create()
         conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
@@ -169,19 +175,19 @@ class Update(TestCase):
 
         json = {"@graph": [
             {
-                "@id": "https://happy-dev.fr/messages/{}/".format(message1.pk),
+                "@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk),
                 "text": "Message 1 UP"
             },
             {
-                "@id": "https://happy-dev.fr/messages/{}/".format(message2.pk),
+                "@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk),
                 "text": "Message 2 UP"
             },
             {
-                '@id': "https://happy-dev.fr/conversations/{}/".format(conversation.pk),
+                '@id': "{}/conversations/{}/".format(settings.BASE_URL, conversation.pk),
                 'description': "Conversation 1 UP",
                 "message_set": [
-                    {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
-                    {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
+                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk)},
+                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk)},
                 ]
             }
         ]
@@ -210,41 +216,41 @@ class Update(TestCase):
 
         json = {"@graph": [
             {
-                "@id": "https://happy-dev.fr/messages/{}/".format(message1.pk),
+                "@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk),
                 "text": "Message 1 UP",
                 "author_user": {
-                    '@id': "https://happy-dev.fr/users/{}/".format(user1.pk)
+                    '@id': "{}/users/{}/".format(settings.BASE_URL, user1.pk)
                 }
             },
             {
-                "@id": "https://happy-dev.fr/messages/{}/".format(message2.pk),
+                "@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk),
                 "text": "Message 2 UP",
                 "author_user": {
-                    '@id': "https://happy-dev.fr/users/{}/".format(user1.pk)
+                    '@id': user1.urlid
                 }
             },
             {
                 "@id": "_:b1",
                 "text": "Message 3 NEW",
                 "author_user": {
-                    '@id': "https://happy-dev.fr/users/{}/".format(user1.pk)
+                    '@id': user1.urlid
                 }
             },
             {
-                '@id': "https://happy-dev.fr/conversations/{}/".format(conversation.pk),
+                '@id': "{}/conversations/{}/".format(settings.BASE_URL, conversation.pk),
                 "author_user": {
-                    '@id': "https://happy-dev.fr/users/{}/".format(user1.pk)
+                    '@id': user1.urlid
                 },
                 'description': "Conversation 1 UP",
                 'message_set': {
-                    "@id": "https://happy-dev.fr/conversations/{}/message_set/".format(conversation.pk)
+                    "@id": "{}/conversations/{}/message_set/".format(settings.BASE_URL, conversation.pk)
                 }
             },
             {
-                '@id': "https://happy-dev.fr/conversations/{}/message_set/".format(conversation.pk),
+                '@id': "{}/conversations/{}/message_set/".format(settings.BASE_URL, conversation.pk),
                 "ldp:contains": [
-                    {"@id": "https://happy-dev.fr/messages/{}/".format(message1.pk)},
-                    {"@id": "https://happy-dev.fr/messages/{}/".format(message2.pk)},
+                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk)},
+                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk)},
                     {"@id": "_:b1"}
                 ]
             }
@@ -270,15 +276,13 @@ class Update(TestCase):
     def test_put_resource(self):
         post = Post.objects.create(content="content")
         body = [{
-            '@id': 'http://testserver.com/posts/{}/'.format(post.pk),
+            '@id': '{}/posts/{}/'.format(settings.BASE_URL, post.pk),
             'http://happy-dev.fr/owl/#content': "post content"}]
         response = self.client.put('/posts/{}/'.format(post.pk), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "post content")
         self.assertIn('location', response._headers)
-
-
 
     def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
         user = get_user_model().objects.create(username="alex", password="test")
@@ -382,7 +386,7 @@ class Update(TestCase):
         body = {
             'http://happy-dev.fr/owl/#joboffers':
                 {
-                    '@id': "http://testserver.com/resources/{}/joboffers/".format(resource.pk),
+                    '@id': "{}/resources/{}/joboffers/".format(settings.BASE_URL, resource.pk),
                     'ldp:contains': [
                         {'@id': 'http://testserver.com/job-offers/{}/'.format(job.slug),
                          'http://happy-dev.fr/owl/#title': "new job",
