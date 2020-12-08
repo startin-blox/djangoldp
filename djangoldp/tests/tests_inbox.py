@@ -236,6 +236,139 @@ class TestsInbox(APITestCase):
                                     data=json.dumps(payload), content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
         self.assertEqual(response.status_code, 404)
 
+    def _test_fail_behaviour(self, response, status_code=400):
+        self.assertEqual(response.status_code, 400)
+
+        # assert that nothing was created
+        self.assertEquals(Circle.objects.count(), 0)
+        self.assertEquals(self.user.circles.count(), 0)
+        self.assertEqual(Activity.objects.count(), 0)
+        self.assertEquals(Follower.objects.count(), 0)
+
+    # error behaviour - invalid url
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    def test_add_activity_empty_url(self):
+        # an invalid url
+        ext_circlemember_urlid = "https://distant.com/circle-members/1/"
+        ext_circle_urlid = ""
+
+        obj = {
+            "@type": "hd:circlemember",
+            "@id": ext_circlemember_urlid,
+            "user": {
+                "@type": "foaf:user",
+                "@id": self.user.urlid
+            },
+            "circle": {
+                "@type": "hd:circle",
+                "@id": ext_circle_urlid
+            }
+        }
+        payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self._test_fail_behaviour(response, 400)
+
+    # error behaviour - invalid url
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    def test_add_activity_invalid_url(self):
+        # an invalid url
+        ext_circlemember_urlid = "https://distant.com/circle-members/1/"
+        ext_circle_urlid = "not$valid$url"
+
+        obj = {
+            "@type": "hd:circlemember",
+            "@id": ext_circlemember_urlid,
+            "user": {
+                "@type": "foaf:user",
+                "@id": self.user.urlid
+            },
+            "circle": {
+                "@type": "hd:circle",
+                "@id": ext_circle_urlid
+            }
+        }
+        payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self._test_fail_behaviour(response, 400)
+
+    # error behaviour - None url
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    def test_add_activity_none_url(self):
+        # an invalid url
+        ext_circlemember_urlid = "https://distant.com/circle-members/1/"
+        ext_circle_urlid = None
+
+        obj = {
+            "@type": "hd:circlemember",
+            "@id": ext_circlemember_urlid,
+            "user": {
+                "@type": "foaf:user",
+                "@id": self.user.urlid
+            },
+            "circle": {
+                "@type": "hd:circle",
+                "@id": ext_circle_urlid
+            }
+        }
+        payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self._test_fail_behaviour(response, 400)
+
+    # missing @id on a sub-object
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    def test_add_activity_no_id(self):
+        ext_circlemember_urlid = "https://distant.com/circle-members/1/"
+
+        obj = {
+            "@type": "hd:circlemember",
+            "@id": ext_circlemember_urlid,
+            "user": {
+                "@type": "foaf:user",
+                "@id": self.user.urlid
+            },
+            "circle": {
+                "@type": "hd:circle"
+            }
+        }
+        payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self._test_fail_behaviour(response, 400)
+
+    # missing @type on a sub-object
+    @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
+    def test_add_activity_no_type(self):
+        ext_circlemember_urlid = "https://distant.com/circle-members/1/"
+
+        obj = {
+            "@type": "hd:circlemember",
+            "@id": ext_circlemember_urlid,
+            "user": {
+                "@type": "foaf:user",
+                "@id": self.user.urlid
+            },
+            "circle": {
+                "@id": "https://distant.com/circles/1/"
+            }
+        }
+        payload = self._get_activity_request_template("Add", obj, self._build_target_from_user(self.user))
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload),
+                                    content_type='application/ld+json;profile="https://www.w3.org/ns/activitystreams"')
+        self._test_fail_behaviour(response, 404)
+
     def test_invalid_activity_missing_actor(self):
         payload = {
             "@context": [

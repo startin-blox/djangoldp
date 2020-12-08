@@ -275,8 +275,10 @@ class Model(models.Model):
         '''returns the models Meta class'''
         if hasattr(model_class, 'Meta'):
             meta = getattr(model_class.Meta, meta_name, default)
-        else:
+        elif hasattr(model_class, '_meta'):
             meta = default
+        else:
+            return default
         return getattr(model_class._meta, meta_name, meta)
 
     @staticmethod
@@ -296,7 +298,12 @@ class Model(models.Model):
             if not isinstance(value, str):
                 value = value.urlid
 
-            return value is not None and not parse.urlparse(value).netloc == parse.urlparse(settings.SITE_URL).netloc
+            if value is not None:
+                value_netloc = parse.urlparse(value).netloc
+
+                return value_netloc is not None and value_netloc != '' and\
+                       value_netloc != parse.urlparse(settings.SITE_URL).netloc
+            return False
         except:
             return False
 

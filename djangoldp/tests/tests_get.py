@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from datetime import datetime
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember
+from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember, UserProfile
 
 
 class TestGET(APITestCase):
@@ -27,8 +27,7 @@ class TestGET(APITestCase):
         self.assertIn('author', response.data)
         self.assertIn('@type', response.data)
 
-    # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/293
-    '''def test_get_resource_urlid(self):
+    def test_get_resource_urlid(self):
         user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                     password='glass onion')
         UserProfile.objects.create(user=user)
@@ -36,7 +35,7 @@ class TestGET(APITestCase):
         response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "content")
-        self.assertEqual(response.data['author'], user.userprofile.urlid)'''
+        self.assertEqual(response.data['author']['@id'], user.userprofile.urlid)
 
     def test_get_container(self):
         Post.objects.create(content="content")
@@ -65,7 +64,7 @@ class TestGET(APITestCase):
     def test_get_filtered_fields(self):
         skill = Skill.objects.create(title="Java", obligatoire="ok", slug="1")
         skill2 = Skill.objects.create(title="Java", obligatoire="ok", slug="2")
-        skill3 = Skill.objects.create(urlid="http://external/skills/1")
+        skill3 = Skill.objects.create(urlid="http://happy-dev.hubl.fr/skills/1")
         job = JobOffer.objects.create(title="job", slug="1")
         job.skills.add(skill)
         job.skills.add(skill2)
@@ -75,7 +74,11 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('recent_skills', response.data)
         self.assertEqual(response.data['recent_skills']['@id'], "http://happy-dev.fr/job-offers/1/recent_skills/")
-        self.assertEqual(response.data['skills']['ldp:contains'][2]['@id'], "http://external/skills/1")
+        # the external resource should be serialized with its @id and @type.. and only these fields
+        self.assertEqual(response.data['skills']['ldp:contains'][2]['@id'], "http://happy-dev.hubl.fr/skills/1")
+        self.assertIn('@type', response.data['skills']['ldp:contains'][1])
+        self.assertIn('@type', response.data['skills']['ldp:contains'][2])
+        self.assertEqual(len(response.data['skills']['ldp:contains'][2].items()), 2)
 
     def test_get_reverse_filtered_fields(self):
         skill = Skill.objects.create(title="Java", obligatoire="ok", slug="1")
@@ -109,7 +112,10 @@ class TestGET(APITestCase):
         self.assertEquals(len(response.data['ldp:contains']), 2)
         self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertIn('@type', response.data['ldp:contains'][1])
-        self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], 'http://happy-dev.fr/invoices/{}/'.format(invoice.pk))
+        self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
+        # the external resource should be serialized with its @id and @type.. and only these fields
+        self.assertEqual(response.data['ldp:contains'][1]['@id'], distant_batch.urlid)
+        self.assertEqual(len(response.data['ldp:contains'][1].items()), 2)
 
     def test_serializer_excludes(self):
         date = DateModel.objects.create(excluded='test', value=datetime.now())

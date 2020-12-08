@@ -17,6 +17,7 @@ class User(AbstractUser, Model):
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'change']
         owner_perms = ['inherit']
+        rdf_type = 'foaf:user'
 
 
 class Skill(Model):
@@ -34,6 +35,7 @@ class Skill(Model):
         owner_perms = ['inherit', 'change', 'delete', 'control']
         serializer_fields = ["@id", "title", "recent_jobs", "slug"]
         lookup_field = 'slug'
+        rdf_type = 'hd:skill'
 
 
 class JobOffer(Model):
@@ -55,6 +57,7 @@ class JobOffer(Model):
         serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
         container_path = "job-offers/"
         lookup_field = 'slug'
+        rdf_type = 'hd:joboffer'
 
 
 class Conversation(models.Model):

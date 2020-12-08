@@ -61,7 +61,33 @@ class TestCache(TestCase):
                 '@id': "/conversations/{}/".format(conversation.pk),
                 'http://happy-dev.fr/owl/#description': "conversation update",
                 'http://happy-dev.fr/owl/#peer_user': {
-                    '@id': 'http://happy-dev.fr/users/{}'.format(self.user.pk),
+                    '@id': self.user.urlid,
+                }
+            }
+        ]
+        response = self.client.put('/conversations/{}/'.format(conversation.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get('/conversations/{}/'.format(conversation.pk), content_type='application/ld+json')
+        self.assertIn('peer_user', response.data)
+        self.assertEquals('conversation update', response.data['description'])
+        self.assertEqual(response.data['peer_user']['@id'], self.user.urlid)
+        self.assertIn('@type', response.data['peer_user'])
+
+    # test resource cache after it is updated - external resource
+    @override_settings(SERIALIZER_CACHE=True)
+    def test_update_with_new_fk_relation_external(self):
+        conversation = Conversation.objects.create(author_user=self.user, description="conversation description")
+        response = self.client.get('/conversations/{}/'.format(conversation.pk), content_type='application/ld+json')
+        external_user = get_user_model().objects.create_user(username='external', email='jlennon@beatles.com',
+                                                             password='glass onion', urlid='https://external.com/users/external/')
+        body = [
+            {
+                '@id': "/conversations/{}/".format(conversation.pk),
+                'http://happy-dev.fr/owl/#description': "conversation update",
+                'http://happy-dev.fr/owl/#peer_user': {
+                    '@id': external_user.urlid,
                 }
             }
         ]
@@ -73,6 +99,10 @@ class TestCache(TestCase):
         self.assertIn('peer_user', response.data)
         self.assertEquals('conversation update', response.data['description'])
         self.assertIn('@id', response.data['peer_user'])
+        # serialize external id and only external id
+        self.assertEqual(response.data['peer_user']['@id'], external_user.urlid)
+        self.assertIn('@type', response.data['peer_user'])
+        self.assertEqual(len(response.data['peer_user']), 2)
 
     # test container cache after member is deleted by view
     @override_settings(SERIALIZER_CACHE=True)
