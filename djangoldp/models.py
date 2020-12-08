@@ -12,6 +12,7 @@ from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
 from django.dispatch import receiver
 from django.urls import reverse_lazy, get_resolver, NoReverseMatch
+from urllib import parse
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 from rest_framework.utils import model_meta
@@ -274,8 +275,10 @@ class Model(models.Model):
         '''returns the models Meta class'''
         if hasattr(model_class, 'Meta'):
             meta = getattr(model_class.Meta, meta_name, default)
-        else:
+        elif hasattr(model_class, '_meta'):
             meta = default
+        else:
+            return default
         return getattr(model_class._meta, meta_name, meta)
 
     @staticmethod
@@ -295,7 +298,12 @@ class Model(models.Model):
             if not isinstance(value, str):
                 value = value.urlid
 
-            return value is not None and not value.startswith(settings.SITE_URL)
+            if value is not None:
+                value_netloc = parse.urlparse(value).netloc
+
+                return value_netloc is not None and value_netloc != '' and\
+                       value_netloc != parse.urlparse(settings.SITE_URL).netloc
+            return False
         except:
             return False
 
@@ -304,7 +312,7 @@ class LDPSource(Model):
     federation = models.CharField(max_length=255)
 
     class Meta(Model.Meta):
-        rdf_type = 'ldp:Container'
+        rdf_type = 'sib:federatedContainer'
         ordering = ('federation',)
         container_path = 'sources'
         lookup_field = 'federation'

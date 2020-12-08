@@ -17,6 +17,7 @@ class User(AbstractUser, Model):
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'change']
         owner_perms = ['inherit']
+        rdf_type = 'foaf:user'
 
 
 class Skill(Model):
@@ -34,6 +35,7 @@ class Skill(Model):
         owner_perms = ['inherit', 'change', 'delete', 'control']
         serializer_fields = ["@id", "title", "recent_jobs", "slug"]
         lookup_field = 'slug'
+        rdf_type = 'hd:skill'
 
 
 class JobOffer(Model):
@@ -55,6 +57,7 @@ class JobOffer(Model):
         serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
         container_path = "job-offers/"
         lookup_field = 'slug'
+        rdf_type = 'hd:joboffer'
 
 
 class Conversation(models.Model):
@@ -81,6 +84,7 @@ class Resource(Model):
         owner_perms = ['inherit']
         serializer_fields = ["@id", "joboffers"]
         depth = 1
+        rdf_type = 'hd:Resource'
 
 
 class UserProfile(Model):
@@ -165,6 +169,7 @@ class Post(Model):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
+        rdf_type = 'hd:post'
 
 
 class Invoice(Model):
@@ -200,6 +205,7 @@ class Batch(Model):
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
         depth = 1
+        rdf_type = 'hd:batch'
 
 
 class CircleMember(Model):

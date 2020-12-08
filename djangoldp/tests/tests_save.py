@@ -1,5 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
@@ -66,8 +67,8 @@ class Save(TestCase):
                "slug": "slug1",
                "skills": {
                    "ldp:contains": [
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill2.slug), "title": "skill2 UP"},
+                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
+                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug), "title": "skill2 UP"},
                        {"title": "skill3", "obligatoire": "obligatoire", "slug": "slug3"},
                    ]}
                }
@@ -85,6 +86,31 @@ class Save(TestCase):
         self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
         self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
         self.assertEquals(result.skills.all()[2].title, "skill3")  # creation on the fly
+
+    # variation switching the http prefix of the BASE_URL in the request
+    @override_settings(BASE_URL='http://happy-dev.fr/')
+    def test_save_m2m_switch_base_url_prefix(self):
+        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
+
+        job = {"title": "job test",
+               "slug": "slug1",
+               "skills": {
+                   "ldp:contains": [
+                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                   ]}
+               }
+
+        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
+
+        meta_class = type('Meta', (), meta_args)
+        serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
+        serializer = serializer_class(data=job)
+        serializer.is_valid()
+        result = serializer.save()
+
+        self.assertEquals(result.title, "job test")
+        self.assertIs(result.skills.count(), 1)
+        self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
 
     def test_save_m2m_graph_simple(self):
         job = {"@graph": [
@@ -353,9 +379,7 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['circle']['@id'], "http://testserver/circles/{}/".format(circle.pk))
-        # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/293
-        # self.assertEqual(response.data['circle']['@id'], circle.urlid)
+        self.assertEqual(response.data['circle']['@id'], circle.urlid)
 
     def test_nested_container_federated(self):
         resource = Resource.objects.create()
@@ -367,8 +391,10 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], resource.urlid)
         self.assertEqual(response.data['@id'], "http://external.job/job/1")
+        self.assertIn('@type', response.data)
+        response = self.client.get('/resources/{}/'.format(resource.pk))
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'], "http://external.job/job/1")
 
     def test_embedded_context_2(self):
         body = {
@@ -424,8 +450,10 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['projects']['ldp:contains'][0]['@id'], project.urlid)
         self.assertEqual(response.data['@id'], "http://external.user/user/1/")
+        self.assertIn('@type', response.data)
+        response = self.client.get('/projects/{}/'.format(project.pk))
+        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'], "http://external.user/user/1/")
 
     # unit tests for a specific bug: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/307
     def test_direct_boolean_field(self):

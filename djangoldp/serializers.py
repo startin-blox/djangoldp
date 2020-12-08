@@ -70,6 +70,17 @@ def _ldp_container_representation(id, container_permissions=None, value=None):
     return represented_object
 
 
+def _serialize_rdf_fields(obj, data, include_context=False):
+    rdf_type = Model.get_meta(obj, 'rdf_type', None)
+    rdf_context = Model.get_meta(obj, 'rdf_context', None)
+    if rdf_type is not None:
+        data['@type'] = rdf_type
+    if include_context and rdf_context is not None:
+        data['@context'] = rdf_context
+
+    return data
+
+
 class LDListMixin:
     '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
@@ -259,12 +270,18 @@ class JsonLdField(HyperlinkedRelatedField):
 
 
 class JsonLdRelatedField(JsonLdField):
+    def use_pk_only_optimization(self):
+        return False
+
     def to_representation(self, value):
         try:
+            include_context = False
             if Model.is_external(value):
-                return {'@id': value.urlid}
+                data = {'@id': value.urlid}
             else:
-                return {'@id': super().to_representation(value)}
+                include_context = True
+                data = {'@id': super().to_representation(value)}
+            return _serialize_rdf_fields(value, data, include_context=include_context)
         except ImproperlyConfigured:
             return value.pk
 
@@ -339,9 +356,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return fields + list(getattr(self.Meta, 'extra_fields', []))
 
     def to_representation(self, obj):
-        # external Models should only be returned with an id (on GET)
-        if self.context['request'].method == 'GET' and Model.is_external(obj):
-            return {'@id': obj.urlid}
+        # external Models should only be returned with rdf values
+        if Model.is_external(obj):
+            data = {'@id': obj.urlid}
+            return _serialize_rdf_fields(obj, data)
 
         cache_vary = str(self.context['request'].user)
         if self.with_cache and hasattr(obj, 'urlid'):
@@ -362,12 +380,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@id'] = data.pop('urlid')['@id']
         if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
-        rdf_type = Model.get_meta(obj, 'rdf_type', None)
-        rdf_context = Model.get_meta(obj, 'rdf_context', None)
-        if rdf_type is not None:
-            data['@type'] = rdf_type
-        if rdf_context is not None:
-            data['@context'] = rdf_context
+        data = _serialize_rdf_fields(obj, data, include_context=True)
         data['permissions'] = Model.get_permissions(obj, self.context,
                                                     ['view', 'change', 'control', 'delete'])
 
@@ -522,23 +535,26 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     if errors:
                         raise ValidationError(errors)
 
-                    # resolve path of the resource
+                    # if it's a local resource - use the path to resolve the slug_field on the model
                     uri = data[self.url_field_name]
-                    http_prefix = uri.startswith(('http:', 'https:'))
+                    if not Model.is_external(uri):
+                        http_prefix = uri.startswith(('http:', 'https:'))
 
-                    if http_prefix:
-                        uri = parse.urlparse(uri).path
-                        prefix = get_script_prefix()
-                        if uri.startswith(prefix):
-                            uri = '/' + uri[len(prefix):]
+                        if http_prefix:
+                            uri = parse.urlparse(uri).path
+                            prefix = get_script_prefix()
+                            if uri.startswith(prefix):
+                                uri = '/' + uri[len(prefix):]
 
-                    try:
-                        match = resolve(uri_to_iri(uri))
-                        slug_field = Model.slug_field(self.__class__.Meta.model)
-                        ret[slug_field] = match.kwargs[slug_field]
-                    except Resolver404:
-                        if 'urlid' in data:
-                            ret['urlid'] = data['urlid']
+                        try:
+                            match = resolve(uri_to_iri(uri))
+                            slug_field = Model.slug_field(self.__class__.Meta.model)
+                            ret[slug_field] = match.kwargs[slug_field]
+                        except Resolver404:
+                            pass
+
+                    if 'urlid' in data:
+                        ret['urlid'] = data['urlid']
 
                 else:
                     ret = super().to_internal_value(data)
@@ -739,6 +755,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         info = model_meta.get_field_info(instance)
         relation_info = info.relations.get(attr)
         slug_field = Model.slug_field(relation_info.related_model)
+
         if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
@@ -778,7 +795,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
             manager = getattr(instance, attr)
             oldObj = manager._meta.model.objects.get(**kwargs)
         else:
-            oldObj = getattr(instance, attr)
+            related_model = relation_info.related_model
+            oldObj = related_model.objects.get(**kwargs)
 
         value = self.update(instance=oldObj, validated_data=value)
         return value
