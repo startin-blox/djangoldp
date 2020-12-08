@@ -379,9 +379,7 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['circle']['@id'], "http://testserver/circles/{}/".format(circle.pk))
-        # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/293
-        # self.assertEqual(response.data['circle']['@id'], circle.urlid)
+        self.assertEqual(response.data['circle']['@id'], circle.urlid)
 
     def test_nested_container_federated(self):
         resource = Resource.objects.create()
@@ -393,8 +391,10 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['resources']['ldp:contains'][0]['@id'], resource.urlid)
         self.assertEqual(response.data['@id'], "http://external.job/job/1")
+        self.assertIn('@type', response.data)
+        response = self.client.get('/resources/{}/'.format(resource.pk))
+        self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'], "http://external.job/job/1")
 
     def test_embedded_context_2(self):
         body = {
@@ -450,8 +450,10 @@ class Save(TestCase):
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['projects']['ldp:contains'][0]['@id'], project.urlid)
         self.assertEqual(response.data['@id'], "http://external.user/user/1/")
+        self.assertIn('@type', response.data)
+        response = self.client.get('/projects/{}/'.format(project.pk))
+        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'], "http://external.user/user/1/")
 
     # unit tests for a specific bug: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/307
     def test_direct_boolean_field(self):

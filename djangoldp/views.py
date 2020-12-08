@@ -1,4 +1,5 @@
 import json
+import validators
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import include, re_path
@@ -98,6 +99,8 @@ class InboxView(APIView):
         except IntegrityError:
             return Response({'Unable to save due to an IntegrityError in the receiver model'},
                             status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
         # save the activity and return 201
         obj = ActivityQueueService._save_sent_activity(activity.to_json(), local_id=request.path_info, success=True,
@@ -163,6 +166,8 @@ class InboxView(APIView):
 
         # get or create the backlink
         try:
+            if obj['@id'] is None or not validators.url(obj['@id']):
+                raise ValueError('received invalid urlid ' + str(obj['@id']))
             external = Model.get_or_create_external(object_model, obj['@id'], update=update, **branches)
 
             # creating followers, to inform distant resource of changes to local connection
@@ -172,7 +177,7 @@ class InboxView(APIView):
                     urlid = item[1]
                     if isinstance(item[1], dict):
                         urlid = urlid['@id']
-                    if not isinstance(urlid, str):
+                    if not isinstance(urlid, str) or not validators.url(urlid):
                         continue
 
                     if not Model.is_external(urlid):

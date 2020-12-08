@@ -33,12 +33,24 @@ class Activity(Object):
             delattr(new, "bcc")
         return new
 
+    def _validate_type_id_defined(self, value):
+        '''recursively ensures that all nested dict items define @id and @type attributes'''
+        for item in value.items():
+            if isinstance(item[1], dict):
+                item_value = item[1]
+                if '@type' not in item_value or '@id' not in item_value:
+                    raise errors.ActivityStreamValidationError("all sub-objects passed in activity object must define @id and @type tags")
+                self._validate_type_id_defined(item_value)
+
+
     def validate(self):
         for attr in self.required_attributes.keys():
             if not isinstance(getattr(self, attr, None), self.required_attributes[attr]):
                 raise errors.ActivityStreamValidationError("required attribute " + attr + " of type "
                                                            + str(self.required_attributes[attr]))
 
+        # validate that every dictionary stored in object has @id and @type
+        self._validate_type_id_defined(self.__getattribute__("object"))
 
 class Add(Activity):
     type = "Add"
