@@ -82,7 +82,6 @@ LANGUAGE_CODE = 'en-us'
 LANGUAGES = [
     ('af', gettext_noop('Afrikaans')),
     ('ar', gettext_noop('Arabic')),
-    ('ar-dz', gettext_noop('Algerian Arabic')),
     ('ast', gettext_noop('Asturian')),
     ('az', gettext_noop('Azerbaijani')),
     ('bg', gettext_noop('Bulgarian')),
@@ -168,12 +167,10 @@ LANGUAGES = [
     ('udm', gettext_noop('Udmurt')),
     ('uk', gettext_noop('Ukrainian')),
     ('ur', gettext_noop('Urdu')),
-    ('uz', gettext_noop('Uzbek')),
     ('vi', gettext_noop('Vietnamese')),
     ('zh-hans', gettext_noop('Simplified Chinese')),
     ('zh-hant', gettext_noop('Traditional Chinese')),
 ]
-
 # Languages using BiDi (right-to-left) layout
 LANGUAGES_BIDI = ["he", "ar", "ar-dz", "fa", "ur"]
 
