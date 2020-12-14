@@ -73,9 +73,8 @@ class LDPSettings(object):
         settings = global_settings.__dict__.copy()
         logger.debug(f'Building settings from core defaults')
 
-        # INSTALLED_APPS and MIDDLEWARE starts empty
-        for k in extend:
-            settings[k] = []
+        # INSTALLED_APPS starts empty
+        settings['INSTALLED_APPS'] = []
 
         # look settings from packages in the order they are given (local overrides installed)
         for pkg in self.DJANGOLDP_PACKAGES:
@@ -112,9 +111,8 @@ class LDPSettings(object):
         except KeyError:
             pass
 
-        # In the end adds the INSTALLED_APPS and MIDDLEWARE from the core
-        for k in extend:
-            settings[k].extend(getattr(global_settings,k))
+        # In the end adds the INSTALLED_APPS from the core
+        settings['INSTALLED_APPS'].extend(getattr(global_settings,'INSTALLED_APPS'))
 
         return settings
 
