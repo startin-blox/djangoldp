@@ -70,10 +70,13 @@ class LDPSettings(object):
                     settings.update({k: v})
 
         # start from default core settings
-        settings = global_settings.__dict__
+        settings = global_settings.__dict__.copy()
         logger.debug(f'Building settings from core defaults')
 
-        # look settings from packages in the order they are given (local override installed)
+        # INSTALLED_APPS starts empty
+        settings['INSTALLED_APPS'] = []
+
+        # look settings from packages in the order they are given (local overrides installed)
         for pkg in self.DJANGOLDP_PACKAGES:
 
             try:
@@ -108,6 +111,9 @@ class LDPSettings(object):
         except KeyError:
             pass
 
+        # In the end adds the INSTALLED_APPS from the core
+        settings['INSTALLED_APPS'].extend(getattr(global_settings,'INSTALLED_APPS'))
+
         return settings
 
     @property
@@ -123,11 +129,11 @@ class LDPSettings(object):
 
         """Return the installed apps and the LDP packages."""
 
-        # get default apps
-        apps = self._settings['INSTALLED_APPS']
+        # get ldp packages (they are django apps)
+        apps = self.DJANGOLDP_PACKAGES
 
-        # add ldp packages themselves (they are django apps)
-        apps.extend(self.DJANGOLDP_PACKAGES)
+        # add the default apps
+        apps.extend(self._settings['INSTALLED_APPS'])
 
         return apps
 
