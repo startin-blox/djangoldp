@@ -529,6 +529,12 @@ You can check them with:
 ./manage.py check_integrity
 ```
 
+You can ignore some servers:
+
+```bash
+./manage.py check_integrity --ignore "https://server/,https://another-server/"
+```
+
 ## License
 
 Licence MIT

@@ -6,10 +6,22 @@ from djangoldp.models import LDPSource
 from urllib.parse import urlparse
 import requests
 
+def isstring(target):
+  if isinstance(target, str):
+    return target
+  return False
+
 class Command(BaseCommand):
   help = "Check the datas integrity"
 
   def add_arguments(self, parser):
+    parser.add_argument(
+      "--ignore",
+      action="store",
+      default=False,
+      type=isstring,
+      help="Ignore any server, comma separated",
+    )
     parser.add_argument(
       "--fix-faulted-resources",
       default=False,
@@ -27,17 +39,31 @@ class Command(BaseCommand):
 
   def handle(self, *args, **options):
     models = apps.get_models()
+
+    ignored = set()
+    if(options["ignore"]):
+      for target in options["ignore"].split(","):
+        ignored.add(urlparse(target).netloc)
+
+    if(len(ignored) > 0):
+      print("Ignoring servers:")
+      for server in ignored:
+        print("- "+server)
+
     resources = set()
     resources_map = dict()
     base_urls = set()
+
     for model in models:
       for obj in model.objects.all():
         if hasattr(obj, "urlid"):
           if(obj.urlid):
             if(not obj.urlid.startswith(settings.BASE_URL)):
-              resources.add(obj.urlid)
-              resources_map[obj.urlid] = obj
-              base_urls.add(urlparse(obj.urlid).netloc)
+              url = urlparse(obj.urlid).netloc
+              if(url not in ignored):
+                resources.add(obj.urlid)
+                resources_map[obj.urlid] = obj
+                base_urls.add(url)
 
     if(len(base_urls) > 0):
       print("Servers that I have backlinks to:")
@@ -77,7 +103,10 @@ class Command(BaseCommand):
         print("No resource are in fault")
       if(options["fix_faulted_resources"]):
         for resource in faulted_resources:
-          resources_map[resource].delete()
+          try:
+            resources_map[resource].delete()
+          except:
+            pass
         print("Fixed faulted resources")
       else:
         print("Fix them with `./manage.py check_integrity --fix-faulted-resources`")
@@ -98,7 +127,10 @@ class Command(BaseCommand):
         print("- "+resource)
       if(options["fix_404_resources"]):
         for resource in resources_404:
-          resources_map[resource].delete()
+          try:
+            resources_map[resource].delete()
+          except:
+            pass
         print("Fixed 404 resources")
       else:
         print("Fix them with `./manage.py check_integrity --fix-404-resources`")
