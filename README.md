@@ -519,6 +519,22 @@ Packaged with DjangoLDP is a tests module, containing unit tests
 You can extend these tests and add your own test cases by following the examples in the code. You can then run your tests with:
 `python -m unittest tests.runner`
 
+## Check your datas integrity
+
+Because of the way the DjangoLDP's federation work, you can reach some integrity issue within your datas.
+
+You can check them with:
+
+```bash
+./manage.py check_integrity
+```
+
+You can ignore some servers:
+
+```bash
+./manage.py check_integrity --ignore "https://server/,https://another-server/"
+```
+
 ## License
 
 Licence MIT
