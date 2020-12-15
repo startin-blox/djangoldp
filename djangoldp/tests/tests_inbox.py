@@ -557,6 +557,8 @@ class TestsInbox(APITestCase):
         circle = Circle.objects.create(urlid="https://distant.com/circles/1/", owner=self.user)
         self.assertEqual(circle.owner, self.user)
 
+        prior_user_count = get_user_model().objects.count()
+
         obj = {
             "@type": "hd:circle",
             "@id": "https://distant.com/circles/1/",
@@ -574,7 +576,7 @@ class TestsInbox(APITestCase):
         circles = Circle.objects.all()
         users = get_user_model().objects.all()
         self.assertEquals(len(circles), 1)
-        self.assertEquals(len(users), 2)
+        self.assertEquals(len(users), prior_user_count + 1)
         distant_user = get_user_model().objects.get(urlid="https://distant.com/users/1/")
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self.assertEqual(circles[0].owner, distant_user)

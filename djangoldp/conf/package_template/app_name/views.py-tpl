@@ -1,0 +1,7 @@
+from djangoldp.views import LDPViewSet
+from djangoldp.models import Model
+from .models import Dummy
+
+class DummyViewset(LDPViewSet):
+
+    pass

@@ -1,0 +1,19 @@
+
+dependencies:
+
+ldppackages:
+
+server:
+  # DjangoLDP required settings
+  DEBUG: true
+  ALLOWED_HOSTS:
+    - '*'
+  SECRET_KEY: '{{secret_key}}'
+  DATABASES:
+    default:
+      ENGINE: django.db.backends.sqlite3
+      NAME: db.sqlite3
+  LDP_RDF_CONTEXT: https://cdn.happy-dev.fr/owl/hdcontext.jsonld
+  ROOT_URLCONF: server.urls
+  STATIC_ROOT: static
+  MEDIA_ROOT: media
