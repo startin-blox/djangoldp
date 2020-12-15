@@ -72,6 +72,14 @@ BASE_URL = SITE_URL
 # Default URL conf
 ROOT_URLCONF = 'djangoldp.urls'
 
+# Absolute filesystem path to the directory that will hold user-uploaded files.
+# Example: "/var/www/example.com/media/"
+MEDIA_ROOT = ''
+
+# URL that handles the media served from MEDIA_ROOT.
+# Examples: "http://example.com/media/", "http://media.example.com/"
+MEDIA_URL = '/media/'
+
 # Absolute path to the directory static files should be collected to.
 # Example: "/var/www/example.com/static/"
 STATIC_ROOT = None
@@ -123,6 +131,8 @@ DCS_SESSION_COOKIE_SAMESITE = 'none'
 ##################
 # AUTHENTICATION #
 ##################
+
+AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend']
 
 # The minimum number of seconds a password reset link is valid for
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3
