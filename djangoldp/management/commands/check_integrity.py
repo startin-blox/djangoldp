@@ -61,9 +61,12 @@ class Command(BaseCommand):
 
     resources_404 = set()
     for resource in resources:
-      if(requests.get(resource).status_code == 404):
-        resources_404.add(resource)
-    
+      try:
+        if(requests.get(resource).status_code == 404):
+          resources_404.add(resource)
+      except:
+        pass
+
     if(len(resources_404) > 0):
       print("Faulted resources, 404:")
       for resource in resources_404:
