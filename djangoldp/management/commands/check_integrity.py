@@ -23,11 +23,25 @@ class Command(BaseCommand):
       help="Ignore any server, comma separated",
     )
     parser.add_argument(
+      "--ignore-faulted",
+      default=False,
+      nargs="?",
+      const=True,
+      help="Ignore eventual faulted",
+    )
+    parser.add_argument(
       "--fix-faulted-resources",
       default=False,
       nargs="?",
       const=True,
       help="Fix faulted resources",
+    )
+    parser.add_argument(
+      "--ignore-404",
+      default=False,
+      nargs="?",
+      const=True,
+      help="Ignore eventual 404",
     )
     parser.add_argument(
       "--fix-404-resources",
@@ -89,52 +103,55 @@ class Command(BaseCommand):
       for server in difference_servers:
         print("- "+server)
 
-      faulted_resources = set()
-      for server in difference_servers:
-        for resource in resources:
-          if(urlparse(resource).netloc in server):
-            faulted_resources.add(resource)
+      if(not options["ignore_faulted"]):
+        faulted_resources = set()
+        for server in difference_servers:
+          for resource in resources:
+            if(urlparse(resource).netloc in server):
+              faulted_resources.add(resource)
 
-      if(len(faulted_resources) > 0):
-        print("Resources in fault:")
-        for resource in faulted_resources:
-          print("- "+resource)
-      else:
-        print("No resource are in fault")
-      if(options["fix_faulted_resources"]):
-        for resource in faulted_resources:
-          try:
-            resources_map[resource].delete()
-          except:
-            pass
-        print("Fixed faulted resources")
-      else:
-        print("Fix them with `./manage.py check_integrity --fix-faulted-resources`")
+        if(len(faulted_resources) > 0):
+          print("Resources in fault:")
+          for resource in faulted_resources:
+            print("- "+resource)
+        else:
+          print("No resource are in fault")
+
+        if(options["fix_faulted_resources"]):
+          for resource in faulted_resources:
+            try:
+              resources_map[resource].delete()
+            except:
+              pass
+          print("Fixed faulted resources")
+        else:
+          print("Fix them with `./manage.py check_integrity --fix-faulted-resources`")
     else:
       print("I accept datas for every of those servers")
 
-    resources_404 = set()
-    for resource in resources:
-      try:
-        if(requests.get(resource).status_code == 404):
-          resources_404.add(resource)
-      except:
-        pass
+    if(not options["ignore_404"]):
+      resources_404 = set()
+      for resource in resources:
+        try:
+          if(requests.get(resource).status_code == 404):
+            resources_404.add(resource)
+        except:
+          pass
 
-    if(len(resources_404) > 0):
-      print("Faulted resources, 404:")
-      for resource in resources_404:
-        print("- "+resource)
-      if(options["fix_404_resources"]):
+      if(len(resources_404) > 0):
+        print("Faulted resources, 404:")
         for resource in resources_404:
-          try:
-            resources_map[resource].delete()
-          except:
-            pass
-        print("Fixed 404 resources")
+          print("- "+resource)
+        if(options["fix_404_resources"]):
+          for resource in resources_404:
+            try:
+              resources_map[resource].delete()
+            except:
+              pass
+          print("Fixed 404 resources")
+        else:
+          print("Fix them with `./manage.py check_integrity --fix-404-resources`")
       else:
-        print("Fix them with `./manage.py check_integrity --fix-404-resources`")
-    else:
-      print("No 404 in known resources")
+        print("No 404 in known resources")
 
     exit(0)
