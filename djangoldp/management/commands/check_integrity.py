@@ -1,3 +1,4 @@
+import argparse
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -6,11 +7,28 @@ from urllib.parse import urlparse
 import requests
 
 class Command(BaseCommand):
-  help = 'Check the datas integrity'
+  help = "Check the datas integrity"
+
+  def add_arguments(self, parser):
+    parser.add_argument(
+      "--fix-faulted-resources",
+      default=False,
+      nargs="?",
+      const=True,
+      help="Fix faulted resources",
+    )
+    parser.add_argument(
+      "--fix-404-resources",
+      default=False,
+      nargs="?",
+      const=True,
+      help="Fix 404 resources",
+    )
 
   def handle(self, *args, **options):
     models = apps.get_models()
     resources = set()
+    resources_map = dict()
     base_urls = set()
     for model in models:
       for obj in model.objects.all():
@@ -18,6 +36,7 @@ class Command(BaseCommand):
           if(obj.urlid):
             if(not obj.urlid.startswith(settings.BASE_URL)):
               resources.add(obj.urlid)
+              resources_map[obj.urlid] = obj
               base_urls.add(urlparse(obj.urlid).netloc)
 
     if(len(base_urls) > 0):
@@ -30,7 +49,7 @@ class Command(BaseCommand):
     source_urls = set()
     for source in LDPSource.objects.all():
       source_urls.add(urlparse(source.urlid).netloc)
-    
+
     if(len(source_urls) > 0):
       print("Servers that I'm allowed to get federated to:")
       for server in source_urls:
@@ -56,6 +75,12 @@ class Command(BaseCommand):
           print("- "+resource)
       else:
         print("No resource are in fault")
+      if(options["fix_faulted_resources"]):
+        for resource in faulted_resources:
+          resources_map[resource].delete()
+        print("Fixed faulted resources")
+      else:
+        print("Fix them with `./manage.py check_integrity --fix-faulted-resources`")
     else:
       print("I accept datas for every of those servers")
 
@@ -71,6 +96,12 @@ class Command(BaseCommand):
       print("Faulted resources, 404:")
       for resource in resources_404:
         print("- "+resource)
+      if(options["fix_404_resources"]):
+        for resource in resources_404:
+          resources_map[resource].delete()
+        print("Fixed 404 resources")
+      else:
+        print("Fix them with `./manage.py check_integrity --fix-404-resources`")
     else:
       print("No 404 in known resources")
 
