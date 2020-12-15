@@ -130,7 +130,7 @@ class LDPSettings(object):
         """Return the installed apps and the LDP packages."""
 
         # get ldp packages (they are django apps)
-        apps = self.DJANGOLDP_PACKAGES
+        apps = self.DJANGOLDP_PACKAGES.copy()
 
         # add the default apps
         apps.extend(self._settings['INSTALLED_APPS'])

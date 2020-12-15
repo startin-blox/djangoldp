@@ -9,7 +9,7 @@ ldppackages:
 server:
   ALLOWED_HOSTS:
     - '*'
-  AUTH_USER_MODEL: 'tests.User'
+  AUTH_USER_MODEL: tests.User
   EMAIL_HOST: somewhere
   ANONYMOUS_USER_NAME: None
   ROOT_URLCONF: djangoldp.urls

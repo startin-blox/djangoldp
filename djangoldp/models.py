@@ -384,22 +384,22 @@ def auto_urlid(sender, instance, **kwargs):
             instance.save()
 
 
-if not hasattr(get_user_model(), 'webid'):
-    def webid(self):
-        # an external user should have urlid set
-        webid = getattr(self, 'urlid', None)
-        if webid is not None and urlparse(settings.BASE_URL).netloc != urlparse(webid).netloc:
-            webid = self.urlid
-        # local user use user-detail URL with primary key
-        else:
-            base_url = settings.BASE_URL
-            if base_url.endswith('/'):
-                base_url = base_url[:len(base_url) - 1]
-            webid = '{0}{1}'.format(base_url, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
-        return webid
-
-
-    get_user_model().webid = webid
+#if not hasattr(get_user_model(), 'webid'):
+#    def webid(self):
+#        # an external user should have urlid set
+#        webid = getattr(self, 'urlid', None)
+#        if webid is not None and urlparse(settings.BASE_URL).netloc != urlparse(webid).netloc:
+#            webid = self.urlid
+#        # local user use user-detail URL with primary key
+#        else:
+#            base_url = settings.BASE_URL
+#            if base_url.endswith('/'):
+#                base_url = base_url[:len(base_url) - 1]
+#            webid = '{0}{1}'.format(base_url, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
+#        return webid
+#
+#
+#    get_user_model().webid = webid
 
 
 @receiver([pre_save, pre_delete, m2m_changed])
