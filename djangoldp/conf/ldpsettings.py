@@ -6,7 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings as django_settings
 from pathlib import Path
 from typing import Iterable
-from . import global_settings
+from . import default_settings
 
 try:
     from importlib import import_module
@@ -70,7 +70,7 @@ class LDPSettings(object):
                     settings.update({k: v})
 
         # start from default core settings
-        settings = global_settings.__dict__.copy()
+        settings = default_settings.__dict__.copy()
         logger.debug(f'Building settings from core defaults')
 
         # INSTALLED_APPS starts empty
@@ -112,7 +112,7 @@ class LDPSettings(object):
             pass
 
         # In the end adds the INSTALLED_APPS from the core
-        settings['INSTALLED_APPS'].extend(getattr(global_settings,'INSTALLED_APPS'))
+        settings['INSTALLED_APPS'].extend(getattr(default_settings,'INSTALLED_APPS'))
 
         return settings
 
