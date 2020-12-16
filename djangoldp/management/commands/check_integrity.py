@@ -50,6 +50,13 @@ class Command(BaseCommand):
       const=True,
       help="Fix 404 resources",
     )
+    parser.add_argument(
+      "--fix-offline-servers",
+      default=False,
+      nargs="?",
+      const=True,
+      help="Remove resources from offline servers",
+    )
 
   def handle(self, *args, **options):
     models = apps.get_models()
@@ -131,12 +138,13 @@ class Command(BaseCommand):
 
     if(not options["ignore_404"]):
       resources_404 = set()
+      resources_servers_offline = set()
       for resource in resources:
         try:
           if(requests.get(resource).status_code == 404):
             resources_404.add(resource)
         except:
-          pass
+          resources_servers_offline.add(resource)
 
       if(len(resources_404) > 0):
         print("Faulted resources, 404:")
@@ -151,6 +159,21 @@ class Command(BaseCommand):
           print("Fixed 404 resources")
         else:
           print("Fix them with `./manage.py check_integrity --fix-404-resources`")
+
+      if(len(resources_servers_offline) > 0):
+        print("Faulted resources, servers offline:")
+        for resource in resources_servers_offline:
+          print("- "+resource)
+        if(options["fix_offline_servers"]):
+          for resource in resources_servers_offline:
+            try:
+              resources_map[resource].delete()
+            except:
+              pass
+          print("Fixed resources on offline servers")
+        else:
+          print("Fix them with `./manage.py check_integrity --fix-offline-servers`")
+
       else:
         print("No 404 in known resources")
 
