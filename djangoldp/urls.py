@@ -18,9 +18,27 @@ def __clean_path(path):
     return path
 
 
+def get_all_non_abstract_subclasses(cls):
+    '''
+    returns a set of all subclasses for a given Python class (recursively calls cls.__subclasses__()). Ignores Abstract
+    classes
+    '''
+    def valid_subclass(sc):
+        '''returns True if the parameterised subclass is valid and should be returned'''
+        return not Model.get_meta(sc, 'abstract', False)
+
+    return set(c for c in cls.__subclasses__() if valid_subclass(c)).union(
+        [s for c in cls.__subclasses__() for s in get_all_non_abstract_subclasses(c) if valid_subclass(s)])
+
+
+def get_all_non_abstract_subclasses_dict(cls):
+    '''returns a dict of class name -> class for all subclasses of given cls parameter (recursively)'''
+    return {cls.__name__: cls for cls in get_all_non_abstract_subclasses(cls)}
+
+
 urlpatterns = [
     re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
-                                                                permission_classes=[LDPPermissions], )),
+                                                                    permission_classes=[LDPPermissions], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
     re_path(r'^inbox/$', InboxView.as_view()),
 ]
@@ -33,7 +51,7 @@ for package in settings.DJANGOLDP_PACKAGES:
         pass
 
 # fetch a list of all models which subclass DjangoLDP Model
-model_classes = {cls.__name__: cls for cls in Model.__subclasses__() if not Model.get_meta(cls, 'abstract', False)}
+model_classes = get_all_non_abstract_subclasses_dict(Model)
 
 # append urls for all DjangoLDP Model subclasses
 for class_name in model_classes:
