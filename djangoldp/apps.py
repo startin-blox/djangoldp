@@ -22,6 +22,7 @@ class DjangoldpConfig(AppConfig):
         from django.conf import settings
         from django.contrib import admin
         from djangoldp.admin import DjangoLDPAdmin
+        from djangoldp.urls import get_all_non_abstract_subclasses_dict
         from djangoldp.models import Model
 
         for package in settings.DJANGOLDP_PACKAGES:
@@ -36,7 +37,7 @@ class DjangoldpConfig(AppConfig):
             except ModuleNotFoundError:
                 pass
 
-        model_classes = {cls.__name__: cls for cls in Model.__subclasses__() if not Model.get_meta(cls, 'abstract', False)}
+        model_classes = get_all_non_abstract_subclasses_dict(Model)
 
         for class_name in model_classes:
             model_class = model_classes[class_name]
