@@ -459,7 +459,6 @@ class Update(TestCase):
         self.assertEqual(response.data['joboffers']['ldp:contains'][0]['@id'],
                          "http://external.job/job/1")
         self.assertIn('@type', response.data['joboffers']['ldp:contains'][0])
-        self.assertEqual(len(response.data['joboffers']['ldp:contains'][0].items()), 2)
 
     def test_m2m_new_link_local(self):
         resource = Resource.objects.create()
