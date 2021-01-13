@@ -113,9 +113,7 @@ class TestGET(APITestCase):
         self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertIn('@type', response.data['ldp:contains'][1])
         self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
-        # the external resource should be serialized with its @id and @type.. and only these fields
         self.assertEqual(response.data['ldp:contains'][1]['@id'], distant_batch.urlid)
-        self.assertEqual(len(response.data['ldp:contains'][1].items()), 2)
 
     def test_serializer_excludes(self):
         date = DateModel.objects.create(excluded='test', value=datetime.now())
