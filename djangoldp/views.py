@@ -1,5 +1,6 @@
 import json
 import validators
+from collections import OrderedDict
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls import include, re_path
@@ -37,6 +38,36 @@ logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
 
 
+def reorder_ordered_dict(odico):
+    keys_order = ['@context', '@type', '@id']
+    keys_order.reverse()
+
+    for key in keys_order:
+        if key in odico.keys():
+            odico.move_to_end(key, False)
+
+    return odico
+
+def reorder_data(data):
+    ''' 
+    Reordering data before converting in JSONLDRenderer 
+    Parsing all nested dict and converting in OrderedDict
+    '''
+    if isinstance(data, OrderedDict):
+        data = reorder_ordered_dict(data)
+
+        for key in data:
+            if isinstance(data[key], dict):
+                data[key] = OrderedDict(data[key])
+            reorder_data(data[key])
+
+    elif isinstance(data, list):
+        for item in data:
+            reorder_data(item)
+
+    return data
+
+
 # renders into JSONLD format by applying context to the data
 # https://github.com/digitalbazaar/pyld
 class JSONLDRenderer(JSONRenderer):
@@ -51,6 +82,9 @@ class JSONLDRenderer(JSONRenderer):
                 data["@context"] = [settings.LDP_RDF_CONTEXT, context]
             else:
                 data["@context"] = settings.LDP_RDF_CONTEXT
+
+        data_ordered = reorder_data(data)
+
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
 
@@ -439,6 +473,7 @@ class LDPViewSet(LDPViewSetGenerator):
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = Model.get_meta(self.model, 'serializer_fields_exclude') or ()
+        
         return self.build_serializer(meta_args, 'Read')
 
     def build_write_serializer(self):
@@ -452,6 +487,7 @@ class LDPViewSet(LDPViewSetGenerator):
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = self.exclude or Model.get_meta(self.model, 'serializer_fields_exclude') or ()
+
         return self.build_serializer(meta_args, 'Write')
 
     def build_serializer(self, meta_args, name_prefix):
@@ -502,7 +538,6 @@ class LDPViewSet(LDPViewSetGenerator):
 
         response_serializer = self.get_serializer()
         data = response_serializer.to_representation(serializer.instance)
-
         return Response(data)
 
     def get_write_serializer(self, *args, **kwargs):
