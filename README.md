@@ -72,6 +72,29 @@ You can ignore some servers:
 ./manage.py check_integrity --ignore "https://server/,https://another-server/"
 ```
 
+### Add you own commands to the `check_integrity` from your own package
+
+Create a `check_integrity.py` file within your app folder containing:
+
+```python
+def add_arguments(parser):
+  parser.add_argument(
+    "--my-own-argument",
+    default=False,
+    nargs="?",
+    const=True,
+    help="Some help text",
+  )
+
+def check_integrity(options):
+  if(options["my_own_argument"]):
+    print("You ran a check_integrity with --my-own-argument!")
+  else:
+    print("Run me with `./manage.py check_integrity --my-own-argument`")
+```
+
+You can see a sample on the `check_integrity.py` file of DjangoLDP.
+
 ## License
 
 Licence MIT
