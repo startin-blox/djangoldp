@@ -1,7 +1,7 @@
 from django.conf.urls import re_path
 
 from djangoldp.permissions import LDPPermissions
-from djangoldp.tests.models import Skill, JobOffer, Message, Conversation, Dummy, PermissionlessDummy, Task, DateModel
+from djangoldp.tests.models import Skill, JobOffer, Message, Conversation, Dummy, PermissionlessDummy, Task, DateModel, LDPDummy
 from djangoldp.views import LDPViewSet
 
 urlpatterns = [
@@ -10,6 +10,7 @@ urlpatterns = [
     re_path(r'^tasks/', LDPViewSet.urls(model=Task, permission_classes=[LDPPermissions])),
     re_path(r'^dates/', LDPViewSet.urls(model=DateModel, permission_classes=[LDPPermissions])),
     re_path(r'^dummys/', LDPViewSet.urls(model=Dummy, permission_classes=[LDPPermissions], lookup_field='slug',)),
+    re_path(r'^ldpdummys/', LDPViewSet.urls(model=LDPDummy, permission_classes=[LDPPermissions], nested_fields=['anons'])),
     re_path(r'^permissionless-dummys/', LDPViewSet.urls(model=PermissionlessDummy, permission_classes=[LDPPermissions], lookup_field='slug',)),
 ]
 

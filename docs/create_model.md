@@ -291,13 +291,19 @@ Now when an instance of `MyModel` is saved, its `author_user` property will be s
 
 Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information
 
+### Serializing Permissions
+
+* `SERIALIZE_EXCLUDE_PERMISSIONS`. Permissions which should always be excluded from serialization defaults to `['inherit']`
+* `SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT`. Excluded also when serializing containers `['delete']`
+* `SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT`. Excluded also when serializing objects `[]`
+
 ## permissions_classes
 
 This allows you to add permissions for anonymous, logged in user, author ... in the url:
 By default `LDPPermissions` is used.
 Specific permissin classes can be developed to fit special needs.
 
-## anonymous_perms, user_perms, owner_perms
+## anonymous_perms, user_perms, owner_perms, superuser_perms
 
 Those allow you to set permissions from your model's meta.
 
@@ -326,14 +332,19 @@ class Todo(Model):
 
     class Meta:
         anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'control', 'delete']
+        authenticated_perms = ['inherit', 'add'] # inherits from anonymous
+        owner_perms = ['inherit', 'change', 'control', 'delete'] # inherits from authenticated
+        superuser_perms = ['inherit'] # inherits from owner
         owner_field = 'user'
 ```
 
 
 Important note:
 If you need to give permissions to owner's object, don't forget to add auto_author in model's meta
+
+Superuser's are by default configured to have all of the default DjangoLDP permissions
+* you can restrict their permissions globally by setting `DEFAULT_SUPERUSER_PERMS = []` in your server settings
+* you can change it on a per-model basis as described here. Please note that if you use a custom permissions class you will need to give superusers this permission explicitly, or use the `SuperUsersPermission` class on the model which will grant superusers all permissions
 
 ### view_set
 

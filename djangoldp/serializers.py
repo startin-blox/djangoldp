@@ -29,6 +29,12 @@ from djangoldp.models import Model
 from djangoldp.permissions import LDPPermissions
 
 
+# defaults for various DjangoLDP settings (see documentation)
+SERIALIZE_EXCLUDE_PERMISSIONS_DEFAULT = ['inherit']
+SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT = ['delete']
+SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT = []
+
+
 class InMemoryCache:
 
     def __init__(self):
@@ -58,6 +64,26 @@ class InMemoryCache:
             self.cache.pop(cache_key, None)
         else:
             self.cache[cache_key].pop(vary, None)
+
+
+def _serialize_permissions(permissions, exclude_perms):
+    '''takes a set or list of permissions and returns them in the JSON-LD format'''
+    exclude_perms = set(exclude_perms).union(
+        getattr(settings, 'SERIALIZE_EXCLUDE_PERMISSIONS', SERIALIZE_EXCLUDE_PERMISSIONS_DEFAULT))
+
+    return [{'mode': {'@type': name}} for name in permissions if name not in exclude_perms]
+
+
+def _serialize_container_permissions(permissions):
+    exclude = getattr(settings, 'SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS',
+                      SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT)
+    return _serialize_permissions(permissions, exclude)
+
+
+def _serialize_object_permissions(permissions):
+    exclude = getattr(settings, 'SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS',
+                      SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT)
+    return _serialize_permissions(permissions, exclude)
 
 
 def _ldp_container_representation(id, container_permissions=None, value=None):
@@ -114,6 +140,22 @@ class LDListMixin:
          - Can Add if add permission on contained object's type
          - Can view the container is view permission on container model : container obj are filtered by view permission
         '''
+        def check_cache():
+            '''Auxiliary function to avoid code duplication - checks cache and returns from it if it has entry'''
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_key = self.id
+            if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
+                return self.to_representation_cache.get(cache_key, cache_vary)
+
+        # if this field is listed as an "empty_container" it means that it should only be serialized with @id
+        if getattr(self, 'parent', None) is not None and getattr(self, 'field_name', None) is not None:
+            empty_containers = getattr(self.parent.Meta.model._meta, 'empty_containers', None)
+
+            if empty_containers is not None and self.field_name in empty_containers:
+                return _ldp_container_representation(self.id)
+
         try:
             child_model = getattr(self, self.child_attr).Meta.model
         except AttributeError:
@@ -124,14 +166,9 @@ class LDListMixin:
         cache_vary = str(self.context['request'].user)
 
         if not isinstance(value, Iterable) and not isinstance(value, QuerySet):
-            if not self.id.startswith('http'):
-                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-
-            cache_key = self.id
-            if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
-                return self.to_representation_cache.get(cache_key, cache_vary)
-
-            container_permissions = Model.get_permissions(child_model, self.context, ['view', 'add'])
+            check_cache()
+            container_permissions = _serialize_container_permissions(
+                Model.get_container_permissions(child_model, self.context['request'], self.context['view']))
 
         else:
             try:
@@ -139,27 +176,16 @@ class LDListMixin:
             except:
                 parent_model = child_model
 
-            if not self.id.startswith('http'):
-                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-
-            cache_key = self.id
-            if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
-                return self.to_representation_cache.get(cache_key, cache_vary)
-
-            container_permissions = Model.get_permissions(child_model, self.context, ['add'])
-            container_permissions.extend(Model.get_permissions(parent_model, self.context, ['view']))
+            check_cache()
 
             # optimize: filter the queryset automatically based on child model permissions classes (filter_backends)
             if isinstance(value, QuerySet) and hasattr(child_model, 'get_queryset'):
                 value = child_model.get_queryset(self.context['request'], self.context['view'], queryset=value,
                                                  model=child_model)
 
-        # if this field is listed as an "empty_container" it means that it should only be serialized with @id
-        if getattr(self, 'parent', None) is not None and getattr(self, 'field_name', None) is not None:
-            empty_containers = getattr(self.parent.Meta.model._meta, 'empty_containers', None)
-
-            if empty_containers is not None and self.field_name in empty_containers:
-                return _ldp_container_representation(self.id)
+            container_permissions = Model.get_container_permissions(child_model, self.context['request'], self.context['view'])
+            container_permissions = _serialize_container_permissions(container_permissions.union(
+                Model.get_container_permissions(parent_model, self.context['request'], self.context['view'])))
 
         self.to_representation_cache.set(self.id, cache_vary,
                                          _ldp_container_representation(self.id,
@@ -380,9 +406,14 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data['@id'] = data.pop('urlid')['@id']
         if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
+
         data = _serialize_rdf_fields(obj, data, include_context=True)
-        data['permissions'] = Model.get_permissions(obj, self.context,
-                                                    ['view', 'change', 'control', 'delete'])
+        if hasattr(obj, 'get_model_class'):
+            model_class = obj.get_model_class()
+        else:
+            model_class = type(obj)
+        data['permissions'] = _serialize_object_permissions(
+            Model.get_permissions(model_class, self.context['request'], self.context['view'], obj))
 
         return data
 
@@ -411,9 +442,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     if isinstance(instance, QuerySet):
                         data = list(instance)
-
                         id = '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source)
-                        permissions = Model.get_permissions(self.parent.Meta.model, self.context, ['view', 'add'])
+                        permissions = _serialize_container_permissions(Model.get_permissions(self.parent.Meta.model,
+                                                                                    self.parent.context['request'],
+                                                                                    self.parent.context['view']))
                         data = [serializer.to_representation(item) if item is not None else None for item in data]
                         return _ldp_container_representation(id, container_permissions=permissions, value=data)
                     else:
@@ -655,7 +687,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def internal_create(self, validated_data, model):
         validated_data = self.resolve_fk_instances(model, validated_data, True)
 
-        # build tuples list of nested_field keys and their values
+        # build tuples list of nested_field keys and their values. All list values are considered nested fields
         nested_fields = []
         nested_list_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_list_fields_name:

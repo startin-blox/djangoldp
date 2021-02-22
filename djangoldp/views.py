@@ -29,6 +29,7 @@ from djangoldp.models import LDPSource, Model, Follower
 from djangoldp.permissions import LDPPermissions
 from djangoldp.filters import LocalObjectOnContainerPathBackend
 from djangoldp.related import get_prefetch_fields
+from djangoldp.utils import is_authenticated_user
 from djangoldp.activities import ActivityQueueService, as_activitystream
 from djangoldp.activities import ActivityPubService
 from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
@@ -511,7 +512,20 @@ class LDPViewSet(LDPViewSetGenerator):
         '''
         return True
 
+    def check_model_permissions(self, request):
+        """
+        Check if the request should be permitted when the model-level permissions matter (generally just for creating an object)
+        Raises an appropriate exception if the request is not permitted.
+        """
+        for permission in self.get_permissions():
+            if hasattr(permission, 'has_container_permission') and not permission.has_container_permission(request, self):
+                self.permission_denied(
+                    request,
+                    message=getattr(permission, 'message', None)
+                )
+
     def create(self, request, *args, **kwargs):
+        self.check_model_permissions(request)
         serializer = self.get_write_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         if not self.is_safe_create(request.user, serializer.validated_data):
@@ -581,7 +595,7 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.model:
             queryset = self.model.objects.all()
         else:
-            queryset = super(LDPView, self).get_queryset(*args, **kwargs)
+            queryset = super(LDPViewSet, self).get_queryset(*args, **kwargs)
         if self.prefetch_fields is None:
             depth = getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0))
             self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
@@ -601,7 +615,7 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             pass
         response["Accept-Post"] = "application/ld+json"
-        if request.user.is_authenticated:
+        if is_authenticated_user(request.user):
             try:
                 response['User'] = request.user.webid()
             except AttributeError:

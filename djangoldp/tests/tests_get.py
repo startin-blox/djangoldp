@@ -1,6 +1,6 @@
-from djangoldp.serializers import LDListMixin, LDPSerializer
-from django.contrib.auth import get_user_model
 from datetime import datetime
+from django.contrib.auth import get_user_model
+from djangoldp.serializers import LDListMixin, LDPSerializer
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
 from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember, UserProfile
@@ -44,11 +44,10 @@ class TestGET(APITestCase):
         Post.objects.create(content="federated", urlid="https://external.com/posts/1/")
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('permissions', response.data)
         self.assertEquals(1, len(response.data['ldp:contains']))
         self.assertIn('@type', response.data)
         self.assertIn('@type', response.data['ldp:contains'][0])
-        self.assertEquals(2, len(response.data['permissions']))  # read and add
+        self.assertEquals(4, len(response.data['permissions'])) # configured anonymous permissions to give all
 
         Invoice.objects.create(title="content")
         response = self.client.get('/invoices/', content_type='application/ld+json')
@@ -115,6 +114,17 @@ class TestGET(APITestCase):
         self.assertIn('@type', response.data['ldp:contains'][1])
         self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
         self.assertEqual(response.data['ldp:contains'][1]['@id'], distant_batch.urlid)
+
+    # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/335
+    #  test getting a route with multiple nested fields (/job-offers/X/skills/Y/)
+    '''def test_get_twice_nested(self):
+        job = JobOffer.objects.create(title="job", slug="slug1")
+        skill = Skill.objects.create(title='old', obligatoire='old', slug='skill1')
+        job.skills.add(skill)
+        self.assertEqual(job.skills.count(), 1)
+        
+        response = self.client.get('/job-offers/{}/skills/{}/'.format(job.slug, skill.slug))
+        self.assertEqual(response.status_code, 200)'''
 
     def test_serializer_excludes(self):
         date = DateModel.objects.create(excluded='test', value=datetime.now())

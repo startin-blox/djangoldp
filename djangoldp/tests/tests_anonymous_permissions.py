@@ -3,9 +3,7 @@ import json
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from djangoldp.permissions import LDPPermissions
 from djangoldp.tests.models import JobOffer
-from djangoldp.views import LDPViewSet
 
 
 class TestAnonymousUserPermissions(TestCase):
@@ -25,6 +23,8 @@ class TestAnonymousUserPermissions(TestCase):
         post = {'title': "job_created"}
         response = self.client.post('/job-offers/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 403)
+
+    # TODO: test POST request for anonymous user where it's allowed
 
     def test_put_request_for_anonymousUser(self):
         body = {'title':"job_updated"}

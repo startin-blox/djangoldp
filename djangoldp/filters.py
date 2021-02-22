@@ -1,7 +1,6 @@
-from django.conf import settings
-from guardian.utils import get_anonymous_user
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
+from djangoldp.utils import is_anonymous_user
 
 
 class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
@@ -9,16 +8,37 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
     Default FilterBackend for LDPPermissions. If user does not have model-level permissions, filters by
     Django-Guardian's get_objects_for_user
     """
+
+    shortcut_kwargs = {
+        'accept_global_perms': False,
+        'with_superuser': True
+    }
+
     def filter_queryset(self, request, queryset, view):
-        from djangoldp.permissions import LDPPermissions
+        from djangoldp.models import Model
+        from djangoldp.permissions import LDPPermissions, ModelConfiguredPermissions
 
         # compares the requirement for GET, with what the user has on the MODEL
-        if LDPPermissions.has_model_view_permission(request, view.model):
+        ldp_permissions = LDPPermissions()
+        if ldp_permissions.has_container_permission(request, view):
             return queryset
-        if not request.user.is_anonymous or (
-                getattr(settings, 'ANONYMOUS_USER_NAME', True) is not None and
-                request.user != get_anonymous_user()):
-            return super().filter_queryset(request, queryset, view)
+
+        if not is_anonymous_user(request.user):
+            # those objects I have by grace of group or object
+            # first figure out if the superuser has special permissions (important to the implementation in superclass)
+            perms_class = ModelConfiguredPermissions()
+            anon_perms, auth_perms, owner_perms, superuser_perms = perms_class.get_permission_settings(view.model)
+            self.shortcut_kwargs['with_superuser'] = 'view' in superuser_perms
+
+            object_perms = super().filter_queryset(request, queryset, view)
+
+            # those objects I have by grace of being owner
+            if Model.get_meta(view.model, 'owner_field', None) is not None:
+                if 'view' in owner_perms:
+                    owned_objects = [q.pk for q in queryset if Model.is_owner(view.model, request.user, q)]
+                    return object_perms | queryset.filter(pk__in=owned_objects)
+            return object_perms
+
         # user is anonymous without anonymous permissions
         return view.model.objects.none()
 

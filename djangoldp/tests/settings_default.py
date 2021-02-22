@@ -23,5 +23,4 @@ server:
   SEND_BACKLINKS: false
   GUARDIAN_AUTO_PREFETCH: true
   SERIALIZER_CACHE: false
-  PERMISSIONS_CACHE: false
 """
