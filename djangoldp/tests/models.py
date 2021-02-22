@@ -1,12 +1,10 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
-from djangoldp.permissions import LDPPermissions
+from djangoldp.permissions import LDPPermissions, SuperUserPermission
 
 
 class User(AbstractUser, Model):
@@ -31,9 +29,9 @@ class Skill(Model):
 
     class Meta(Model.Meta):
         anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
-        serializer_fields = ["@id", "title", "recent_jobs", "slug"]
+        authenticated_perms = ['inherit', 'add', 'change']
+        owner_perms = ['inherit', 'delete', 'control']
+        serializer_fields = ["@id", "title", "recent_jobs", "slug", "obligatoire"]
         lookup_field = 'slug'
         rdf_type = 'hd:skill'
 
@@ -85,6 +83,35 @@ class Resource(Model):
         serializer_fields = ["@id", "joboffers"]
         depth = 1
         rdf_type = 'hd:Resource'
+
+
+# a resource in which only the owner has permissions (for testing owner permissions)
+class OwnedResource(Model):
+    description = models.CharField(max_length=255, blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="owned_resources",
+                             on_delete=models.CASCADE)
+
+    class Meta(Model.Meta):
+        anonymous_perms = []
+        authenticated_perms = []
+        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        owner_field = 'user'
+        serializer_fields = ['@id', 'description', 'user']
+        depth = 1
+
+
+class OwnedResourceVariant(Model):
+    description = models.CharField(max_length=255, blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="owned_variant_resources",
+                             on_delete=models.CASCADE)
+
+    class Meta(Model.Meta):
+        anonymous_perms = []
+        authenticated_perms = ['view', 'change']
+        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        owner_field = 'user'
+        serializer_fields = ['@id', 'description', 'user']
+        depth = 1
 
 
 class UserProfile(Model):
@@ -179,8 +206,8 @@ class Invoice(Model):
     class Meta(Model.Meta):
         depth = 2
         anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        authenticated_perms = ['inherit', 'add', 'change']
+        owner_perms = ['inherit', 'delete', 'control']
 
 
 class Circle(Model):
@@ -232,6 +259,11 @@ class Task(models.Model):
         owner_perms = ['inherit', 'change', 'delete', 'control']
 
 
+class ModelTask(Model, Task):
+    class Meta(Model.Meta):
+        pass
+
+
 class Project(Model):
     description = models.CharField(max_length=255, null=True, blank=False)
     team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
@@ -267,6 +299,16 @@ class MyAbstractModel(Model):
         rdf_type = "wow:defaultrdftype"
 
 
-@receiver(post_save, sender=User)
-def update_perms(sender, instance, created, **kwargs):
-    LDPPermissions.invalidate_cache()
+class NoSuperUsersAllowedModel(Model):
+    class Meta(Model.Meta):
+        anonymous_perms = []
+        authenticated_perms = []
+        owner_perms = []
+        superuser_perms = []
+        permission_classes = [LDPPermissions]
+
+
+class ComplexPermissionClassesModel(Model):
+    class Meta(Model.Meta):
+        permission_classes = [LDPPermissions, SuperUserPermission]
+        superuser_perms = []

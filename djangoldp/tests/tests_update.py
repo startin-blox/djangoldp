@@ -6,8 +6,8 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Post, UserProfile, Resource, Circle
-from djangoldp.tests.models import Skill, JobOffer, Conversation, Message, Project
+from djangoldp.tests.models import Post, UserProfile, Resource, Circle, CircleMember, Invoice, Batch, Task, Skill, JobOffer, \
+    Conversation, Message, Project, NotificationSetting
 
 
 class Update(TestCase):
@@ -21,269 +21,60 @@ class Update(TestCase):
         LDListMixin.to_representation_cache.reset()
         LDPSerializer.to_representation_cache.reset()
 
-    def tearDown(self):
-        pass
+    # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/326
+    '''
+    def test_update_container_append_resource(self):
+        pre_existing_skill_a = Skill.objects.create(title="to keep", obligatoire="obligatoire", slug="slug1")
+        pre_existing_skill_b = Skill.objects.create(title="to keep", obligatoire="obligatoire", slug="slug2")
+        job = JobOffer.objects.create(title="job test")
+        job.skills.add(pre_existing_skill_a)
+        job.skills.add(pre_existing_skill_b)
 
-    def test_update(self):
-        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug1")
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug2")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug3")
-        job1 = JobOffer.objects.create(title="job test")
-        job1.skills.add(skill)
-
-        job = {"@id": "{}/job-offers/{}/".format(settings.BASE_URL, job1.slug),
-               "title": "job test updated",
-               "skills": {
-                   "ldp:contains": [
-                       {"title": "new skill", "obligatoire": "okay"},
-                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
-                       {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug), "title": "skill2 UP"},
-                   ]}
-               }
-
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
-
-        meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=job, instance=job1)
-        serializer.is_valid()
-        result = serializer.save()
-
-        self.assertEquals(result.title, "job test updated")
-        self.assertIs(result.skills.count(), 3)
-        skills = result.skills.all().order_by('title')
-        self.assertEquals(skills[0].title, "new skill")  # new skill
-        self.assertEquals(skills[1].title, "skill1")  # no change
-        self.assertEquals(skills[2].title, "skill2 UP")  # title updated
-
-    def test_update_graph(self):
-        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug1")
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug2")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug3")
-        job1 = JobOffer.objects.create(title="job test", slug="slug4")
-        job1.skills.add(skill)
-
-        job = {"@graph":
-            [
-                {
-                    "@id": "{}/job-offers/{}/".format(settings.BASE_URL, job1.slug),
-                    "title": "job test updated",
-                    "skills": {
-                        "ldp:contains": [
-                            {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
-                            {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug)},
-                            {"@id": "_.123"},
-                        ]}
-                },
-                {
-                    "@id": "_.123",
-                    "title": "new skill",
-                    "obligatoire": "okay"
-                },
-                {
-                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug),
-                },
-                {
-                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug),
-                    "title": "skill2 UP"
-                }
-            ]
-        }
-
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills")}
-
-        meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=job, instance=job1)
-        serializer.is_valid()
-        result = serializer.save()
-
-        skills = result.skills.all().order_by('title')
-
-        self.assertEquals(result.title, "job test updated")
-        self.assertIs(result.skills.count(), 3)
-        self.assertEquals(skills[0].title, "new skill")  # new skill
-        self.assertEquals(skills[1].title, "skill1")  # no change
-        self.assertEquals(skills[2].title, "skill2 UP")  # title updated
-
-    def test_update_graph_2(self):
-        skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug")
-        skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
-        skill2 = Skill.objects.create(title="skill2", obligatoire="obligatoire", slug="slug2")
-        job1 = JobOffer.objects.create(title="job test", slug="slug1")
-        job1.skills.add(skill)
-
-        job = {"@graph":
-            [
-                {
-                    "@id": "{}/job-offers/{}/".format(settings.BASE_URL, job1.slug),
-                    "title": "job test updated",
-                    "skills": {
-                        "@id": "{}/job-offers/{}/skills/".format(settings.BASE_URL, job1.slug)
-                    }
-                },
-                {
-                    "@id": "_.123",
-                    "title": "new skill",
-                    "obligatoire": "okay"
-                },
-                {
-                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug),
-                },
-                {
-                    "@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug),
-                    "title": "skill2 UP"
-                },
-                {
-                    '@id': "{}/job-offers/{}/skills/".format(settings.BASE_URL, job1.slug),
+        post = {"@id": "{}/job-offers/{}/".format(settings.BASE_URL, job.slug),
+                "skills": {
                     "ldp:contains": [
-                        {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill1.slug)},
-                        {"@id": "{}/skills/{}/".format(settings.BASE_URL, skill2.slug)},
-                        {"@id": "_.123"},
-                    ]
+                        {"title": "new skill", "obligatoire": "okay"},
+                        {"@id": "{}/skills/{}/".format(settings.BASE_URL, pre_existing_skill_b.slug), "title": "z"},
+                    ]}
                 }
-            ]
-        }
 
-        meta_args = {'model': JobOffer, 'depth': 2, 'fields': ("@id", "title", "skills", "slug")}
+        response = self.client.patch('/job-offers/{}/'.format(job.slug),
+                                     data=json.dumps(post),
+                                     content_type='application/ld+json')
+        self.assertEquals(response.status_code, 200)
 
-        meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('JobOfferSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=job, instance=job1)
-        serializer.is_valid()
-        result = serializer.save()
-
-        skills = result.skills.all().order_by('title')
-
-        self.assertEquals(result.title, "job test updated")
-        self.assertIs(result.skills.count(), 3)
+        self.assertEquals(response.data['title'], job.title)
+        self.assertIs(job.skills.count(), 3)
+        skills = job.skills.all().order_by('title')
         self.assertEquals(skills[0].title, "new skill")  # new skill
-        self.assertEquals(skills[1].title, "skill1")  # no change
-        self.assertEquals(skills[2].title, "skill2 UP")  # title updated
-        self.assertEquals(skill, skill._meta.model.objects.get(pk=skill.pk))  # title updated
-
-    # TODO: test update with external urlid which doesn't exist
-    # TODO: test update with internal urlid which doesn't exist
-    # TODO: repeat of the above where the relationship is ForeignKey
-    # TODO: test update with internal urlid which refers to a different type of object entirely
-    # TODO: test update with internal urlid which refers to a container
-
-    def test_update_list_with_reverse_relation(self):
-        user1 = get_user_model().objects.create()
-        conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
-        message1 = Message.objects.create(text="Message 1", conversation=conversation, author_user=user1)
-        message2 = Message.objects.create(text="Message 2", conversation=conversation, author_user=user1)
-
-        json = {"@graph": [
-            {
-                "@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk),
-                "text": "Message 1 UP"
-            },
-            {
-                "@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk),
-                "text": "Message 2 UP"
-            },
-            {
-                '@id': "{}/conversations/{}/".format(settings.BASE_URL, conversation.pk),
-                'description': "Conversation 1 UP",
-                "message_set": [
-                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk)},
-                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk)},
-                ]
-            }
-        ]
-        }
-
-        meta_args = {'model': Conversation, 'depth': 2, 'fields': ("@id", "description", "message_set")}
-
-        meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('ConversationSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=json, instance=conversation)
-        serializer.is_valid()
-        result = serializer.save()
-
-        messages = result.message_set.all().order_by('text')
-
-        self.assertEquals(result.description, "Conversation 1 UP")
-        self.assertIs(result.message_set.count(), 2)
-        self.assertEquals(messages[0].text, "Message 1 UP")
-        self.assertEquals(messages[1].text, "Message 2 UP")
-
-    def test_add_new_element_with_foreign_key_id(self):
-        user1 = get_user_model().objects.create()
-        conversation = Conversation.objects.create(description="Conversation 1", author_user=user1)
-        message1 = Message.objects.create(text="Message 1", conversation=conversation, author_user=user1)
-        message2 = Message.objects.create(text="Message 2", conversation=conversation, author_user=user1)
-
-        json = {"@graph": [
-            {
-                "@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk),
-                "text": "Message 1 UP",
-                "author_user": {
-                    '@id': "{}/users/{}/".format(settings.BASE_URL, user1.pk)
-                }
-            },
-            {
-                "@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk),
-                "text": "Message 2 UP",
-                "author_user": {
-                    '@id': user1.urlid
-                }
-            },
-            {
-                "@id": "_:b1",
-                "text": "Message 3 NEW",
-                "author_user": {
-                    '@id': user1.urlid
-                }
-            },
-            {
-                '@id': "{}/conversations/{}/".format(settings.BASE_URL, conversation.pk),
-                "author_user": {
-                    '@id': user1.urlid
-                },
-                'description': "Conversation 1 UP",
-                'message_set': {
-                    "@id": "{}/conversations/{}/message_set/".format(settings.BASE_URL, conversation.pk)
-                }
-            },
-            {
-                '@id': "{}/conversations/{}/message_set/".format(settings.BASE_URL, conversation.pk),
-                "ldp:contains": [
-                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message1.pk)},
-                    {"@id": "{}/messages/{}/".format(settings.BASE_URL, message2.pk)},
-                    {"@id": "_:b1"}
-                ]
-            }
-        ]
-        }
-
-        meta_args = {'model': Conversation, 'depth': 2, 'fields': ("@id", "description", "message_set")}
-
-        meta_class = type('Meta', (), meta_args)
-        serializer_class = type(LDPSerializer)('ConversationSerializer', (LDPSerializer,), {'Meta': meta_class})
-        serializer = serializer_class(data=json, instance=conversation)
-        serializer.is_valid()
-        result = serializer.save()
-
-        messages = result.message_set.all().order_by('text')
-
-        self.assertEquals(result.description, "Conversation 1 UP")
-        self.assertIs(result.message_set.count(), 3)
-        self.assertEquals(messages[0].text, "Message 1 UP")
-        self.assertEquals(messages[1].text, "Message 2 UP")
-        self.assertEquals(messages[2].text, "Message 3 NEW")
+        self.assertEquals(skills[1].title, pre_existing_skill_a.title)  # old skill unchanged
+        self.assertEquals(skills[2].title, "z")  # updated
+        self.assertEquals(skills[2].obligatoire, pre_existing_skill_b.obligatoire)  # another field not updated
+    '''
 
     def test_put_resource(self):
-        post = Post.objects.create(content="content")
+        skill = Skill.objects.create(title='original', obligatoire='original', slug='skill1')
         body = [{
-            '@id': '{}/posts/{}/'.format(settings.BASE_URL, post.pk),
-            'http://happy-dev.fr/owl/#content': "post content"}]
-        response = self.client.put('/posts/{}/'.format(post.pk), data=json.dumps(body),
+            '@id': '{}/skills/{}/'.format(settings.BASE_URL, skill.slug),
+            'http://happy-dev.fr/owl/#title': "new", 'http://happy-dev.fr/owl/#obligatoire': "new"}]
+        response = self.client.put('/skills/{}/'.format(skill.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['content'], "post content")
+        self.assertEquals(response.data['title'], "new")
+        self.assertEquals(response.data['obligatoire'], "new")
         self.assertIn('location', response._headers)
+
+    def test_patch_resource(self):
+        skill = Skill.objects.create(title='original', obligatoire='original', slug='skill1')
+        body = {
+            '@id': '{}/skills/{}'.format(settings.BASE_URL, skill.slug),
+            'http://happy-dev.fr/owl/#title': 'new'
+        }
+        response = self.client.patch('/skills/{}/'.format(skill.slug), data=json.dumps(body),
+                                     content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEquals(response.data['title'], "new")
+        self.assertEquals(response.data['obligatoire'], "original")
 
     def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
         user = get_user_model().objects.create(username="alex", password="test")
@@ -305,6 +96,22 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('userprofile', response.data)
+
+    def test_put_nonexistent_local_resource(self):
+        job = JobOffer.objects.create(title="job test")
+
+        # contains internal urlid which refers to non-existent resource
+        body = {"@id": "{}/job-offers/{}/".format(settings.BASE_URL, job.slug),
+                "skills": {
+                    "ldp:contains": [
+                        {"@id": "{}/skills/404/".format(settings.BASE_URL)},
+                    ]}
+                }
+
+        response = self.client.put('/job-offers/{}/'.format(job.slug), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Skill.objects.count(), 0)
 
     def test_create_sub_object_in_existing_object_with_reverse_fk_relation(self):
         """
@@ -617,7 +424,162 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.data['description'], "user update")
 
-    # TODO: test passing foreign key relation which I shouldn't have access/permission to
-    # TODO: test passing many-to-many relation in edit which isn't yet on my model
+    # unit tests for a specific bug: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/307
+    def test_direct_boolean_field(self):
+        profile = UserProfile.objects.create(user=self.user)
+        setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
+        body = {
+            'http://happy-dev.fr/owl/#@id': setting.urlid,
+            'receiveMail': True,
+            "@context": {"@vocab": "http://happy-dev.fr/owl/#",
+                         "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                         "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
+                         "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
+                         "acl": "http://www.w3.org/ns/auth/acl#", "permissions": "acl:accessControl",
+                         "mode": "acl:mode", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#", "lat": "geo:lat",
+                         "lng": "geo:long"}
+        }
 
+        response = self.client.patch('/notificationsettings/{}/'.format(setting.pk),
+                                     data=json.dumps(body),
+                                     content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['receiveMail'], True)
+
+    def test_nested_container_boolean_field_no_slug(self):
+        profile = UserProfile.objects.create(user=self.user)
+        setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
+        body = {
+            'settings': {
+                'http://happy-dev.fr/owl/#@id': setting.urlid,
+                'receiveMail': True
+            },
+            "@context": {"@vocab": "http://happy-dev.fr/owl/#",
+                         "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                         "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
+                         "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
+                         "acl": "http://www.w3.org/ns/auth/acl#", "permissions": "acl:accessControl",
+                         "mode": "acl:mode", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#", "lat": "geo:lat",
+                         "lng": "geo:long"}
+        }
+
+        response = self.client.patch('/userprofiles/{}/'.format(profile.slug),
+                                     data=json.dumps(body),
+                                     content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['settings']['receiveMail'], True)
+
+    # variation where the lookup_field for NotificationSetting (pk) is provided
+    def test_nested_container_boolean_field_with_slug(self):
+        profile = UserProfile.objects.create(user=self.user)
+        setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
+        body = {
+            'settings': {
+                'pk': setting.pk,
+                'http://happy-dev.fr/owl/#@id': setting.urlid,
+                'receiveMail': True
+            },
+            "@context": {"@vocab": "http://happy-dev.fr/owl/#",
+                         "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                         "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
+                         "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
+                         "acl": "http://www.w3.org/ns/auth/acl#", "permissions": "acl:accessControl",
+                         "mode": "acl:mode", "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#", "lat": "geo:lat",
+                         "lng": "geo:long"}
+        }
+
+        response = self.client.patch('/userprofiles/{}/'.format(profile.slug),
+                                     data=json.dumps(body),
+                                     content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['settings']['receiveMail'], True)
+
+    def test_update_container_twice_nested_view(self):
+        invoice = Invoice.objects.create(title='test')
+        pre_existing_batch = Batch.objects.create(title='batch1', invoice=invoice)
+        pre_existing_task = Task.objects.create(title='task1', batch=pre_existing_batch)
+
+        base_url = settings.BASE_URL
+
+        body = {
+            "@id": "{}/invoices/{}/".format(base_url, invoice.pk),
+            "http://happy-dev.fr/owl/#title": "new",
+            "http://happy-dev.fr/owl/#batches": [
+                {
+                    "@id": "{}/batchs/{}/".format(base_url, pre_existing_batch.pk),
+                    "http://happy-dev.fr/owl/#title": "new",
+                    "http://happy-dev.fr/owl/#tasks": [
+                        {
+                            "@id": "{}/tasks/{}/".format(base_url, pre_existing_task.pk),
+                            "http://happy-dev.fr/owl/#title": "new"
+                        },
+                        {
+                            "http://happy-dev.fr/owl/#title": "tache 2"
+                        }
+                    ]
+                },
+                {
+                    "http://happy-dev.fr/owl/#title": "z",
+                }
+            ]
+        }
+
+        response = self.client.put('/invoices/{}/'.format(invoice.pk), data=json.dumps(body),
+                                   content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEquals(response.data['title'], "new")
+        self.assertEquals(response.data['@id'], invoice.urlid)
+
+        invoice = Invoice.objects.get(pk=invoice.pk)
+        self.assertIs(invoice.batches.count(), 2)
+        batches = invoice.batches.all().order_by('title')
+        self.assertEquals(batches[0].title, "new")
+        self.assertEquals(batches[0].urlid, pre_existing_batch.urlid)
+        self.assertEquals(batches[1].title, "z")
+
+        self.assertIs(batches[0].tasks.count(), 2)
+        tasks = batches[0].tasks.all().order_by('title')
+        self.assertEquals(tasks[0].title, "new")
+        self.assertEquals(tasks[0].pk, pre_existing_task.pk)
+        self.assertEquals(tasks[1].title, "tache 2")
+
+    # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/333
+    '''def test_update_container_nested_view(self):
+        circle = Circle.objects.create(name='test')
+        pre_existing = CircleMember.objects.create(user=self.user, circle=circle, is_admin=False)
+        another_user = get_user_model().objects.create_user(username='u2', email='u2@b.com', password='pw')
+
+        body = {
+            "@id": "{}/circles/{}/".format(settings.BASE_URL, circle.pk),
+            "http://happy-dev.fr/owl/#name": "Updated Name",
+            "http://happy-dev.fr/owl/#members": {
+                "ldp:contains": [
+                    {"@id": "{}/circle-members/{}/".format(settings.BASE_URL, pre_existing.pk),
+                     "http://happy-dev.fr/owl/#is_admin": True},
+                    {"http://happy-dev.fr/owl/#user": {"@id": another_user.urlid},
+                     "http://happy-dev.fr/owl/#is_admin": False},
+                ]
+            }
+        }
+
+        response = \
+            self.client.put('/circles/{}/'.format(circle.pk), data=json.dumps(body), content_type='application/ld+json')
+        print(str(self.user.urlid))
+        print(str(response.data))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEquals(response.data['name'], circle.name)
+        self.assertEqual(response.data['@id'], circle.urlid)
+        self.assertIs(CircleMember.objects.count(), 2)
+        self.assertIs(circle.members.count(), 2)
+        self.assertIs(circle.team.count(), 2)
+
+        members = circle.members.all().order_by('pk')
+        self.assertEqual(members[0].user, self.user)
+        self.assertEqual(members[0].urlid, pre_existing.urlid)
+        self.assertEqual(members[0].pk, pre_existing.pk)
+        self.assertEqual(members[0].is_admin, True)
+        self.assertEqual(members[1].user, another_user)
+        self.assertEqual(members[1].is_admin, False)'''
 

@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+import copy
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -18,7 +19,7 @@ from django.utils.decorators import classonlymethod
 from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
-from djangoldp.permissions import LDPPermissions
+from djangoldp.permissions import LDPPermissions, DEFAULT_DJANGOLDP_PERMISSIONS
 
 logger = logging.getLogger('djangoldp')
 
@@ -156,7 +157,7 @@ class Model(models.Model):
         return path
 
     class Meta:
-        default_permissions = ('add', 'change', 'delete', 'view', 'control')
+        default_permissions = DEFAULT_DJANGOLDP_PERMISSIONS
         abstract = True
         depth = 0
 
@@ -266,7 +267,7 @@ class Model(models.Model):
         return None
 
     @classonlymethod
-    def get_permission_classes(cls, related_model, default_permissions_classes) -> LDPPermissions:
+    def get_permission_classes(cls, related_model, default_permissions_classes):
         '''returns the permission_classes set in the models Meta class'''
         return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
 
@@ -281,12 +282,49 @@ class Model(models.Model):
             return default
         return getattr(model_class._meta, meta_name, meta)
 
-    @staticmethod
-    def get_permissions(obj_or_model, context, filter):
-        permissions = filter
-        for permission_class in Model.get_permission_classes(obj_or_model, [LDPPermissions]):
-            permissions = permission_class().filter_user_perms(context, obj_or_model, permissions)
-        return [{'mode': {'@type': name.split('_')[0]}} for name in permissions]
+    @classmethod
+    def get_model_class(cls):
+        return cls
+
+    @classonlymethod
+    def get_container_permissions(cls, model_class, request, view, obj=None):
+        '''outputs the permissions given by all permissions_classes on the model_class on the model-level'''
+        perms = set()
+        view = copy.copy(view)
+        view.model = model_class
+        for permission_class in Model.get_permission_classes(model_class, [LDPPermissions]):
+            if hasattr(permission_class, 'get_container_permissions'):
+                perms = perms.union(permission_class().get_container_permissions(request, view, obj))
+        return perms
+
+    @classonlymethod
+    def get_object_permissions(cls, model_class, request, view, obj):
+        '''outputs the permissions given by all permissions_classes on the model_class on the object-level'''
+        perms = set()
+        for permission_class in Model.get_permission_classes(model_class, [LDPPermissions]):
+            if hasattr(permission_class, 'get_object_permissions'):
+                perms = perms.union(permission_class().get_object_permissions(request, view, obj))
+        return perms
+
+    @classonlymethod
+    def get_permissions(cls, model_class, request, view, obj=None):
+        '''outputs the permissions given by all permissions_classes on the model_class on both the model and the object level'''
+        perms = Model.get_container_permissions(model_class, request, view, obj)
+        if obj is not None:
+            perms = perms.union(Model.get_object_permissions(model_class, request, view, obj))
+        return perms
+
+    @classmethod
+    def is_owner(cls, model_class, user, obj):
+        '''returns True if I given user is the owner of given object instance, otherwise False'''
+        owner_field = Model.get_meta(model_class, 'owner_field')
+
+        if owner_field is None:
+            return False
+
+        return (getattr(obj, owner_field) == user
+                or (hasattr(user, 'urlid') and getattr(obj, owner_field) == user.urlid)
+                or getattr(obj, owner_field) == user.id)
 
     @classmethod
     def is_external(cls, value):
@@ -405,7 +443,6 @@ def auto_urlid(sender, instance, **kwargs):
 @receiver([pre_save, pre_delete, m2m_changed])
 def invalidate_caches(instance, **kwargs):
     from djangoldp.serializers import LDListMixin, LDPSerializer
-    LDPPermissions.invalidate_cache()
     LDListMixin.to_representation_cache.reset()
 
     if hasattr(instance, 'urlid'):
