@@ -25,7 +25,7 @@ class Command(BaseCommand):
             management.call_command('migrate', interactive=False)
 
         except CommandError as e:
-            setf.stdout.write(self.style.ERROR(f'Data migration failed: {e}'))
+            self.stdout.write(self.style.ERROR(f'Data migration failed: {e}'))
 
         if options['with_dummy_admin']:
             try:
