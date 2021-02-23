@@ -201,13 +201,13 @@ class TestGET(APITestCase):
         self.assertIn('circle', response.data['ldp:contains'][0])
 
     # test for checking fields ordering
-    def test_first_ordered_field(self):
+    def test_ordered_field(self):
         self._set_up_circle_and_user()
         response = self.client.get('/users/', content_type='application/ld+json')
         fields_to_test = [
             response.data.keys(),
-            response.data['ldp:contains'][1],
-            response.data['ldp:contains'][1]['circle_set']
+            response.data['ldp:contains'][-1],
+            response.data['ldp:contains'][-1]['circle_set']
         ]
 
         for test_fields in fields_to_test:
