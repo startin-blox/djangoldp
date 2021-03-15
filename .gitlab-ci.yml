@@ -16,6 +16,17 @@ test:
   tags:
     - test
 
+crypto-test:
+  stage: test
+  script:
+    - pip install .[crypto]
+    - python -m unittest djangoldp_crypto.tests.runner
+  except:
+    - master
+    - tags
+  tags:
+    - test
+
 publish:
   stage: release
   before_script:
