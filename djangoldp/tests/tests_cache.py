@@ -149,23 +149,23 @@ class TestCache(TestCase):
     @override_settings(SERIALIZER_CACHE=True)
     def test_cached_container_m2m_changed_project(self):
         project = Project.objects.create(description='Test')
-        response = self.client.get('/projects/{}/team/'.format(project.pk), content_type='application/ld+json')
+        response = self.client.get('/projects/{}/members/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 0)
 
-        project.team.add(self.user)
-        response = self.client.get('/projects/{}/team/'.format(project.pk), content_type='application/ld+json')
+        project.members.add(self.user)
+        response = self.client.get('/projects/{}/members/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 1)
 
-        project.team.remove(self.user)
-        response = self.client.get('/projects/{}/team/'.format(project.pk), content_type='application/ld+json')
+        project.members.remove(self.user)
+        response = self.client.get('/projects/{}/members/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 0)
 
-        project.team.add(self.user)
-        project.team.clear()
-        response = self.client.get('/projects/{}/team/'.format(project.pk), content_type='application/ld+json')
+        project.members.add(self.user)
+        project.members.clear()
+        response = self.client.get('/projects/{}/members/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 0)
 
