@@ -240,14 +240,14 @@ class PostTestCase(TestCase):
             'http://happy-dev.fr/owl/#@id': "http://external.user/user/1/",
         }
 
-        response = self.client.post('/projects/{}/team/'.format(project.pk),
+        response = self.client.post('/projects/{}/members/'.format(project.pk),
                                     data=json.dumps(body),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['@id'], "http://external.user/user/1/")
         self.assertIn('@type', response.data)
         response = self.client.get('/projects/{}/'.format(project.pk))
-        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'], "http://external.user/user/1/")
+        self.assertEqual(response.data['members']['ldp:contains'][0]['@id'], "http://external.user/user/1/")
 
     #  https://www.w3.org/TR/json-ld/#value-objects
     def test_post_field_with_value_object(self):

@@ -11,8 +11,8 @@ class LDPViewSet(TestCase):
                               'circle_set', 'projects']
     user_expected_fields = {'userprofile', 'conversation_set', 'circle_set', 'projects', 'circle_set__owner',
                             'conversation_set__author_user', 'conversation_set__peer_user'}
-    project_serializer_fields = ['@id', 'description', 'team']
-    project_expected_fields = {'team', 'team__userprofile'}
+    project_serializer_fields = ['@id', 'description', 'members']
+    project_expected_fields = {'members', 'members__userprofile'}
 
     def _get_serializer(self, model, depth, fields):
         meta_args = {'model': model, 'depth': depth, 'fields': fields}

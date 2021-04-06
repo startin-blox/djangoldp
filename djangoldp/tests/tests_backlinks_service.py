@@ -63,17 +63,17 @@ class TestsBacklinksService(APITestCase):
         external_a = self._get_random_external_user()
         external_b = self._get_random_external_user()
         external_c = self._get_random_external_user()
-        project.team.add(external_a)
-        project.team.add(external_b)
-        project.team.add(external_c)
+        project.members.add(external_a)
+        project.members.add(external_b)
+        project.members.add(external_c)
         self.assertEqual(Activity.objects.all().count(), 3)
 
         # remove one individual
-        project.team.remove(external_a)
+        project.members.remove(external_a)
         self.assertEqual(Activity.objects.all().count(), 4)
 
         # clear the rest
-        project.team.clear()
+        project.members.clear()
         self.assertEqual(Activity.objects.all().count(), 6)
         prior_count = Activity.objects.all().count()
 
@@ -85,7 +85,7 @@ class TestsBacklinksService(APITestCase):
     def test_local_object_with_external_m2m_delete_parent(self):
         project = Project.objects.create(description='Test')
         external_a = self._get_random_external_user()
-        project.team.add(external_a)
+        project.members.add(external_a)
         prior_count = Activity.objects.all().count()
 
         project.delete()

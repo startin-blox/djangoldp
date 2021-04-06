@@ -311,7 +311,7 @@ class Update(TestCase):
         project = Project.objects.create(description="project name")
         body = {
             'http://happy-dev.fr/owl/#description': 'project name',
-            'http://happy-dev.fr/owl/#team': {
+            'http://happy-dev.fr/owl/#members': {
                 'http://happy-dev.fr/owl/#@id': 'http://external.user/user/1',
             }
         }
@@ -320,17 +320,17 @@ class Update(TestCase):
                                    data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'],
+        self.assertEqual(response.data['members']['ldp:contains'][0]['@id'],
                          "http://external.user/user/1")
-        self.assertIn('@type', response.data['team']['ldp:contains'][0])
-        self.assertEqual(len(response.data['team']['ldp:contains'][0].items()), 2)
+        self.assertIn('@type', response.data['members']['ldp:contains'][0])
+        self.assertEqual(len(response.data['members']['ldp:contains'][0].items()), 2)
 
     def test_m2m_user_link_existing_external(self):
         project = Project.objects.create(description="project name")
         ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
         body = {
             'http://happy-dev.fr/owl/#description': 'project name',
-            'http://happy-dev.fr/owl/#team': {
+            'http://happy-dev.fr/owl/#members': {
                 'http://happy-dev.fr/owl/#@id': ext_user.urlid,
             }
         }
@@ -339,12 +339,12 @@ class Update(TestCase):
                                    data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['team']['ldp:contains'][0]['@id'], ext_user.urlid)
-        self.assertIn('@type', response.data['team']['ldp:contains'][0])
-        self.assertEqual(len(response.data['team']['ldp:contains'][0].items()), 2)
+        self.assertEqual(response.data['members']['ldp:contains'][0]['@id'], ext_user.urlid)
+        self.assertIn('@type', response.data['members']['ldp:contains'][0])
+        self.assertEqual(len(response.data['members']['ldp:contains'][0].items()), 2)
 
         project = Project.objects.get(pk=project.pk)
-        self.assertEqual(project.team.count(), 1)
+        self.assertEqual(project.members.count(), 1)
 
         user = get_user_model().objects.get(pk=ext_user.pk)
         self.assertEqual(user.projects.count(), 1)
@@ -379,11 +379,11 @@ class Update(TestCase):
     def test_m2m_user_link_remove_existing_link(self):
         ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
         project = Project.objects.create(description="project name")
-        project.team.add(ext_user)
+        project.members.add(ext_user)
         project.save()
         body = {
             'http://happy-dev.fr/owl/#description': 'project name',
-            'http://happy-dev.fr/owl/#team': {
+            'http://happy-dev.fr/owl/#members': {
             }
         }
 
@@ -393,7 +393,7 @@ class Update(TestCase):
         self.assertEqual(response.status_code, 200)
 
         project = Project.objects.get(pk=project.pk)
-        self.assertEqual(project.team.count(), 0)
+        self.assertEqual(project.members.count(), 0)
 
         user = get_user_model().objects.get(pk=ext_user.pk)
         self.assertEqual(user.projects.count(), 0)

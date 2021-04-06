@@ -27,14 +27,38 @@ def generate_users(count, user_template, fixture=None, offset=0):
     return fixture
 
 
-def generate_project(i, project_template, count, offset=0):
+def generate_project_members(project_pk, fixture, offset, total_users):
+    max_members_per_project = 10
+
+    def generate_project_member(i, user_pk):
+        return {
+            'model': 'djangoldp_project.member',
+            'pk': i,
+            'fields': {
+                'project': project_pk,
+                'user': user_pk
+            }
+        }
+
+    # we want to select a handful of random users
+    # to save time we just select a random user within a safe range and then grab a bunch of adjacent users
+    start_user_pk = random.randint(max(offset, 1), offset + (total_users - (max_members_per_project + 1)))
+    if start_user_pk < offset:
+        return
+
+    for i in range(random.randint(1, max_members_per_project)):
+        j = offset + (i + (project_pk * max_members_per_project))  # generate a unique integer id
+        user_pk = start_user_pk + i  # select the next user
+
+        fixture.append(generate_project_member(j, user_pk))
+
+    return fixture
+
+
+def generate_project(i, project_template):
     project = deepcopy(project_template)
     project['pk'] = i
-    project['fields']['team'] = list()
 
-    # append random number of users, max 10 for a single project
-    for j in range(random.randint(1, 10)):
-        project['fields']['team'].append(random.randint(max(offset, 1), offset + (count - 1)))
     return project
 
 
@@ -44,7 +68,10 @@ def generate_projects(count, project_template, fixture=None, offset=0):
 
     for i in range(count):
         j = offset + i
-        project = generate_project(j, project_template, count, offset=offset)
+        project = generate_project(j, project_template)
         fixture.append(project)
+
+        # append random number of project members, max 10 for a single project
+        generate_project_members(j, fixture, offset, count)
 
     return fixture

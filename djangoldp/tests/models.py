@@ -266,7 +266,7 @@ class ModelTask(Model, Task):
 
 class Project(Model):
     description = models.CharField(max_length=255, null=True, blank=False)
-    team = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
+    members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
 
     class Meta(Model.Meta):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
