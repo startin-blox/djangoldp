@@ -15,7 +15,7 @@ def list_models():
     "circlesjoinable": "/circles/joinable/",
     "communities": "/communities/",
     "opencommunities": "/open-communities/",
-    "communitiesaddresses": "/communities-addresses/",
+    "communitiesaddresses": "/community-addresses/",
     "dashboards": "/dashboards/",
     "events": "/events/",
     "eventsfuture": "/events/future/",
