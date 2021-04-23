@@ -85,6 +85,37 @@ class TestsInbox(APITestCase):
         self.assertEquals(Follower.objects.count(), 1)
         self._assert_follower_created(self.user.urlid, "https://distant.com/circles/1/")
 
+    # tests creation, and tests that consequential creation also happens
+    # i.e. that I pass it an external circle which it doesn't know about, and it creates that too
+    def test_create_activity_circle_member(self):
+        obj = {
+            "@type": "hd:circlemember",
+            "@id": "https://distant.com/circlemembers/1/",
+            "user": {
+                "@type": "foaf:user",
+                "@id": self.user.urlid
+            },
+            "circle": {
+                "@type": "hd:circle",
+                "@id": "https://distant.com/circles/1/"
+            }
+        }
+        payload = self._get_activity_request_template("Create", obj)
+
+        response = self.client.post('/inbox/',
+                                    data=json.dumps(payload), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+
+        # assert that the circle was created and the user associated as member
+        circles = Circle.objects.all()
+        self.assertEquals(len(circles), 1)
+        self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
+        self.assertTrue(circles[0].members.filter(user=self.user).exists())
+        self._assert_activity_created(response)
+
+        # assert external circle member now following local user
+        self._assert_follower_created(self.user.urlid, "https://distant.com/circlemembers/1/")
+
     # sender has sent a circle with a local user that doesn't exist
     def test_create_activity_circle_local(self):
         urlid = '{}/{}'.format(settings.SITE_URL, 'someonewhodoesntexist')
