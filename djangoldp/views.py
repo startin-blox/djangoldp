@@ -222,7 +222,7 @@ class InboxView(APIView):
 
         # this will be raised when the object was local, but it didn't exist
         except ObjectDoesNotExist:
-            raise Http404()
+            raise Http404(Model.get_meta(object_model, 'label', 'Unknown Model') + ' ' + str(obj['@id']) + ' does not exist')
 
     # TODO: a fallback here? Saving the backlink as Object or similar
     def _get_subclass_with_rdf_type_or_404(self, rdf_type):
