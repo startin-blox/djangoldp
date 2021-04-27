@@ -5,9 +5,8 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
-from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Post, UserProfile, Resource, Circle, CircleMember, Invoice, Batch, Task, Skill, JobOffer, \
-    Conversation, Message, Project, NotificationSetting
+from djangoldp.tests.models import UserProfile, Resource, Invoice, Batch, Task, Skill, JobOffer, Conversation, Project,\
+    NotificationSetting
 
 
 class Update(TestCase):
@@ -18,8 +17,6 @@ class Update(TestCase):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
         self.client.force_authenticate(user=self.user)
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/326
     '''

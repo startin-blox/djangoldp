@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from statistics import mean, variance
 
 from djangoldp.permissions import LDPPermissions
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Project, User
+from djangoldp.tests.models import Post, JobOffer, Skill, Project, User
 
 
 class TestPerformanceGET(APITestCase):

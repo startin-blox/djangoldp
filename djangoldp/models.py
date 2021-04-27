@@ -2,7 +2,6 @@ import json
 import logging
 import uuid
 import copy
-from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -12,7 +11,7 @@ from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
 from django.dispatch import receiver
-from django.urls import reverse_lazy, get_resolver, NoReverseMatch
+from django.urls import get_resolver
 from urllib import parse
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
@@ -427,7 +426,7 @@ def auto_urlid(sender, instance, **kwargs):
 #        # an external user should have urlid set
 #        webid = getattr(self, 'urlid', None)
 #        if webid is not None and urlparse(settings.BASE_URL).netloc != urlparse(webid).netloc:
-#            webid = self.urlid
+#            webid = self.urlid`
 #        # local user use user-detail URL with primary key
 #        else:
 #            base_url = settings.BASE_URL
@@ -440,10 +439,23 @@ def auto_urlid(sender, instance, **kwargs):
 #    get_user_model().webid = webid
 
 
-@receiver([pre_save, pre_delete, m2m_changed])
-def invalidate_caches(instance, **kwargs):
-    from djangoldp.serializers import LDListMixin, LDPSerializer
-    LDListMixin.to_representation_cache.reset()
+def invalidate_cache_if_has_entry(entry):
+    from djangoldp.serializers import GLOBAL_SERIALIZER_CACHE
 
-    if hasattr(instance, 'urlid'):
-        LDPSerializer.to_representation_cache.invalidate(instance.urlid)
+    if GLOBAL_SERIALIZER_CACHE.has(entry):
+        GLOBAL_SERIALIZER_CACHE.invalidate(entry)
+
+
+def invalidate_model_cache_if_has_entry(model):
+    entry = Model.get_meta(model, 'label')
+    invalidate_cache_if_has_entry(entry)
+
+
+@receiver([pre_save, pre_delete])
+def invalidate_caches(sender, instance, **kwargs):
+    invalidate_model_cache_if_has_entry(sender)
+
+
+@receiver([m2m_changed])
+def invalidate_caches_m2m(sender, instance, action, *args, **kwargs):
+    invalidate_model_cache_if_has_entry(kwargs['model'])

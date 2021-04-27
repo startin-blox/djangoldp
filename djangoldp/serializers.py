@@ -45,25 +45,36 @@ class InMemoryCache:
         self.cache = {
         }
 
-    def has(self, cache_key, vary):
-        return cache_key in self.cache and vary in self.cache[cache_key]
+    def has(self, cache_key, container_urlid=None, vary=None):
+        return cache_key in self.cache and \
+               (container_urlid is None or container_urlid in self.cache[cache_key]) and \
+               (vary is None or vary in self.cache[cache_key][container_urlid])
 
-    def get(self, cache_key, vary):
-        if self.has(cache_key, vary):
-            return self.cache[cache_key][vary]['value']
+    def get(self, cache_key, container_urlid, vary):
+        if self.has(cache_key, container_urlid, vary):
+            return self.cache[cache_key][container_urlid][vary]['value']
         else:
             return None
 
-    def set(self, cache_key, vary, value):
+    def set(self, cache_key, container_urlid, vary, value):
         if cache_key not in self.cache:
             self.cache[cache_key] = {}
-        self.cache[cache_key][vary] = {'value': value}
+        if container_urlid not in self.cache[cache_key]:
+            self.cache[cache_key][container_urlid] = {}
+        self.cache[cache_key][container_urlid][vary] = {'value': value}
 
-    def invalidate(self, cache_key, vary=None):
-        if vary is None:
-            self.cache.pop(cache_key, None)
+    def invalidate(self, cache_key, container_urlid=None, vary=None):
+        # can clear cache_key -> container_urlid -> vary, cache_key -> container_urlid or cache_key
+        if container_urlid is not None:
+            if vary is not None:
+                self.cache[cache_key][container_urlid].pop(vary, None)
+            else:
+                self.cache[cache_key].pop(container_urlid, None)
         else:
-            self.cache[cache_key].pop(vary, None)
+            self.cache.pop(cache_key, None)
+
+
+GLOBAL_SERIALIZER_CACHE = InMemoryCache()
 
 
 def _serialize_permissions(permissions, exclude_perms):
@@ -113,8 +124,6 @@ class LDListMixin:
 
     with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
 
-    to_representation_cache = InMemoryCache()
-
     # converts primitive data representation to the representation used within our application
     def to_internal_value(self, data):
         try:
@@ -140,14 +149,18 @@ class LDListMixin:
          - Can Add if add permission on contained object's type
          - Can view the container is view permission on container model : container obj are filtered by view permission
         '''
-        def check_cache():
+        def check_cache(model):
             '''Auxiliary function to avoid code duplication - checks cache and returns from it if it has entry'''
-            if not self.id.startswith('http'):
-                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-
-            cache_key = self.id
-            if self.with_cache and self.to_representation_cache.has(cache_key, cache_vary):
-                return self.to_representation_cache.get(cache_key, cache_vary)
+            cache_key = Model.get_meta(model, 'label')
+            if self.with_cache and GLOBAL_SERIALIZER_CACHE.has(cache_key, self.id, cache_vary):
+                cache_value = GLOBAL_SERIALIZER_CACHE.get(cache_key, self.id, cache_vary)
+                # this check is to handle the situation where the cache has been invalidated by something we don't check
+                # namely if my permissions are upgraded then I may have access to view more objects
+                cache_under_value = cache_value['ldp:contains'] if 'ldp:contains' in cache_value else cache_value
+                if not hasattr(cache_under_value, '__len__') or not hasattr(value, '__len__') \
+                    or (len(cache_under_value) == len(value)):
+                    return cache_value
+            return False
 
         # if this field is listed as an "empty_container" it means that it should only be serialized with @id
         if getattr(self, 'parent', None) is not None and getattr(self, 'field_name', None) is not None:
@@ -163,10 +176,22 @@ class LDListMixin:
 
         parent_model = None
 
+        # if the depth is greater than 0, we don't hit the cache, because a nested container might be outdated
+        # this Mixin may not have access to the depth of the parent serializer, e.g. if it's a ManyRelatedField
+        # in these cases we assume the depth is 0 and so we hit the cache
+        parent_meta = getattr(getattr(self, self.child_attr), 'Meta', getattr(self.parent, 'Meta', None))
+        depth = max(getattr(parent_meta, "depth", 0), 0) if parent_meta else 1
+
         cache_vary = str(self.context['request'].user)
 
         if not isinstance(value, Iterable) and not isinstance(value, QuerySet):
-            check_cache()
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_result = check_cache(child_model) if depth == 0 else False
+            if cache_result:
+                return cache_result
+
             container_permissions = _serialize_container_permissions(
                 Model.get_container_permissions(child_model, self.context['request'], self.context['view']))
 
@@ -176,7 +201,12 @@ class LDListMixin:
             except:
                 parent_model = child_model
 
-            check_cache()
+            if not self.id.startswith('http'):
+                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
+
+            cache_result = check_cache(child_model) if depth == 0 else False
+            if cache_result:
+                return cache_result
 
             # optimize: filter the queryset automatically based on child model permissions classes (filter_backends)
             if isinstance(value, QuerySet) and hasattr(child_model, 'get_queryset'):
@@ -187,12 +217,12 @@ class LDListMixin:
             container_permissions = _serialize_container_permissions(container_permissions.union(
                 Model.get_container_permissions(parent_model, self.context['request'], self.context['view'])))
 
-        self.to_representation_cache.set(self.id, cache_vary,
-                                         _ldp_container_representation(self.id,
-                                                                       container_permissions=container_permissions,
-                                                                       value=super().to_representation(value)))
+        GLOBAL_SERIALIZER_CACHE.set(Model.get_meta(child_model, 'label'), self.id, cache_vary,
+                                    _ldp_container_representation(self.id,
+                                                                  container_permissions=container_permissions,
+                                                                  value=super().to_representation(value)))
 
-        return self.to_representation_cache.get(self.id, cache_vary)
+        return GLOBAL_SERIALIZER_CACHE.get(Model.get_meta(child_model, 'label'), self.id, cache_vary)
 
     def get_attribute(self, instance):
         parent_id_field = self.parent.fields[self.parent.url_field_name]
@@ -319,7 +349,7 @@ class JsonLdRelatedField(JsonLdField):
 
     @classmethod
     def many_init(cls, *args, **kwargs):
-        list_kwargs = {'child_relation': cls(*args, **kwargs)}
+        list_kwargs = {'child_relation': cls(*args, **kwargs),}
         for key in kwargs:
             if key in MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
@@ -370,10 +400,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
-    with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
-
-    to_representation_cache = InMemoryCache()
-
     def get_default_field_names(self, declared_fields, model_info):
         try:
             fields = list(self.Meta.model._meta.serializer_fields)
@@ -387,15 +413,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
             data = {'@id': obj.urlid}
             return _serialize_rdf_fields(obj, data)
 
-        cache_vary = str(self.context['request'].user)
-        if self.with_cache and hasattr(obj, 'urlid'):
-            if self.to_representation_cache.has(obj.urlid, cache_vary):
-                data = self.to_representation_cache.get(obj.urlid, cache_vary)
-            else:
-                data = super().to_representation(obj)
-                self.to_representation_cache.set(obj.urlid, cache_vary, data)
-        else:
-            data = super().to_representation(obj)
+        data = super().to_representation(obj)
 
         slug_field = Model.slug_field(obj)
         for field in data:
