@@ -2,10 +2,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission, Group
 from django.conf import settings
 from django.test import override_settings
-from djangoldp.serializers import LDListMixin, LDPSerializer
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import JobOffer, LDPDummy, PermissionlessDummy, UserProfile, OwnedResource, \
-    NoSuperUsersAllowedModel, ComplexPermissionClassesModel, OwnedResourceVariant
+    NoSuperUsersAllowedModel, ComplexPermissionClassesModel
 
 import json
 
@@ -17,8 +16,6 @@ class TestUserPermissions(APITestCase):
         self.client = APIClient(enforce_csrf_checks=True)
         self.client.force_authenticate(user=self.user)
         self.job = JobOffer.objects.create(title="job", slug="slug1")
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     def setUpGroup(self):
         self.group = Group.objects.create(name='Test')

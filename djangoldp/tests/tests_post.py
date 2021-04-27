@@ -1,13 +1,10 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.models import Model
-from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Skill, JobOffer, Invoice, LDPDummy, Resource, Post, Circle, Project, \
-    UserProfile, NotificationSetting
+from djangoldp.tests.models import Invoice, LDPDummy, Resource, Post, Circle, Project
 
 
 class PostTestCase(TestCase):
@@ -18,8 +15,6 @@ class PostTestCase(TestCase):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
         self.client.force_authenticate(self.user)
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     def test_save_fk_graph_with_nested(self):
         post = {

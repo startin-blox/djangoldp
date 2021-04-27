@@ -3,8 +3,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
-from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Conversation, Project, Circle, CircleMember
+from djangoldp.tests.models import Conversation, Project, Circle, CircleMember, User
 
 
 class TestCache(TestCase):
@@ -13,10 +12,8 @@ class TestCache(TestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
-                                                         password='glass onion')
+                                                         password='glass onion', first_name='John')
         self.client.force_authenticate(self.user)
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     def tearDown(self):
         setattr(Circle._meta, 'depth', 0)
@@ -193,6 +190,61 @@ class TestCache(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 0)
 
+    # test cache working inside of the nested field (serializer) of another object
+    @override_settings(SERIALIZER_CACHE=True)
+    def test_cached_container_serializer_nested_field(self):
+        project = Project.objects.create(description='Test')
+        response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['team']['ldp:contains']), 0)
+
+        project.team.add(self.user)
+        response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['team']['ldp:contains']), 1)
+
+        project.team.remove(self.user)
+        response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['team']['ldp:contains']), 0)
+
+        project.team.add(self.user)
+        project.team.clear()
+        response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['team']['ldp:contains']), 0)
+
+    # test cache working on a serialized nested field at higher depth
+    @override_settings(SERIALIZER_CACHE=True)
+    def test_cache_depth_2(self):
+        setattr(Circle._meta, 'depth', 2)
+
+        circle = Circle.objects.create(description='Test')
+        response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 0)
+
+        CircleMember.objects.create(user=self.user, circle=circle)
+        response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 1)
+        # assert the depth is applied
+        self.assertIn('user', response.data['members']['ldp:contains'][0])
+        self.assertIn('first_name', response.data['members']['ldp:contains'][0]['user'])
+        self.assertEqual(response.data['members']['ldp:contains'][0]['user']['first_name'], self.user.first_name)
+
+        # make a change to the _user_
+        self.user.first_name = "Alan"
+        self.user.save()
+
+        # assert that the use under the circles members has been updated
+        response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 1)
+        self.assertIn('user', response.data['members']['ldp:contains'][0])
+        self.assertIn('first_name', response.data['members']['ldp:contains'][0]['user'])
+        self.assertEqual(response.data['members']['ldp:contains'][0]['user']['first_name'], self.user.first_name)
+
     # test the cache behaviour when empty_containers is an active setting
     @override_settings(SERIALIZER_CACHE=True)
     def test_cache_empty_container(self):
@@ -218,6 +270,3 @@ class TestCache(TestCase):
         self.assertIn('ldp:contains', response.data)
         self.assertIn('permissions', response.data)
         self.assertIn('circle', response.data['ldp:contains'][0])
-
-
-

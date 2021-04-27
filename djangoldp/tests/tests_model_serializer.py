@@ -1,12 +1,11 @@
-import uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, APIClient
 
-from djangoldp.serializers import LDPSerializer, LDListMixin
-from djangoldp.tests.models import Post, UserProfile, Resource, Circle, CircleMember, Invoice, Batch, Task, ModelTask
-from djangoldp.tests.models import Skill, JobOffer, Conversation, Message, Project
+from djangoldp.serializers import LDPSerializer
+from djangoldp.tests.models import Invoice, Batch, ModelTask
+from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 
 
 class LDPModelSerializerTestCase(TestCase):
@@ -16,8 +15,6 @@ class LDPModelSerializerTestCase(TestCase):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
         self.client.force_authenticate(user=self.user)
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     def _get_serializer_class(self, model, depth, fields):
         meta_args = {'model': model, 'depth': depth, 'fields': fields}

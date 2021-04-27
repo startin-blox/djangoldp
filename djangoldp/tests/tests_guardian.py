@@ -2,20 +2,16 @@ import json
 import uuid
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from djangoldp.serializers import LDListMixin, LDPSerializer
 from rest_framework.test import APIClient, APITestCase
 from guardian.shortcuts import assign_perm
 
 from .models import PermissionlessDummy, Dummy, LDPDummy
-from djangoldp.permissions import LDPPermissions
 
 
 class TestsGuardian(APITestCase):
 
     def setUp(self):
         self.client = APIClient(enforce_csrf_checks=True)
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     def setUpLoggedInUser(self):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
@@ -24,8 +20,6 @@ class TestsGuardian(APITestCase):
         self.user.groups.add(self.group)
         self.user.save()
         self.client.force_authenticate(user=self.user)
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
 
     def _get_dummy_with_perms(self, perms=None, parent=None, group=False):
         if perms is None:

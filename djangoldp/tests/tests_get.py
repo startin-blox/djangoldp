@@ -1,10 +1,9 @@
 from datetime import datetime
 from django.contrib.auth import get_user_model
-from djangoldp.serializers import LDListMixin, LDPSerializer
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
 from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember, UserProfile
-
+from djangoldp.serializers import GLOBAL_SERIALIZER_CACHE
 
 class TestGET(APITestCase):
 
@@ -12,13 +11,11 @@ class TestGET(APITestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.ordered_fields = ['@context', '@type', '@id']
-        LDListMixin.to_representation_cache.reset()
-        LDPSerializer.to_representation_cache.reset()
         setattr(Circle._meta, 'depth', 0)
         setattr(Circle._meta, 'empty_containers', [])
 
     def tearDown(self):
-        pass
+        GLOBAL_SERIALIZER_CACHE.reset()
 
     def test_get_resource(self):
         post = Post.objects.create(content="content")
@@ -56,7 +53,6 @@ class TestGET(APITestCase):
         self.assertEquals(1, len(response.data['permissions']))  # read only
 
     def test_get_empty_container(self):
-        Post.objects.all().delete()
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(0, len(response.data['ldp:contains']))
@@ -213,5 +209,4 @@ class TestGET(APITestCase):
         for test_fields in fields_to_test:
             test_fields = list(test_fields)
             o_f = [field for field in self.ordered_fields if field in test_fields]
-            self.assertEquals(o_f, test_fields[:len(o_f)])  
-    
+            self.assertEquals(o_f, test_fields[:len(o_f)])
