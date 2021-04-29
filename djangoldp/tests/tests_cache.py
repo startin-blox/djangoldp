@@ -196,23 +196,23 @@ class TestCache(TestCase):
         project = Project.objects.create(description='Test')
         response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['team']['ldp:contains']), 0)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 0)
 
-        project.team.add(self.user)
+        project.members.add(self.user)
         response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['team']['ldp:contains']), 1)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 1)
 
-        project.team.remove(self.user)
+        project.members.remove(self.user)
         response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['team']['ldp:contains']), 0)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 0)
 
-        project.team.add(self.user)
-        project.team.clear()
+        project.members.add(self.user)
+        project.members.clear()
         response = self.client.get('/projects/{}/'.format(project.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['team']['ldp:contains']), 0)
+        self.assertEqual(len(response.data['members']['ldp:contains']), 0)
 
     # test cache working on a serialized nested field at higher depth
     @override_settings(SERIALIZER_CACHE=True)
