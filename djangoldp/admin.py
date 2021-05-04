@@ -17,6 +17,7 @@ class DjangoLDPUserAdmin(UserAdmin, GuardedModelAdmin):
 
     list_display = ('urlid', 'email', 'first_name', 'last_name', 'date_joined', 'last_login', 'is_staff')
     search_fields = ['urlid', 'email', 'first_name', 'last_name']
+    ordering = ['urlid']
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
