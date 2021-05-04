@@ -192,6 +192,7 @@ class LDListMixin:
             if cache_result:
                 return cache_result
 
+            setattr(self.context['request'], "parent_id", self.id)
             container_permissions = _serialize_container_permissions(
                 Model.get_container_permissions(child_model, self.context['request'], self.context['view']))
 
