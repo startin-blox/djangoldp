@@ -25,6 +25,7 @@ def list_models():
     "keywords": "/keywords/",
     "types": "/types/",
     "joboffers": "/job-offers/current/",
+    "polls": "/polls/",
     "projects": "/projects/",
     "projectsjoinable": "/projects/joinable/",
     "users": "/users/"
