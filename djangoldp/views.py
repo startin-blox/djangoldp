@@ -271,7 +271,7 @@ class InboxView(APIView):
             origin = origin_model.objects.get(urlid=activity.origin['@id'])
             object_instance = object_model.objects.get(urlid=activity.object['@id'])
         except origin_model.DoesNotExist:
-            raise Http404()
+            raise Http404(activity.origin['@id'] + ' did not exist')
         except object_model.DoesNotExist:
             return
 
@@ -325,9 +325,9 @@ class InboxView(APIView):
         try:
             object_instance = object_model.objects.get(urlid=activity.object['@id'])
         except object_model.DoesNotExist:
-            raise Http404()
+            raise Http404(activity.object['@id'] + ' did not exist')
         if Model.is_external(object_instance):
-            raise Http404()
+            raise Http404(activity.object['@id'] + ' is not local to this server')
 
         # get the inbox field from the actor
         if isinstance(activity.actor, str):
