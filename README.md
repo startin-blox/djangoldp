@@ -17,6 +17,12 @@ Building a Startin' Blox application? Read this: https://git.happy-dev.fr/starti
 
 ## Get started
 
+It is recommanded to avoid dependency collision to work in a virtualenv when developing:
+```
+$ python3 -m venv venv
+$ source venv/bin/activate
+```
+
 Install djangoldp:
 ```
 $ python -m pip install djangoldp
