@@ -23,7 +23,7 @@ $ python3 -m venv venv
 $ source venv/bin/activate
 ```
 
-Install djangoldp:
+Install djangoldp (v2+):
 ```
 $ python -m pip install djangoldp
 ```
@@ -48,10 +48,13 @@ $ djangoldp runserver
 
 You can now log on `http://localhost:8000/admin/` and manage the LDP sources.
 
+## Configuration
+
+When running the `initserver` command a file `settings.yml` will be created for you in your local server. This file is a configuration which is used by `djangoldp configure` to automatically configure your Django settings based on the built in [DjangoLDP packages](https://git.startinblox.com/djangoldp-packages) you configure (or [build your own](https://docs.startinblox.com/import_documentation/install-djangoldp-server.html#start-your-own-djangoldp-package))
+
 ## Check technical documentation
 
-* [Configure the LDP server](./docs/setup_server.md)
-* [Create a model](./docs/create_model.md)
+* [Using DjangoLDP with your models](./docs/create_model.md)
 
 ## Contribute to DjangoLDP
 
