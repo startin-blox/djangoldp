@@ -638,6 +638,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         list_serializer_class = getattr(meta, 'list_serializer_class', ContainerSerializer)
         serializer = list_serializer_class(*args, **list_kwargs)
 
+        # if the child serializer has disabled the cache, really it means disable it on the container
+        if hasattr(child_serializer, 'with_cache'):
+            serializer.with_cache = child_serializer.with_cache
+
         if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
             serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
         elif 'context' in kwargs:
