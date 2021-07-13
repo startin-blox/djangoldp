@@ -9,6 +9,8 @@ ldppackages:
 server:
   ALLOWED_HOSTS:
     - '*'
+  MIDDLEWARE:
+    - 'djangoldp.middleware.AllowRequestedCORSMiddleware'
   AUTH_USER_MODEL: tests.User
   EMAIL_HOST: somewhere
   ANONYMOUS_USER_NAME: None
