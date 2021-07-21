@@ -17,7 +17,7 @@ class TestSettings(TestCase):
 
     def test_only_in_user_config(self):
         """Asserts LDP packages are loaded from YAML file."""
-        assert settings.DJANGOLDP_PACKAGES == ['djangoldp.tests']
+        assert 'djangoldp.tests' in settings.DJANGOLDP_PACKAGES
 
     def test_overrided_core_by_package_config(self):
         assert settings.USE_I18N == False
@@ -31,18 +31,16 @@ class TestSettings(TestCase):
 
     def test_installed_apps_resolution(self):
         """Asserts LDP packages are referenced along with default installed apps."""
-        assert settings.INSTALLED_APPS == [
-            'djangoldp.tests',                          # from server YAML settings
-            'djangoldp.tests.dummy.apps.DummyConfig',   # from ldppackage settings
-            'django.contrib.admin',                     # from default core settings
-            'django.contrib.auth',                      # ...
-            'django.contrib.contenttypes',
-            'django.contrib.sessions',
-            'django.contrib.messages',
-            'django.contrib.staticfiles',
-            'djangoldp',
-            'guardian',
-        ]
+        # test inclusion from server YAML settings
+        assert 'djangoldp.tests' in settings.INSTALLED_APPS
+        # test inclusion from ldppackage settings
+        assert 'djangoldp.tests.dummy.apps.DummyConfig' in settings.INSTALLED_APPS
+        # test inclusion from default core settings
+        assert 'djangoldp' in settings.INSTALLED_APPS
+        # test deduplication of dummy app
+        assert settings.INSTALLED_APPS.count('djangoldp.tests.dummy.apps.DummyConfig') == 1
+
+        # FIXME: We should check the order
 
     def test_reference_middleware(self):
         """Asserts middlewares added in packages are added to the settings."""

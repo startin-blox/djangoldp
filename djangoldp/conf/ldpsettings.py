@@ -79,6 +79,7 @@ class LDPSettings(object):
         # look settings from packages in the order they are given (local overrides installed)
         for pkg in self.DJANGOLDP_PACKAGES:
 
+            # FIXME: There is something better to do here with the sys.modules path
             try:
                 # override with values from installed package
                 mod = import_module(f'{pkg}.djangoldp_settings')
@@ -135,7 +136,8 @@ class LDPSettings(object):
         # add the default apps
         apps.extend(self._settings['INSTALLED_APPS'])
 
-        return apps
+        # As settings come from different origins duplicuation is likeliy to happen
+        return list(set(apps))
 
     def __getattr__(self, param):
         """Return the requested parameter from cached settings."""

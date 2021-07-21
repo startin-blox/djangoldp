@@ -4,7 +4,7 @@ import yaml
 import django
 from django.conf import settings as django_settings
 from djangoldp.conf.ldpsettings import LDPSettings
-from djangoldp.tests.settings_default import yaml_config
+from djangoldp.tests.server_settings import yaml_config
 
 # load test config
 config = yaml.safe_load(yaml_config)
