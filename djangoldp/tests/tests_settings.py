@@ -32,10 +32,10 @@ class TestSettings(TestCase):
     def test_installed_apps_resolution(self):
         """Asserts LDP packages are referenced along with default installed apps."""
         assert settings.INSTALLED_APPS == [
-            'djangoldp.tests',
-            'djangoldp.tests.dummy.apps.DummyConfig',
-            'django.contrib.admin',
-            'django.contrib.auth',
+            'djangoldp.tests',                          # from server YAML settings
+            'djangoldp.tests.dummy.apps.DummyConfig',   # from ldppackage settings
+            'django.contrib.admin',                     # from default core settings
+            'django.contrib.auth',                      # ...
             'django.contrib.contenttypes',
             'django.contrib.sessions',
             'django.contrib.messages',

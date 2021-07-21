@@ -8,3 +8,4 @@ build
 djangoldp/tests/tests_temp.py
 */.idea/*
 .DS_STORE
+venv
