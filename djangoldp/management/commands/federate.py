@@ -28,6 +28,7 @@ def list_models():
     "polls": "/polls/",
     "projects": "/projects/",
     "projectsjoinable": "/projects/joinable/",
+    "skills": "/skills/",
     "users": "/users/"
   }
 
