@@ -604,19 +604,13 @@ class LDPViewSet(LDPViewSetGenerator):
     def dispatch(self, request, *args, **kwargs):
         '''overriden dispatch method to append some custom headers'''
         response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
-        response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
-        response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE"
-        response["Access-Control-Allow-Headers"] = \
-            getattr(settings, 'OIDC_ACCESS_CONTROL_ALLOW_HEADERS',
-                    "authorization, Content-Type, if-match, accept, DPoP")
-        response["Access-Control-Expose-Headers"] = "Location, User"
-        response["Access-Control-Allow-Credentials"] = 'true'
         response["Accept-Post"] = "application/ld+json"
+
         if response.status_code in [201, 200] and '@id' in response.data:
             response["Location"] = str(response.data['@id'])
         else:
             pass
-        response["Accept-Post"] = "application/ld+json"
+
         if is_authenticated_user(request.user):
             try:
                 response['User'] = request.user.webid()
