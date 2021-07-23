@@ -1,10 +1,13 @@
-"""This module contains YAML configurations for djangoldp testing."""
+"""
+This module contains the YAML configuration for a testing djangoldp server.
+"""
 
 yaml_config = """
 dependencies:
 
 ldppackages:
-  - djangoldp.tests
+  - djangoldp.tests                         # fetch 'djangoldp.tests.djangoldp_settings'
+  - djangoldp.tests.dummy.apps.DummyConfig  # already declared in 'djangoldp.tests'
 
 server:
   ALLOWED_HOSTS:
