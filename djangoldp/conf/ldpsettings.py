@@ -5,6 +5,7 @@ import logging
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings as django_settings
 from pathlib import Path
+from collections import OrderedDict
 from typing import Iterable
 from . import default_settings
 
@@ -137,7 +138,7 @@ class LDPSettings(object):
         apps.extend(self._settings['INSTALLED_APPS'])
 
         # As settings come from different origins duplicuation is likeliy to happen
-        return list(set(apps))
+        return list(OrderedDict.fromkeys(apps))
 
     def __getattr__(self, param):
         """Return the requested parameter from cached settings."""
