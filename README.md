@@ -1,5 +1,7 @@
 # Setup a DjangoLDP server
 
+Check the [official documentation](https://docs.startinblox.com/import_documentation/djangoldp_guide/install-djangoldp-server.html).
+
 ## Synopsis
 
 This module is an add-on for Django REST Framework that serves a django model respecting the Linked Data Platform convention.
@@ -7,50 +9,6 @@ This module is an add-on for Django REST Framework that serves a django model re
 It aims at enabling people with little development skills to serve their own data, to be used with a LDP application.
 
 Building a Startin' Blox application? Read this: https://git.happy-dev.fr/startinblox/devops/doc
-
-## Requirements
-
-`djangoldp` requires:
-
-* python 3.6
-* postgresql database (for production)
-
-## Get started
-
-It is recommanded to avoid dependency collision to work in a virtualenv when developing:
-```
-$ python3 -m venv venv
-$ source venv/bin/activate
-```
-
-Install djangoldp (v2+):
-```
-$ python -m pip install djangoldp
-```
-
-Setup a project with a server instance:
-```
-$ djangoldp initserver myldpserver
-$ cd myldperver
-```
-
-This step setup a default basic configuration (see: .
-
-Initialize the server:
-```
-$ djangoldp configure --with-dummy-admin
-```
-
-And run the server locally:
-```
-$ djangoldp runserver
-```
-
-You can now log on `http://localhost:8000/admin/` and manage the LDP sources.
-
-## Configuration
-
-When running the `initserver` command a file `settings.yml` will be created for you in your local server. This file is a configuration which is used by `djangoldp configure` to automatically configure your Django settings based on the built in [DjangoLDP packages](https://git.startinblox.com/djangoldp-packages) you configure (or [build your own](https://docs.startinblox.com/import_documentation/install-djangoldp-server.html#start-your-own-djangoldp-package))
 
 ## Check technical documentation
 
