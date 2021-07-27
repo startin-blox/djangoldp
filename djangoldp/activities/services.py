@@ -177,7 +177,7 @@ class ActivityQueueService:
             if type is None:
                 return []
             type = type.lower()
-            group_a = ['create', 'update', 'delete']
+            group_a = ['create', 'update', 'delete', 'creation', 'deletion']
             groub_b = ['add', 'remove']
 
             if type in group_a:
