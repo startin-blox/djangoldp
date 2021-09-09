@@ -28,6 +28,7 @@ project_template = {
     'model': 'tests.project',
     'pk': 0,
     'fields': {
+        'status': 'Public',
         'description': 'Test'
     }
 }
