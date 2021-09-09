@@ -27,12 +27,12 @@ def generate_users(count, user_template, fixture=None, offset=0):
     return fixture
 
 
-def generate_project_members(project_pk, fixture, offset, total_users):
+def generate_project_members(project_pk, fixture, offset, total_users, context='djangoldp_project'):
     max_members_per_project = 10
 
     def generate_project_member(i, user_pk):
         return {
-            'model': 'djangoldp_project.member',
+            'model': context + '.member',
             'pk': i,
             'fields': {
                 'project': project_pk,
@@ -62,7 +62,7 @@ def generate_project(i, project_template):
     return project
 
 
-def generate_projects(count, project_template, fixture=None, offset=0):
+def generate_projects(count, project_template, fixture=None, offset=0, context='djangoldp_project'):
     if fixture is None:
         fixture = list()
 
@@ -72,6 +72,6 @@ def generate_projects(count, project_template, fixture=None, offset=0):
         fixture.append(project)
 
         # append random number of project members, max 10 for a single project
-        generate_project_members(j, fixture, offset, count)
+        generate_project_members(j, fixture, offset, count, context)
 
     return fixture

@@ -263,16 +263,49 @@ class ModelTask(Model, Task):
     class Meta(Model.Meta):
         pass
 
+STATUS_CHOICES = [
+    ('Public', 'Public'),
+    ('Private', 'Private'),
+    ('Archived', 'Archived'),
+]
 
 class Project(Model):
     description = models.CharField(max_length=255, null=True, blank=False)
-    members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
+    # members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
+    status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='Private', null=True, blank=True)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'
 
+
+class Member(Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='members', null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='projects', null=True, blank=True)
+    is_admin = models.BooleanField(default=False)
+    
+    class Meta(Model.Meta):
+        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
+        unique_together = ['user', 'project']
+        rdf_type = 'hd:projectmember'
+
+    def __str__(self):
+        try:
+            return '{} -> {} ({})'.format(self.project.urlid, self.user.urlid, self.urlid)
+        except:
+            return self.urlid
+
+    def save(self, *args, **kwargs):
+        if self.user:
+            if self.user.username == "hubl-workaround-493":
+                self.user = None
+
+        # cannot be duplicated Members
+        if not self.pk and Member.objects.filter(project=self.project, user=self.user).exists():
+            return
+
+        super(Member, self).save(*args, **kwargs)
 
 class DateModel(Model):
     excluded = models.CharField(max_length=255, null=True, default='test')

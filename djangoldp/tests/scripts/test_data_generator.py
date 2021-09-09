@@ -34,7 +34,7 @@ project_template = {
 }
 
 fixture = generate_users(count, user_template)
-fixtue = generate_projects(count, project_template, fixture=fixture)
+fixture = generate_projects(count, project_template, fixture=fixture, context='tests')
 
 with open(Path(__file__).parent / "../fixtures/test.json", 'w') as output:
     json.dump(fixture, output)
