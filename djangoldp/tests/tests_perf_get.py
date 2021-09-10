@@ -5,7 +5,7 @@ import time
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from statistics import mean, variance
-import cProfile
+import cProfile, io, pstats
 
 from djangoldp.permissions import LDPPermissions
 from djangoldp.tests.models import Post, JobOffer, Skill, Project, User
@@ -135,6 +135,12 @@ class TestPerformanceGET(APITestCase):
 
         self.result_line[9] = str(mean(times))
         print("Variance execution time :" + str(variance(times)))
+
+    def _print_stats(self, pr):
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s)
+        ps.print_stats()
+        print(s.getvalue())
 
     def _enable_new_profiler(self):
         pr = cProfile.Profile()
