@@ -16,7 +16,7 @@ server:
     - 'djangoldp.middleware.AllowRequestedCORSMiddleware'
   AUTH_USER_MODEL: tests.User
   EMAIL_HOST: somewhere
-  ANONYMOUS_USER_NAME: None
+  ANONYMOUS_USER_NAME: john
   ROOT_URLCONF: djangoldp.urls
   SEND_BACKLINKS: false
   SITE_URL: http://happy-dev.fr

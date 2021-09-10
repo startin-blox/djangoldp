@@ -62,7 +62,7 @@ class TestPerformanceGET(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
-                                                         password='glass onion')
+                                                         password='glass onion', is_active=True)
         self.client.force_authenticate(user=self.user)
         print('there are ' + str(Project.objects.count()) + ' projects in the database')
         print('there are ' + str(User.objects.count()) + ' users in the database')

@@ -271,14 +271,12 @@ STATUS_CHOICES = [
 
 class Project(Model):
     description = models.CharField(max_length=255, null=True, blank=False)
-    # members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
     status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='Private', null=True, blank=True)
 
     class Meta(Model.Meta):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'
-
 
 class Member(Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='members', null=True, blank=True)
