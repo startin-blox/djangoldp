@@ -12,7 +12,8 @@ ldpsettings = LDPSettings(config)
 django_settings.configure(ldpsettings,
                           REST_FRAMEWORK = {
                                 'DEFAULT_PAGINATION_CLASS': None
-                          })
+                          },
+                          ANONYMOUS_USER_NAME=None)
 
 django.setup()
 from django.test.runner import DiscoverRunner
