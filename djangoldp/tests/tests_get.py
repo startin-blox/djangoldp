@@ -19,11 +19,18 @@ class TestGET(APITestCase):
 
     def test_get_resource(self):
         post = Post.objects.create(content="content")
-        response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json')
+        response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json', HTTP_ORIGIN='http://localhost:8080/test/')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "content")
         self.assertIn('author', response.data)
         self.assertIn('@type', response.data)
+
+        # test headers returned
+        self.assertEqual(response['Content-Type'], 'application/ld+json') 
+        self.assertEqual(response['Accept-Post'], 'application/ld+json')
+        self.assertEqual(response['Allow'], 'GET, PUT, PATCH, DELETE, HEAD, OPTIONS')
+        self.assertEqual(response['Access-Control-Allow-Origin'], 'http://localhost:8080/test/')
+        self.assertIn('DPoP', response['Access-Control-Allow-Headers'])
 
     def test_get_resource_urlid(self):
         user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',

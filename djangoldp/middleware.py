@@ -24,7 +24,7 @@ class AllowRequestedCORSMiddleware:
         response = self.get_response(request)
 
         response["Access-Control-Allow-Origin"] = request.META.get('HTTP_ORIGIN')
-        response["Access-Control-Allow-Methods"] = "*"
+        response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"
         response["Access-Control-Allow-Headers"] = \
             getattr(settings, 'OIDC_ACCESS_CONTROL_ALLOW_HEADERS',
                     "authorization, Content-Type, if-match, accept, DPoP")
