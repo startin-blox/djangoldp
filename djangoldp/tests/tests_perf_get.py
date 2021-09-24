@@ -139,7 +139,7 @@ class TestPerformanceGET(APITestCase):
     def _print_stats(self, pr):
         s = io.StringIO()
         ps = pstats.Stats(pr, stream=s)
-        ps.print_stats()
+        ps.sort_stats('time').print_stats(50)
         print(s.getvalue())
 
     def _enable_new_profiler(self):
