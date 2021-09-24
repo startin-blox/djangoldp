@@ -15,7 +15,7 @@ class TestPerformanceGET(APITestCase):
     posts = []
     skills = []
     jobs = []
-    test_volume = 5
+    test_volume = 100
     result_line = []
     withAuth = True
     withPermsCache = True
