@@ -28,12 +28,13 @@ project_template = {
     'model': 'tests.project',
     'pk': 0,
     'fields': {
+        'status': 'Public',
         'description': 'Test'
     }
 }
 
 fixture = generate_users(count, user_template)
-fixtue = generate_projects(count, project_template, fixture=fixture)
+fixture = generate_projects(count, project_template, fixture=fixture, production=False)
 
 with open(Path(__file__).parent / "../fixtures/test.json", 'w') as output:
     json.dump(fixture, output)

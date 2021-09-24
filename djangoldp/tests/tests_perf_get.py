@@ -5,6 +5,7 @@ import time
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from statistics import mean, variance
+import cProfile, io, pstats
 
 from djangoldp.permissions import LDPPermissions
 from djangoldp.tests.models import Post, JobOffer, Skill, Project, User
@@ -18,7 +19,7 @@ class TestPerformanceGET(APITestCase):
     result_line = []
     withAuth = True
     withPermsCache = True
-    # fixtures = ['test.json',]
+    fixtures = ['test.json']
 
     @classmethod
     def setUpClass(cls):
@@ -61,7 +62,7 @@ class TestPerformanceGET(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
-                                                         password='glass onion')
+                                                         password='glass onion', is_active=True)
         self.client.force_authenticate(user=self.user)
         print('there are ' + str(Project.objects.count()) + ' projects in the database')
         print('there are ' + str(User.objects.count()) + ' users in the database')
@@ -135,21 +136,32 @@ class TestPerformanceGET(APITestCase):
         self.result_line[9] = str(mean(times))
         print("Variance execution time :" + str(variance(times)))
 
-    def test_get_users_container(self):
-        # pr = self._enable_new_profiler()
-        # response = self.client.get('/projects/', content_type='application/ld+json')
-        # self.assertEqual(response.status_code, 200)
-        # print('counted ' + str(len(response.data['ldp:contains'])) + ' projects')
-        # pr.disable()
-        #self._print_stats(pr)
+    def _print_stats(self, pr):
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s)
+        ps.sort_stats('time').print_stats(50)
+        print(s.getvalue())
 
-        # pr = self._enable_new_profiler()
+    def _enable_new_profiler(self):
+        pr = cProfile.Profile()
+        pr.enable()
+        return pr
+
+    def test_get_users_container(self):
+        pr = self._enable_new_profiler()
+        response = self.client.get('/projects/', content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        print('counted ' + str(len(response.data['ldp:contains'])) + ' projects')
+        pr.disable()
+        self._print_stats(pr)
+
+        pr = self._enable_new_profiler()
         start_time = time.time()
         response = self.client.get('/users/', content_type='application/ld+json')
         end_time = time.time()
         self.assertEqual(response.status_code, 200)
         print('counted ' + str(len(response.data['ldp:contains'])) + ' users')
         self.result_line[10] = str(end_time-start_time)
-        # pr.disable()
-        #self._print_stats(pr)
+        pr.disable()
+        self._print_stats(pr)
 

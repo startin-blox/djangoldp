@@ -263,9 +263,15 @@ class ModelTask(Model, Task):
     class Meta(Model.Meta):
         pass
 
+STATUS_CHOICES = [
+    ('Public', 'Public'),
+    ('Private', 'Private'),
+    ('Archived', 'Archived'),
+]
 
 class Project(Model):
     description = models.CharField(max_length=255, null=True, blank=False)
+    status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='Private', null=True, blank=True)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
 
     class Meta(Model.Meta):

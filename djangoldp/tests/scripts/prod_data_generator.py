@@ -36,6 +36,7 @@ project_template = {
     'pk': 0,
     'fields': {
         'description': 'Test',
+        'status': 'Public',
         'creationDate': str(datetime.date(datetime.now()))
     }
 }

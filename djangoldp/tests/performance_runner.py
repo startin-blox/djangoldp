@@ -1,14 +1,19 @@
 import sys
+import yaml
 
 import django
-from djangoldp.tests import settings_default
-from django.conf import settings
+from django.conf import settings as django_settings
+from djangoldp.conf.ldpsettings import LDPSettings
+from djangoldp.tests.server_settings import yaml_config
 
-# configure settings not to use pagination
-settings.configure(default_settings=settings_default,
-                   REST_FRAMEWORK = {
-                       'DEFAULT_PAGINATION_CLASS': None
-                   })
+# load test config
+config = yaml.safe_load(yaml_config)
+ldpsettings = LDPSettings(config)
+django_settings.configure(ldpsettings,
+                          REST_FRAMEWORK = {
+                                'DEFAULT_PAGINATION_CLASS': None
+                          },
+                          ANONYMOUS_USER_NAME=None)
 
 django.setup()
 from django.test.runner import DiscoverRunner
