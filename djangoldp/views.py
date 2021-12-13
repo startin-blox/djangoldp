@@ -589,7 +589,10 @@ class LDPViewSet(LDPViewSetGenerator):
                 kwargs[self.model._meta.auto_author] = getattr(self.request.user, auto_author_field, None)
             else:
                 kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
-        serializer.save(**kwargs)
+        return serializer.save(**kwargs)
+
+    def perform_update(self, serializer):
+        return serializer.save()
 
     def get_queryset(self, *args, **kwargs):
         if self.model:
