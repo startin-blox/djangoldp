@@ -2,6 +2,7 @@ from django.contrib import admin
 from guardian.admin import GuardedModelAdmin
 from django.contrib.auth.admin import UserAdmin
 from djangoldp.models import Activity, ScheduledActivity, Follower
+from djangoldp.activities.services import ActivityQueueService
 
 
 class DjangoLDPAdmin(GuardedModelAdmin):
@@ -37,12 +38,21 @@ class DjangoLDPUserAdmin(UserAdmin, GuardedModelAdmin):
         return fieldsets
 
 
+# NOTE: when upgrading to django >= 3.2
+# @admin.action(description='Resend activity')
+def resend_activity(modeladmin, request, queryset):
+    for a in queryset:
+        ActivityQueueService.send_activity(a.external_id, a.to_activitystream())
+resend_activity.short_description = 'Resend activity'
+
+
 class ActivityAdmin(DjangoLDPAdmin):
     fields = ['urlid', 'type', 'local_id', 'external_id', 'created_at', 'success', 'payload_view', 'response_code',
               'response_location', 'response_body_view']
     list_display = ['created_at', 'type', 'local_id', 'external_id', 'success', 'response_code']
     readonly_fields = ['created_at', 'payload_view', 'response_location', 'response_code', 'response_body_view']
     search_fields = ['urlid', 'type', 'local_id', 'external_id', 'response_code']
+    actions = [resend_activity]
 
     def payload_view(self, obj):
         return str(obj.to_activitystream())
