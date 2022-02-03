@@ -46,6 +46,9 @@ urlpatterns = [
 for package in settings.DJANGOLDP_PACKAGES:
     try:
         import_module('{}.models'.format(package))
+    except ModuleNotFoundError:
+        pass
+    try:
         urlpatterns.append(re_path(r'^', include('{}.djangoldp_urls'.format(package))))
     except ModuleNotFoundError:
         pass
