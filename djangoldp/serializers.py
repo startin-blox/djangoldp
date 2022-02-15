@@ -718,10 +718,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         info = model_meta.get_field_info(model)
         many_to_many = []
+        one_to_one = {}
         for field_name, relation_info in info.relations.items():
             if relation_info.to_many and relation_info.reverse and (
                     field_name in validated_data) and not field_name is None:
                 many_to_many.append((field_name, validated_data.pop(field_name)))
+            elif relation_info.reverse and (field_name in validated_data) and not field_name is None:
+                one_to_one[field_name] = validated_data[field_name]
         validated_data = self.remove_empty_value(validated_data)
 
         if model is get_user_model() and not 'username' in validated_data:
@@ -730,6 +733,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         for field_name, value in many_to_many:
             validated_data[field_name] = value
+
+        if one_to_one:
+             for field_name, value in one_to_one.items():
+                 setattr(instance, field_name, value)
+                 value.save()
 
         self.save_or_update_nested_list(instance, nested_fields)
 

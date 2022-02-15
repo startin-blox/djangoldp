@@ -4,7 +4,7 @@ from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
 from djangoldp.models import Model
-from djangoldp.tests.models import Invoice, LDPDummy, Resource, Post, Circle, Project
+from djangoldp.tests.models import Invoice, LDPDummy, Resource, Post, Circle, Project, Space
 
 
 class PostTestCase(TestCase):
@@ -282,3 +282,26 @@ class PostTestCase(TestCase):
         response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
     '''
+
+    # the below test is necessary because of an obscure bug where the OneToOne field is successfully applied
+    # during the life of the serializer (and response) but is not persisted in the database,
+    # when it is posted onto the reverse relation
+    def test_one_to_one_field_reverse_post(self):
+        self.assertEqual(Circle.objects.count(), 0)
+        self.assertEqual(Space.objects.count(), 0)
+
+        body = {
+            '@context': {'@vocab': "http://happy-dev.fr/owl/#" },
+            'space': {'name': "Etablissement"}
+        }
+
+        response = self.client.post('/circles/', data=json.dumps(body), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Circle.objects.count(), 1)
+        self.assertEqual(Space.objects.count(), 1)
+
+        circle = Circle.objects.all()[0]
+        space = circle.space
+
+        self.assertIsNotNone(space)
+        self.assertIsNotNone(space.circle)

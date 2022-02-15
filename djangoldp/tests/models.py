@@ -219,7 +219,16 @@ class Circle(Model):
     class Meta(Model.Meta):
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
+        serializer_fields = ['@id', 'name', 'description', 'members', 'team', 'owner', 'space']
         rdf_type = 'hd:circle'
+
+
+class Space(Model):
+    name = models.CharField(max_length=255, blank=True)
+    circle = models.OneToOneField(to=Circle, null=True, blank=True, on_delete=models.CASCADE, related_name='space')
+
+    class Meta(Model.Meta):
+        pass
 
 
 class Batch(Model):
