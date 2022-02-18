@@ -8,8 +8,6 @@ This module is an add-on for Django REST Framework that serves a django model re
 
 It aims at enabling people with little development skills to serve their own data, to be used with a LDP application.
 
-Building a Startin' Blox application? Read this: https://git.happy-dev.fr/startinblox/devops/doc
-
 ## Check technical documentation
 
 * [Using DjangoLDP with your models](./docs/create_model.md)

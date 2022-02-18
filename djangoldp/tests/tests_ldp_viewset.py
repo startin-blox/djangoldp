@@ -10,7 +10,7 @@ class LDPViewSet(TestCase):
     user_serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set',
                               'circle_set', 'projects']
     user_expected_fields = {'userprofile', 'conversation_set', 'circle_set', 'projects', 'circle_set__owner',
-                            'conversation_set__author_user', 'conversation_set__peer_user'}
+                            'conversation_set__author_user', 'conversation_set__peer_user', 'circle_set__space'}
     project_serializer_fields = ['@id', 'description', 'members']
     project_expected_fields = {'members', 'members__userprofile'}
 
@@ -32,7 +32,7 @@ class LDPViewSet(TestCase):
         model = Circle
         depth = 0
         serializer_fields = ['@id', 'name', 'description', 'owner', 'members', 'team']
-        expected_fields = {'owner', 'members', 'team', 'members__user', 'members__circle', 'team__userprofile'}
+        expected_fields = {'owner', 'members', 'team', 'members__user', 'members__circle', 'team__userprofile', 'space'}
         serializer = self._get_serializer(model, depth, serializer_fields)
         result = get_prefetch_fields(model, serializer, depth)
         self.assertEqual(expected_fields, result)
