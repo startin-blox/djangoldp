@@ -660,7 +660,7 @@ class LDPAPIView(APIView):
         else:
             pass
 
-        if request.user.is_authenticated:
+        if is_authenticated_user(request.user):
             try:
                 response['User'] = request.user.webid()
             except AttributeError:
