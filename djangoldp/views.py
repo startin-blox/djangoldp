@@ -647,6 +647,27 @@ class LDPNestedViewSet(LDPViewSet):
             return [getattr(self.get_parent(), self.nested_field)]
 
 
+class LDPAPIView(APIView):
+    '''extends rest framework APIView to support Solid standards'''
+    authentication_classes = (NoCSRFAuthentication,)
+
+    def dispatch(self, request, *args, **kwargs):
+        '''overriden dispatch method to append some custom headers'''
+        response = super().dispatch(request, *args, **kwargs)
+        
+        if response.status_code in [201, 200] and '@id' in response.data:
+            response["Location"] = str(response.data['@id'])
+        else:
+            pass
+
+        if is_authenticated_user(request.user):
+            try:
+                response['User'] = request.user.webid()
+            except AttributeError:
+                pass
+        return response
+
+
 class LDPSourceViewSet(LDPViewSet):
     model = LDPSource
     federation = None
