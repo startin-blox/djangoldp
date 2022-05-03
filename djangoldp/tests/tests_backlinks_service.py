@@ -1,5 +1,6 @@
 import uuid
 import time
+import copy
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
@@ -197,8 +198,7 @@ class TestsBacklinksService(APITestCase):
         a = {'type': 'Add', 'actor': {'type': 'Service', 'name': 'Backlinks Service'},
              'object': {'@type': 'foaf:user', '@id': 'https://api.test2.startinblox.com/users/calum/'},
              'target': {'@type': 'hd:skill', '@id': 'https://api.test1.startinblox.com/skills/3/'}}
-        ActivityQueueService._save_sent_activity(a, Activity, success=True, type='add',
-                                                 external_id='https://distant.com/inbox/')
+        ActivityQueueService._save_activity_from_response({'status_code': '201'}, 'https://distant.com/inbox/', a)
 
         # no remove has since been sent, but a new Add is scheduled
         scheduled_b = ActivityQueueService._save_sent_activity(a, ScheduledActivity, success=False, type='add',
@@ -215,8 +215,7 @@ class TestsBacklinksService(APITestCase):
         a = {'type': 'Remove', 'actor': {'type': 'Service', 'name': 'Backlinks Service'},
              'object': {'@type': 'foaf:user', '@id': 'https://api.test2.startinblox.com/users/calum/'},
              'target': {'@type': 'hd:skill', '@id': 'https://api.test1.startinblox.com/skills/3/'}}
-        ActivityQueueService._save_sent_activity(a, Activity, success=True, type='remove',
-                                                 external_id='https://distant.com/inbox/')
+        ActivityQueueService._save_activity_from_response({'status_code': '201'}, 'https://distant.com/inbox/', a)
 
         # no add has since been sent, but a new Remove is scheduled
         scheduled_b = ActivityQueueService._save_sent_activity(a, ScheduledActivity, success=False, type='remove',
@@ -233,8 +232,7 @@ class TestsBacklinksService(APITestCase):
         a = {'type': 'Remove', 'actor': {'type': 'Service', 'name': 'Backlinks Service'},
              'object': {'@type': 'foaf:user', '@id': 'https://api.test2.startinblox.com/users/calum/'},
              'target': {'@type': 'hd:skill', '@id': 'https://api.test1.startinblox.com/skills/3/'}}
-        ActivityQueueService._save_sent_activity(a, Activity, success=True, type='remove',
-                                                 external_id='https://distant.com/inbox/')
+        ActivityQueueService._save_activity_from_response({'status_code': '201'}, 'https://distant.com/inbox/', a)
 
         # an add is now being sent
         scheduled_b = ActivityQueueService._save_sent_activity(a, ScheduledActivity, type='add',
@@ -270,8 +268,7 @@ class TestsBacklinksService(APITestCase):
                       '@type': 'foaf:user'}
         }
         activity_a = ActivityPubService.build_activity(BACKLINKS_ACTOR, obj, activity_type='Create', summary='A')
-        ActivityQueueService._save_sent_activity(activity_a, Activity, success=True, type='create',
-                                                 external_id='https://distant.com/inbox/')
+        ActivityQueueService._save_activity_from_response({'status_code': '201'}, 'https://distant.com/inbox/', activity_a)
 
         # now I'm sending an update, which doesn't change anything about the object
         activity_b = ActivityPubService.build_activity(BACKLINKS_ACTOR, obj, activity_type='Create', summary='B')
@@ -294,8 +291,7 @@ class TestsBacklinksService(APITestCase):
                       '@type': 'foaf:user'}
         }
         activity_a = ActivityPubService.build_activity(BACKLINKS_ACTOR, obj, activity_type='Create', summary='A')
-        ActivityQueueService._save_sent_activity(activity_a, Activity, success=True, type='create',
-                                                 external_id='https://distant.com/inbox/')
+        ActivityQueueService._save_activity_from_response({'status_code': '201'}, 'https://distant.com/inbox/', activity_a)
 
         # now I'm sending an update, which changes the owner of the circle
         obj['owner']['@id'] = 'https://distant.com/users/mark/'

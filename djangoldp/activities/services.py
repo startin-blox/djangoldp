@@ -1,6 +1,7 @@
 import threading
 import json
 import time
+import copy
 import requests
 from queue import Queue
 from requests.exceptions import Timeout, ConnectionError
@@ -34,6 +35,78 @@ DEFAULT_REQUEST_TIMEOUT = getattr(settings, 'DEFAULT_REQUEST_TIMEOUT', 10)
 
 
 activity_sending_finished = Signal()
+
+
+class ActivityInMemoryCache:
+    '''
+    {
+        'urlid': {
+            # if an object is sent without a urlid it is not cached
+            'object_urlid': {
+                # for create/update, just interested in the most recent activity on this external id
+                './': ACTIVITY
+
+                # for add/remove, we're interested also in the target (container_id)
+                'circles': ACTIVITY
+                'circle-members': ACTIVITY
+            }
+        }
+    }
+    '''
+
+    def __init__(self):
+        self.cache = {
+        }
+
+    def reset(self):
+        self.cache = {
+        }
+
+    def has(self, urlid, object_id, target_id=None):
+        if urlid not in self.cache or object_id not in self.cache[urlid]:
+            return False
+    
+        if target_id is None:
+            target_id = './'
+        
+        return target_id in self.cache[urlid][object_id]
+
+    def get(self, urlid, object_id, target_id=None):
+        if target_id is None:
+            target_id = './'
+
+        if self.has(urlid, object_id, target_id):
+            return self.cache[urlid][object_id][target_id]
+        else:
+            return None
+
+    def set(self, urlid, object_id, target_id=None, value=None):
+        if target_id is None:
+            target_id = './'
+
+        if urlid not in self.cache:
+            self.cache[urlid] = {}
+        
+        if object_id not in self.cache[urlid]:
+            self.cache[urlid][object_id] = {}
+        
+        self.cache[urlid][object_id][target_id] = copy.deepcopy(value)
+
+    def invalidate(self, urlid, object_id=None, target_id=None):
+        # can clear the cache for an entire record or at any level in the cache
+        if object_id is not None:
+            if target_id is not None:
+                self.cache[urlid][object_id].pop(target_id, None)
+            else:
+                self.cache[urlid].pop(object_id, None)
+        else:
+            self.cache.pop(urlid, None)
+
+
+# used to minimise the activity traffic to necessary activities,
+# preferred over a database solution which is slower
+ACTIVITY_CACHE = ActivityInMemoryCache()
+activity_saving_policy = getattr(settings, 'STORE_ACTIVITIES', 'ERROR')
 
 
 class ActivityQueueService:
@@ -95,6 +168,13 @@ class ActivityQueueService:
         return requests.post(url, data=json.dumps(activity), headers=headers, timeout=timeout)
 
     @classmethod
+    def _get_str_urlid(cls, obj):
+        if obj is None:
+            return None
+
+        return obj if isinstance(obj, str) else obj['@id'] if '@id' in obj else None
+
+    @classmethod
     def _save_activity_from_response(cls, response, url, scheduled_activity):
         '''
         wrapper to save a finished Activity based on the parameterised response
@@ -105,13 +185,27 @@ class ActivityQueueService:
         if hasattr(response, 'text'):
             response_body = response.text
         response_location = getattr(response, "Location", None)
-        status_code = getattr(response, "status_code", None)
-        success = str(status_code).startswith("2")
+        status_code = getattr(response, "status_code", response['status_code'] if 'status_code' in response else None)
+        success = str(status_code).startswith("2") if status_code is not None else False
+        
+        # strip some key info from the activity (standardise the datatype)
+        activity_json = scheduled_activity.to_activitystream() if isinstance(scheduled_activity, ScheduledActivity) else scheduled_activity
+        activity_type = scheduled_activity.type if hasattr(scheduled_activity, 'type') else scheduled_activity['type']
 
-        return cls._save_sent_activity(scheduled_activity.to_activitystream(), ActivityModel, success=success,
-                                       external_id=url, type=scheduled_activity.type,
-                                       response_location=response_location, response_code=str(status_code),
-                                       response_body=response_body)
+        # set the activity cache
+        if 'object' in activity_json:
+            object_id = cls._get_str_urlid(activity_json['object'])
+            
+            if object_id is not None:
+                target_origin = cls._get_str_urlid(activity_json.get('target', activity_json.get('origin', None)))
+                ACTIVITY_CACHE.set(url, object_id, target_origin, activity_json)
+
+        # save the activity if instructed to do so
+        if activity_saving_policy == 'VERBOSE' or (not success and activity_saving_policy == 'ERROR'):
+            return cls._save_sent_activity(activity_json, ActivityModel, success=success,
+                                           external_id=url, type=activity_type,
+                                           response_location=response_location, response_code=str(status_code),
+                                           response_body=response_body)
 
     @classmethod
     def _attempt_failed_reschedule(cls, url, scheduled_activity, backoff_factor):
@@ -239,22 +333,17 @@ class ActivityQueueService:
             '''returns False if the two activities are equivalent'''
             return ordered(old_activity['object']) == ordered(new_activity['object'])
 
-        def get_most_recent_sent_activity(external_id):
-            '''returns the most recently sent activity which meets the specification'''
-            activities = ActivityModel.objects.filter(external_id=external_id, is_finished=True,
-                                                      type__in=['create', 'update']).order_by('-created_at')[:10]
-            for a in activities.all():
-                a = a.to_activitystream()
-                if 'object' in a:
-                    return a
-            return None
+        def get_most_recent_sent_activity(external_id, object_id):
+            return ACTIVITY_CACHE.get(external_id, object_id)
 
         # str objects will have to be checked manually by the receiver
         new_activity = scheduled_activity.to_activitystream()
-        if 'object' not in new_activity or isinstance(new_activity['object'], str):
+        if 'object' not in new_activity or isinstance(new_activity['object'], str) or \
+             '@id' not in new_activity['object']:
+        
             return True
 
-        old_activity = get_most_recent_sent_activity(url)
+        old_activity = get_most_recent_sent_activity(url, new_activity['object']['@id'])
 
         if old_activity is None:
             return True
@@ -267,33 +356,25 @@ class ActivityQueueService:
     def _add_remove_is_new(cls, url, scheduled_activity):
         '''auxiliary function validates if the receiver does not know about this Add/Remove activity'''
         def get_most_recent_sent_activity(source_obj, source_target_origin):
-            # get a list of activities with the right type
-            activities = ActivityModel.objects.filter(external_id=url, is_finished=True,
-                                                      type__in=['add', 'remove']).order_by('-created_at')[:10]
+            obj_id = cls._get_str_urlid(source_obj)
+            target_id = cls._get_str_urlid(source_target_origin)
 
-            # we are searching for the most recent Add/Remove activity which shares inbox, object and target/origin
-            for a in activities.all():
-                astream = a.to_activitystream()
-                obj = astream.get('object', None)
-                target_origin = astream.get('target', astream.get('origin', None))
-                if obj is None or target_origin is None:
-                    continue
-
-                if source_obj == obj and source_target_origin == target_origin:
-                    return a
-            return None
+            return ACTIVITY_CACHE.get(url, obj_id, target_id)
 
         new_activity = scheduled_activity.to_activitystream()
         new_obj = new_activity.get('object', None)
         new_target_origin = new_activity.get('target', new_activity.get('origin', None))
 
         # bounds checking
-        if new_obj is None or new_target_origin is None:
+        if new_obj is None or new_target_origin is None or \
+            (not isinstance(new_obj, str) and '@id' not in new_obj) or \
+            (not isinstance(new_target_origin, str) and '@id' not in new_target_origin):
             return True
 
         #  if most recent is the same type of activity as me, it's not new
         old_activity = get_most_recent_sent_activity(new_obj, new_target_origin)
-        if old_activity is not None and old_activity.type == scheduled_activity.type:
+
+        if old_activity is not None and old_activity['type'].lower() == scheduled_activity.type.lower():
             return False
         return True
 
