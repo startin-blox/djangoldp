@@ -106,7 +106,7 @@ class ActivityInMemoryCache:
 # used to minimise the activity traffic to necessary activities,
 # preferred over a database solution which is slower
 ACTIVITY_CACHE = ActivityInMemoryCache()
-activity_saving_policy = getattr(settings, 'STORE_ACTIVITIES', 'ERROR')
+ACTIVITY_SAVING_SETTING = getattr(settings, 'STORE_ACTIVITIES', 'ERROR')
 
 
 class ActivityQueueService:
@@ -201,7 +201,7 @@ class ActivityQueueService:
                 ACTIVITY_CACHE.set(url, object_id, target_origin, activity_json)
 
         # save the activity if instructed to do so
-        if activity_saving_policy == 'VERBOSE' or (not success and activity_saving_policy == 'ERROR'):
+        if ACTIVITY_SAVING_SETTING == 'VERBOSE' or (not success and ACTIVITY_SAVING_SETTING == 'ERROR'):
             return cls._save_sent_activity(activity_json, ActivityModel, success=success,
                                            external_id=url, type=activity_type,
                                            response_location=response_location, response_code=str(status_code),
