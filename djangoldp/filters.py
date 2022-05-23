@@ -18,11 +18,16 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
         from djangoldp.models import Model
         from djangoldp.permissions import LDPPermissions, ModelConfiguredPermissions
 
-        # compares the requirement for GET, with what the user has on the MODEL
-        ldp_permissions = LDPPermissions()
-        if ldp_permissions.has_container_permission(request, view):
-            return queryset
+        # compares the requirement for GET, with what the user has on the container
+        configured_permission_classes = Model.get_permission_classes(view.model, [LDPPermissions])
+        for permission_class in [p() for p in configured_permission_classes]:
+            # inherits from LDPBasePermissions
+            if hasattr(permission_class, 'has_container_permission') and \
+                permission_class.has_container_permission(request, view):
 
+                return queryset
+
+        # the user did not have permission on the container, so now we filter the queryset for permissions on the object
         if not is_anonymous_user(request.user):
             # those objects I have by grace of group or object
             # first figure out if the superuser has special permissions (important to the implementation in superclass)
