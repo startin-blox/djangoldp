@@ -11,7 +11,7 @@ Check the [official documentation](https://docs.startinblox.com/import_documenta
 * `MAX_RECORDS_SERIALIZER_CACHE`: sets the maximum number of serializer cache records, at which point the cache will be cleared (reset). Defaults to 10,000
 * `SEND_BACKLINKS`: enables the searching and sending of [Activities](https://git.startinblox.com/djangoldp-packages/djangoldp/-/wikis/guides/federation) to distant resources linked by users to this server
 * `MAX_ACTIVITY_RESCHEDULES`, `DEFAULT_BACKOFF_FACTOR`, `DEFAULT_ACTIVITY_DELAY`, `DEFAULT_REQUEST_TIMEOUT` tweaks the behaviour of the ActivityQueueService
-* `STORE_ACTIVITIES`: sets whether to store activities sent and backlinks received, or to treat them as transient (defaults to `False`)
+* `STORE_ACTIVITIES`: sets whether to store activities sent and backlinks received, or to treat them as transient (value should be `"VERBOSE"`, `"ERROR"` or `None`). Defaults to `"ERROR"`
 * `MAX_RECORDS_ACTIVITY_CACHE`: sets the maximum number of serializer cache records, at which point the cache will be cleared (reset). If set to 0 disables the cache. Defaults to 10,000
 
 ## Synopsis
