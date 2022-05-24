@@ -2,6 +2,18 @@
 
 Check the [official documentation](https://docs.startinblox.com/import_documentation/djangoldp_guide/install-djangoldp-server.html).
 
+## Settings
+
+* `OIDC_ACCESS_CONTROL_ALLOW_HEADERS`: overrides the access control headers allowed in the `Access-Control-Allow-Headers` CORS header of responses. Defaults to `authorization, Content-Type, if-match, accept, DPoP`
+* `ANONYMOUS_USER_NAME` a setting inherited from dependency [Django-Guardian](https://django-guardian.readthedocs.io/en/stable/overview.html)
+* `DEFAULT_SUPERUSER_PERMS`: overrides the default values of giving superusers all permissions on all resources
+* `SERIALIZER_CACHE`: toggles the use of a built-in cache in the serialization of containers/resources
+* `MAX_RECORDS_SERIALIZER_CACHE`: sets the maximum number of serializer cache records, at which point the cache will be cleared (reset). Defaults to 10,000
+* `SEND_BACKLINKS`: enables the searching and sending of [Activities](https://git.startinblox.com/djangoldp-packages/djangoldp/-/wikis/guides/federation) to distant resources linked by users to this server
+* `MAX_ACTIVITY_RESCHEDULES`, `DEFAULT_BACKOFF_FACTOR`, `DEFAULT_ACTIVITY_DELAY`, `DEFAULT_REQUEST_TIMEOUT` tweaks the behaviour of the ActivityQueueService
+* `STORE_ACTIVITIES`: sets whether to store activities sent and backlinks received, or to treat them as transient (defaults to `False`)
+* `MAX_RECORDS_ACTIVITY_CACHE`: sets the maximum number of serializer cache records, at which point the cache will be cleared (reset). If set to 0 disables the cache. Defaults to 10,000
+
 ## Synopsis
 
 This module is an add-on for Django REST Framework that serves a django model respecting the Linked Data Platform convention.
