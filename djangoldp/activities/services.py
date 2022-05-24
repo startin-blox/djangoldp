@@ -32,6 +32,7 @@ MAX_ACTIVITY_RESCHEDULES = getattr(settings, 'MAX_ACTIVITY_RESCHEDULES', 3)
 DEFAULT_BACKOFF_FACTOR = getattr(settings, 'DEFAULT_BACKOFF_FACTOR', 1)
 DEFAULT_ACTIVITY_DELAY = getattr(settings, 'DEFAULT_ACTIVITY_DELAY', 0.1)
 DEFAULT_REQUEST_TIMEOUT = getattr(settings, 'DEFAULT_REQUEST_TIMEOUT', 10)
+MAX_RECORDS_ACTIVITY_CACHE = getattr(settings, 'MAX_RECORDS_ACTIVITY_CACHE', 10000)
 
 
 activity_sending_finished = Signal()
@@ -81,6 +82,12 @@ class ActivityInMemoryCache:
             return None
 
     def set(self, urlid, object_id, target_id=None, value=None):
+        if MAX_RECORDS_ACTIVITY_CACHE == 0:
+            return
+
+        if len(self.cache.keys()) > MAX_RECORDS_ACTIVITY_CACHE:
+            self.reset()
+
         if target_id is None:
             target_id = './'
 

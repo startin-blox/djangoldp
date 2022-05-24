@@ -33,6 +33,7 @@ from djangoldp.permissions import LDPPermissions
 SERIALIZE_EXCLUDE_PERMISSIONS_DEFAULT = ['inherit']
 SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT = ['delete']
 SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT = []
+MAX_RECORDS_SERIALIZER_CACHE = getattr(settings, 'MAX_RECORDS_SERIALIZER_CACHE', 10000)
 
 
 class InMemoryCache:
@@ -57,6 +58,9 @@ class InMemoryCache:
             return None
 
     def set(self, cache_key, container_urlid, vary, value):
+        if len(self.cache.keys()) > MAX_RECORDS_SERIALIZER_CACHE:
+            self.reset()
+        
         if cache_key not in self.cache:
             self.cache[cache_key] = {}
         if container_urlid not in self.cache[cache_key]:
