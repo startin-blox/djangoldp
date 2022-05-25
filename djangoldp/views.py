@@ -30,8 +30,7 @@ from djangoldp.permissions import LDPPermissions
 from djangoldp.filters import LocalObjectOnContainerPathBackend
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
-from djangoldp.activities import ActivityQueueService, as_activitystream
-from djangoldp.activities import ActivityPubService
+from djangoldp.activities import ActivityQueueService, as_activitystream, ACTIVITY_SAVING_SETTING, ActivityPubService
 from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
 import logging
 
@@ -138,11 +137,15 @@ class InboxView(APIView):
             return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
         # save the activity and return 201
-        obj = ActivityQueueService._save_sent_activity(activity.to_json(), local_id=request.path_info, success=True,
-                                                       type=activity.type)
+        if ACTIVITY_SAVING_SETTING == 'VERBOSE':
+            obj = ActivityQueueService._save_sent_activity(activity.to_json(), local_id=request.path_info, success=True,
+                                                           type=activity.type)
 
-        response = Response({}, status=status.HTTP_201_CREATED)
-        response['Location'] = obj.urlid
+            response = Response({}, status=status.HTTP_201_CREATED)
+            response['Location'] = obj.urlid
+        
+        else:
+            response = Response({}, status=status.HTTP_200_OK)
 
         return response
 
