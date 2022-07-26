@@ -81,24 +81,39 @@ class SearchByQueryParamFilterBackend(BaseFilterBackend):
     """
     def filter_queryset(self, request, queryset, view):
 
+        # the model fields on which to perform the search
+        search_fields = request.GET.get('search-fields', None)
+        # the terms to search the fields for
+        search_terms = request.GET.get('search-terms', None)
+        # the method of search to apply to the model fields
+        search_method = request.GET.get('search-method', "basic")
+        # union or intersection
+        search_policy = request.GET.get('search-policy', 'union')
+
+        # check if there is indeed a search requested
+        if search_fields is None or search_terms is None:
+            return queryset
+
         def _construct_search_query(search):
             '''Utility function pipes many Django Query objects'''
             search_query = []
 
             for idx, s in enumerate(search):
                 if idx > 0:
-                    search_query = search_query | Q(**s)
+
+                    # the user has indicated to make a union of all query results
+                    if search_policy == "union":
+                        search_query = search_query | Q(**s)
+
+                    # the user has indicated to make an intersection of all query results
+                    else:
+                        search_query = search_query & Q(**s)
+
                     continue
+                
                 search_query = Q(**s)
             
             return search_query
-
-        search_fields = request.GET.get('search-fields', None)
-        search_terms = request.GET.get('search-terms', None)
-        search_method = request.GET.get('search-method', "basic")
-
-        if search_fields is None or search_terms is None:
-            return queryset
 
         search_fields = search_fields.split(',')
 
