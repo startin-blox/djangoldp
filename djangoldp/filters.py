@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.db.models import Q
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 from djangoldp.utils import is_anonymous_user
@@ -70,4 +72,68 @@ class LocalObjectOnContainerPathBackend(LocalObjectFilterBackend):
 
         if issubclass(view.model, Model) and request.path_info == view.model.get_container_path():
             return super(LocalObjectOnContainerPathBackend, self).filter_queryset(request, queryset, view)
+        return queryset
+
+
+class SearchByQueryParamFilterBackend(BaseFilterBackend):
+    """
+    Applies search fields in the request query params to the queryset
+    """
+    def filter_queryset(self, request, queryset, view):
+
+        def _construct_search_query(search):
+            '''Utility function pipes many Django Query objects'''
+            search_query = []
+
+            for idx, s in enumerate(search):
+                if idx > 0:
+                    search_query = search_query | Q(**s)
+                    continue
+                search_query = Q(**s)
+            
+            return search_query
+
+        search_fields = request.GET.get('search-fields', None)
+        search_terms = request.GET.get('search-terms', None)
+        search_method = request.GET.get('search-method', "basic")
+
+        if search_fields is None or search_terms is None:
+            return queryset
+
+        search_fields = search_fields.split(',')
+
+        if search_method == "basic":
+            search = []
+
+            for s in search_fields:
+                query = {}
+                query["{}__contains".format(s)] = search_terms
+                search.append(query)
+
+            queryset = queryset.filter(_construct_search_query(search))
+        
+        elif search_method == "ibasic":
+            # NOTE: to use, see https://stackoverflow.com/questions/54071944/fielderror-unsupported-lookup-unaccent-for-charfield-or-join-on-the-field-not
+            unaccent_extension = getattr(settings, 'SEARCH_UNACCENT_EXTENSION', False) and 'django.contrib.postgres' in settings.INSTALLED_APPS
+            middle_term = '__unaccent' if unaccent_extension else ''
+
+            search = []
+
+            for s in search_fields:
+                query = {}
+                query["{}{}__icontains".format(s, middle_term)] = search_terms
+                search.append(query)
+
+            queryset = queryset.filter(_construct_search_query(search))
+        
+        elif search_method == "exact":
+            search = []
+
+            for s in search_fields:
+                query = {}
+                query["{}__exact".format(s)] = search_terms
+                search.append(query)
+
+            queryset = queryset.filter(_construct_search_query(search))
+
         return queryset

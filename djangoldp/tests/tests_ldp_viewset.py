@@ -1,11 +1,13 @@
-from django.test import TestCase
+from django.contrib.auth import get_user_model
 
+from rest_framework import status
+from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from djangoldp.tests.models import User, Circle, Project
 from djangoldp.serializers import LDPSerializer
 from djangoldp.related import get_prefetch_fields
 
 
-class LDPViewSet(TestCase):
+class LDPViewSet(APITestCase):
 
     user_serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set',
                               'circle_set', 'projects']
@@ -13,6 +15,13 @@ class LDPViewSet(TestCase):
                             'conversation_set__author_user', 'conversation_set__peer_user', 'circle_set__space'}
     project_serializer_fields = ['@id', 'description', 'members']
     project_expected_fields = {'members', 'members__userprofile'}
+
+    def setUpLoggedInUser(self):
+        self.factory = APIRequestFactory()
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                         password='glass onion', first_name='John')
+        self.client.force_authenticate(self.user)
 
     def _get_serializer(self, model, depth, fields):
         meta_args = {'model': model, 'depth': depth, 'fields': fields}
@@ -57,3 +66,39 @@ class LDPViewSet(TestCase):
         serializer = self._get_serializer(model, depth, serializer_fields)
         result = get_prefetch_fields(model, serializer, depth)
         self.assertEqual(expected_fields, result)'''
+
+    def test_search_fields_basic(self):
+        self.setUpLoggedInUser()
+        lowercase_circle = Circle.objects.create(name='test circle')
+        uppercase_circle = Circle.objects.create(name='hello world', description='test')
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test&search-method=basic')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 1)
+        self.assertEqual(response.data['ldp:contains'][0]['name'], lowercase_circle.name)
+
+        # test multiple search fields
+        response = self.client.get('/circles/?search-fields=name,description&search-terms=test&search-method=basic')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
+    
+    def test_search_fields_ibasic(self):
+        self.setUpLoggedInUser()
+        lowercase_circle = Circle.objects.create(name='test circle')
+        uppercase_circle = Circle.objects.create(name='TEST')
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test&search-method=ibasic')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
+    
+    def test_search_fields_exact(self):
+        self.setUpLoggedInUser()
+        lowercase_circle = Circle.objects.create(name='test circle')
+        uppercase_circle = Circle.objects.create(name='TEST')
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test&search-method=exact')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 0)
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test%20circle&search-method=exact')
+        self.assertEqual(response.data['ldp:contains'][0]['name'], lowercase_circle.name)
