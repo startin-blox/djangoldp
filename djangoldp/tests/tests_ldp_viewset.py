@@ -1,11 +1,13 @@
-from django.test import TestCase
+from django.contrib.auth import get_user_model
 
+from rest_framework import status
+from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from djangoldp.tests.models import User, Circle, Project
 from djangoldp.serializers import LDPSerializer
 from djangoldp.related import get_prefetch_fields
 
 
-class LDPViewSet(TestCase):
+class LDPViewSet(APITestCase):
 
     user_serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set',
                               'circle_set', 'projects']
@@ -13,6 +15,13 @@ class LDPViewSet(TestCase):
                             'conversation_set__author_user', 'conversation_set__peer_user', 'circle_set__space'}
     project_serializer_fields = ['@id', 'description', 'members']
     project_expected_fields = {'members', 'members__userprofile'}
+
+    def setUpLoggedInUser(self):
+        self.factory = APIRequestFactory()
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
+                                                         password='glass onion', first_name='John')
+        self.client.force_authenticate(self.user)
 
     def _get_serializer(self, model, depth, fields):
         meta_args = {'model': model, 'depth': depth, 'fields': fields}
@@ -57,3 +66,19 @@ class LDPViewSet(TestCase):
         serializer = self._get_serializer(model, depth, serializer_fields)
         result = get_prefetch_fields(model, serializer, depth)
         self.assertEqual(expected_fields, result)'''
+
+    def test_get_shape_param(self):
+        self.setUpLoggedInUser()
+        circle = Circle.objects.create(name='test circle')
+
+        # request id and name only
+        fields_shape = ["@id", "name"]
+
+        response = self.client.get('/circles/', HTTP_ACCEPT_SHAPE=fields_shape)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_data_keys = response.data['ldp:contains'][0].keys()
+        self.assertEqual(len(response_data_keys), 4)
+        self.assertIn('@id', response_data_keys)
+        self.assertIn('name', response_data_keys)
+        self.assertIn('@type', response_data_keys)
+        self.assertIn('permissions', response_data_keys)

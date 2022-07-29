@@ -22,7 +22,7 @@ from rest_framework.serializers import HyperlinkedModelSerializer, ListSerialize
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
-from rest_framework.utils.serializer_helpers import ReturnDict
+from rest_framework.utils.serializer_helpers import ReturnDict, BindingDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
@@ -404,6 +404,28 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
+
+    @property
+    def fields(self):
+        """
+        A dictionary of {field_name: field_instance}.
+        """
+        # `fields` is evaluated lazily. We do this to ensure that we don't
+        # have issues importing modules that use ModelSerializers as fields,
+        # even if Django's app-loading stage has not yet run.
+        fields = BindingDict(self)
+
+        # we allow the request object to specify a subset of fields which should be serialized
+        model_fields = self.get_fields()
+        req_header_accept_shape = self.context['request'].META.get('HTTP_ACCEPT_SHAPE')
+        if req_header_accept_shape is not None:
+            allowed_fields = list(set(req_header_accept_shape).intersection(self.get_fields().keys()))
+
+        for key, value in model_fields.items():
+            if key in allowed_fields:
+                fields[key] = value
+        
+        return fields
 
     def get_default_field_names(self, declared_fields, model_info):
         try:
