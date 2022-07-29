@@ -211,6 +211,10 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
 <Model>._meta.nested_fields=["skills"]
 ```
 
+### Improving Performance
+
+On certain endpoints, you may find that you only need a subset of fields on a model, and serializing them all is expensive (e.g. if I only need the `name` and `id` of each group chat, then why serialize all of their members?). To optimise the fields serialized, you can pass a custom header in the request, `Accept-Shape`, with a `list` value of desired fields e.g. `['@id', 'name']`
+
 ## Filter Backends
 
 To achieve federation, DjangoLDP includes links to objects from federated servers and stores these as local objects (see 1.0 - Models). In some situations, you will want to exclude these from the queryset of a custom view
