@@ -417,9 +417,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
         # we allow the request object to specify a subset of fields which should be serialized
         model_fields = self.get_fields()
-        req_header_accept_shape = self.context['request'].META.get('HTTP_ACCEPT_SHAPE')
-        if req_header_accept_shape is not None:
-            allowed_fields = list(set(req_header_accept_shape).intersection(self.get_fields().keys()))
+        req_header_accept_shape = self.context['request'].META.get('HTTP_ACCEPT_SHAPE') if 'request' in self.context else None
+        allowed_fields = list(set(req_header_accept_shape).intersection(model_fields.keys())) if req_header_accept_shape is not None else model_fields.keys()
 
         for key, value in model_fields.items():
             if key in allowed_fields:
