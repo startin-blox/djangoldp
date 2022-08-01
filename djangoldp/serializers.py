@@ -481,7 +481,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
                     serializer_generator.depth = parent_depth
                     serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
-                    if parent_depth is 0:
+                    if parent_depth == 0:
                         serializer.Meta.fields = ["@id"]
 
                     if isinstance(instance, QuerySet):
@@ -572,7 +572,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                if data is '':
+                if data == '':
                     return ''
                 # workaround for Hubl app - 293
                 if 'username' in data and not self.url_field_name in data:
@@ -771,7 +771,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def remove_empty_value(self, validated_data):
         '''sets any empty strings in the validated_data to None'''
         for attr, value in validated_data.items():
-            if value is '':
+            if value == '':
                 validated_data[attr] = None
         return validated_data
 
@@ -786,7 +786,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for attr, value in validated_data.items():
             if isinstance(value, dict):
                 value = self.update_dict_value(attr, instance, value)
-            if value is '' and not isinstance(getattr(instance, attr), str):
+            if value == '' and not isinstance(getattr(instance, attr), str):
                 setattr(instance, attr, None)
             else:
                 setattr(instance, attr, value)
