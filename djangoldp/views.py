@@ -501,9 +501,9 @@ class LDPViewSet(LDPViewSetGenerator):
         from djangoldp.serializers import LDPSerializer
 
         if self.serializer_class is None:
-            self.serializer_class = LDPSerializer
+            self.serializer_class = self.model.get_serializer_class() if issubclass(self.model, Model) else LDPSerializer
 
-        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
+        return type(self.serializer_class)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
                                    (self.serializer_class,),
                                    {'Meta': meta_class})
 
