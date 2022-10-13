@@ -2,12 +2,13 @@ from importlib import import_module
 
 from django.conf import settings
 from django.conf.urls import re_path, include
+from django.urls import path
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
 from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
 from djangoldp.views import LDPViewSet
-
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 def __clean_path(path):
     '''ensures path is Django-friendly'''
@@ -41,6 +42,15 @@ urlpatterns = [
                                                                     permission_classes=[LDPPermissions], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
     re_path(r'^inbox/$', InboxView.as_view()),
+    path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "docs/",
+        SpectacularSwaggerView.as_view(
+            template_name="swagger-ui.html", url_name="schema"
+        ),
+        name="swagger-ui",
+    ),
+    # re_path(r'^api-auth/', include("rest_framework.urls", namespace="rest_framework")),
 ]
 
 for package in settings.DJANGOLDP_PACKAGES:
