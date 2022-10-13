@@ -1,2 +1,3 @@
 graft djangoldp/conf/package_template
 graft djangoldp/conf/server_template
+graft djangoldp/templates/
