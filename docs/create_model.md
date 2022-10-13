@@ -213,7 +213,7 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
 
 ### Improving Performance
 
-On certain endpoints, you may find that you only need a subset of fields on a model, and serializing them all is expensive (e.g. if I only need the `name` and `id` of each group chat, then why serialize all of their members?). To optimise the fields serialized, you can pass a custom header in the request, `Accept-Shape`, with a `list` value of desired fields e.g. `['@id', 'name']`
+On certain endpoints, you may find that you only need a subset of fields on a model, and serializing them all is expensive (e.g. if I only need the `name` and `id` of each group chat, then why serialize all of their members?). To optimise the fields serialized, you can pass a custom header in the request, `Accept-Model-Fields`, with a `list` value of desired fields e.g. `['@id', 'name']`
 
 ## Filter Backends
 
