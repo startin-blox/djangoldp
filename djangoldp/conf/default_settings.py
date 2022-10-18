@@ -134,6 +134,7 @@ REST_FRAMEWORK = {
 ###################
 # DRF SPECTACULAR #
 ###################
+ENABLE_SWAGGER_DOCUMENTATION = False
 SPECTACULAR_SETTINGS = {
     'TITLE': 'DjangoLDP Based API Description',
     'DESCRIPTION': 'Here you will find the list of all endpoints available on your Djangoldp-based server instance and\
