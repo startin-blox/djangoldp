@@ -93,6 +93,11 @@ class Model(models.Model):
             from djangoldp.views import LDPViewSet
             view_set = LDPViewSet
         return view_set
+    
+    @classmethod
+    def get_serializer_class(cls):
+        from djangoldp.serializers import LDPSerializer
+        return LDPSerializer
 
     @classmethod
     def get_container_path(cls):

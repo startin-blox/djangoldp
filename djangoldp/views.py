@@ -467,26 +467,39 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def build_read_serializer(self):
         model_name = self.model._meta.object_name.lower()
-        lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        try:
+            lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        except:
+            lookup_field = 'urlid'
+            pass
+        
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
                      'depth': getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0)),
                      # 'depth': getattr(self, 'depth', 4),
                      'extra_fields': self.nested_fields}
+
         if self.fields:
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = Model.get_meta(self.model, 'serializer_fields_exclude') or ()
-        
+
         return self.build_serializer(meta_args, 'Read')
 
     def build_write_serializer(self):
         model_name = self.model._meta.object_name.lower()
-        lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+
+        try:
+            lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        except:
+            lookup_field = 'urlid'
+            pass
+        
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
                      'depth': 10,
                      'extra_fields': self.nested_fields}
+
         if self.fields:
             meta_args['fields'] = self.fields
         else:
@@ -501,9 +514,9 @@ class LDPViewSet(LDPViewSetGenerator):
         from djangoldp.serializers import LDPSerializer
 
         if self.serializer_class is None:
-            self.serializer_class = LDPSerializer
+            self.serializer_class = self.model.get_serializer_class() if issubclass(self.model, Model) else LDPSerializer
 
-        return type(LDPSerializer)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
+        return type(self.serializer_class)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
                                    (self.serializer_class,),
                                    {'Meta': meta_class})
 

@@ -11,10 +11,8 @@ from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
 class LDPModelSerializerTestCase(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
-        self.client = APIClient()
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                          password='glass onion')
-        self.client.force_authenticate(user=self.user)
 
     def _get_serializer_class(self, model, depth, fields):
         meta_args = {'model': model, 'depth': depth, 'fields': fields}
