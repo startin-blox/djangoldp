@@ -82,3 +82,39 @@ class LDPViewSet(APITestCase):
         self.assertIn('name', response_data_keys)
         self.assertIn('@type', response_data_keys)
         self.assertIn('permissions', response_data_keys)
+
+    def test_search_fields_basic(self):
+        self.setUpLoggedInUser()
+        lowercase_circle = Circle.objects.create(name='test circle')
+        uppercase_circle = Circle.objects.create(name='hello world', description='test')
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test&search-method=basic')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 1)
+        self.assertEqual(response.data['ldp:contains'][0]['name'], lowercase_circle.name)
+
+        # test multiple search fields
+        response = self.client.get('/circles/?search-fields=name,description&search-terms=test&search-method=basic')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
+    
+    def test_search_fields_ibasic(self):
+        self.setUpLoggedInUser()
+        lowercase_circle = Circle.objects.create(name='test circle')
+        uppercase_circle = Circle.objects.create(name='TEST')
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test&search-method=ibasic')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
+    
+    def test_search_fields_exact(self):
+        self.setUpLoggedInUser()
+        lowercase_circle = Circle.objects.create(name='test circle')
+        uppercase_circle = Circle.objects.create(name='TEST')
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test&search-method=exact')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['ldp:contains']), 0)
+
+        response = self.client.get('/circles/?search-fields=name&search-terms=test%20circle&search-method=exact')
+        self.assertEqual(response.data['ldp:contains'][0]['name'], lowercase_circle.name)

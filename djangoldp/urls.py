@@ -2,12 +2,13 @@ from importlib import import_module
 
 from django.conf import settings
 from django.conf.urls import re_path, include
+from django.urls import path
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
 from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
 from djangoldp.views import LDPViewSet
-
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 def __clean_path(path):
     '''ensures path is Django-friendly'''
@@ -40,8 +41,20 @@ urlpatterns = [
     re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
                                                                     permission_classes=[LDPPermissions], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
-    re_path(r'^inbox/$', InboxView.as_view()),
+    re_path(r'^inbox/$', InboxView.as_view())
 ]
+
+if settings.ENABLE_SWAGGER_DOCUMENTATION:
+    urlpatterns.extend([
+        path("schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "docs/",
+            SpectacularSwaggerView.as_view(
+                template_name="swagger-ui.html", url_name="schema"
+            ),
+            name="swagger-ui",
+        )
+    ])
 
 for package in settings.DJANGOLDP_PACKAGES:
     try:

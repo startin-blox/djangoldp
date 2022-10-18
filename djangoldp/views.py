@@ -27,7 +27,7 @@ from rest_framework.viewsets import ModelViewSet
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
 from djangoldp.models import LDPSource, Model, Follower
 from djangoldp.permissions import LDPPermissions
-from djangoldp.filters import LocalObjectOnContainerPathBackend
+from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
 from djangoldp.activities import ActivityQueueService, as_activitystream, ACTIVITY_SAVING_SETTING, ActivityPubService
@@ -450,7 +450,7 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
-    filter_backends = [LocalObjectOnContainerPathBackend]
+    filter_backends = [LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend]
     prefetch_fields = None
 
     def __init__(self, **kwargs):
@@ -467,26 +467,39 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def build_read_serializer(self):
         model_name = self.model._meta.object_name.lower()
-        lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        try:
+            lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        except:
+            lookup_field = 'urlid'
+            pass
+        
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
                      'depth': getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0)),
                      # 'depth': getattr(self, 'depth', 4),
                      'extra_fields': self.nested_fields}
+
         if self.fields:
             meta_args['fields'] = self.fields
         else:
             meta_args['exclude'] = Model.get_meta(self.model, 'serializer_fields_exclude') or ()
-        
+
         return self.build_serializer(meta_args, 'Read')
 
     def build_write_serializer(self):
         model_name = self.model._meta.object_name.lower()
-        lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+
+        try:
+            lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
+        except:
+            lookup_field = 'urlid'
+            pass
+        
         meta_args = {'model': self.model, 'extra_kwargs': {
             '@id': {'lookup_field': lookup_field}},
                      'depth': 10,
                      'extra_fields': self.nested_fields}
+
         if self.fields:
             meta_args['fields'] = self.fields
         else:

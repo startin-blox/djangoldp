@@ -122,6 +122,26 @@ MIDDLEWARE = [
     'django_brotli.middleware.BrotliMiddleware'
 ]
 
+##################
+# REST FRAMEWORK #
+##################
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'
+}
+
+###################
+# DRF SPECTACULAR #
+###################
+ENABLE_SWAGGER_DOCUMENTATION = False
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DjangoLDP Based API Description',
+    'DESCRIPTION': 'Here you will find the list of all endpoints available on your Djangoldp-based server instance and\
+         the available methods, needed parameters and requests examples. The list of available endpoints depend on your instance configuration\
+             especially the list of bloxes and associated django models activated.',
+    'VERSION': '2.1.37',
+    'SERVE_INCLUDE_SCHEMA': False
+}
+
 ############
 # SESSIONS #
 ############

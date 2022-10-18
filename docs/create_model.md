@@ -215,6 +215,21 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
 
 On certain endpoints, you may find that you only need a subset of fields on a model, and serializing them all is expensive (e.g. if I only need the `name` and `id` of each group chat, then why serialize all of their members?). To optimise the fields serialized, you can pass a custom header in the request, `Accept-Model-Fields`, with a `list` value of desired fields e.g. `['@id', 'name']`
 
+
+### Searching on LDPViewSets
+
+It's common to allow search parameters on our ViewSet fields. Djangoldp provides automated searching on fields via the query parameters of a request via the class `djangoldp.filters.SearchByQueryParamFilterBackend`, a FilterBackend applied by default to `LDPViewSet` and any subclasses which don't override the `filter_backends` property
+
+To use this on a request, for example: `/circles/?search-fields=name,description&search-terms=test&search-method=ibasic&search-policy=union`. For detail:
+
+* `search-fields`: a list of one or more fields to search on the model
+* `search-terms`: the terms to search
+* `search-method` (optional): the method to apply the search with (supports `basic` (contains), case-insensitive `ibasic` and `exact`)
+* `search-policy` (optional): the policy to apply when merging the results from different fields searched (`union`, meaning include the union of all result sets. Or `intersection`, meaning include only the results matched against all fields)
+
+Some databases might treat accented characters as different from non-accented characters (e.g. grève vs. greve). To avoid this behaviour, please follow the [Stackoverflow post](https://stackoverflow.com/questions/54071944/fielderror-unsupported-lookup-unaccent-for-charfield-or-join-on-the-field-not) here, and then add the setting `SEARCH_UNACCENT_EXTENSION = True` and make sure that `'django.contrib.postgres'` is in your `INSTALLED_APPS`.
+
+
 ## Filter Backends
 
 To achieve federation, DjangoLDP includes links to objects from federated servers and stores these as local objects (see 1.0 - Models). In some situations, you will want to exclude these from the queryset of a custom view
