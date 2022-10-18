@@ -27,7 +27,7 @@ from rest_framework.viewsets import ModelViewSet
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
 from djangoldp.models import LDPSource, Model, Follower
 from djangoldp.permissions import LDPPermissions
-from djangoldp.filters import LocalObjectOnContainerPathBackend
+from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
 from djangoldp.activities import ActivityQueueService, as_activitystream, ACTIVITY_SAVING_SETTING, ActivityPubService
@@ -450,7 +450,7 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
-    filter_backends = [LocalObjectOnContainerPathBackend]
+    filter_backends = [LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend]
     prefetch_fields = None
 
     def __init__(self, **kwargs):
