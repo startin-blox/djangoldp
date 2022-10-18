@@ -41,17 +41,20 @@ urlpatterns = [
     re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
                                                                     permission_classes=[LDPPermissions], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
-    re_path(r'^inbox/$', InboxView.as_view()),
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "docs/",
-        SpectacularSwaggerView.as_view(
-            template_name="swagger-ui.html", url_name="schema"
-        ),
-        name="swagger-ui",
-    ),
-    # re_path(r'^api-auth/', include("rest_framework.urls", namespace="rest_framework")),
+    re_path(r'^inbox/$', InboxView.as_view())
 ]
+
+if settings.ENABLE_SWAGGER_DOCUMENTATION:
+    urlpatterns.extend([
+        path("schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "docs/",
+            SpectacularSwaggerView.as_view(
+                template_name="swagger-ui.html", url_name="schema"
+            ),
+            name="swagger-ui",
+        )
+    ])
 
 for package in settings.DJANGOLDP_PACKAGES:
     try:
