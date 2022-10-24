@@ -72,7 +72,7 @@ class LDPViewSet(APITestCase):
         circle = Circle.objects.create(name='test circle')
 
         # request id and name only
-        fields_shape = ["@id", "name"]
+        fields_shape = '["@id", "name"]'
 
         response = self.client.get('/circles/', HTTP_ACCEPT_MODEL_FIELDS=fields_shape)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
