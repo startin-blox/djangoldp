@@ -1,4 +1,5 @@
 import uuid
+import json
 from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
@@ -418,7 +419,10 @@ class LDPSerializer(HyperlinkedModelSerializer):
         # we allow the request object to specify a subset of fields which should be serialized
         model_fields = self.get_fields()
         req_header_accept_shape = self.context['request'].META.get('HTTP_ACCEPT_MODEL_FIELDS') if 'request' in self.context else None
-        allowed_fields = list(set(req_header_accept_shape).intersection(model_fields.keys())) if req_header_accept_shape is not None else model_fields.keys()
+        try:
+            allowed_fields = list(set(json.loads(req_header_accept_shape)).intersection(model_fields.keys())) if req_header_accept_shape is not None else model_fields.keys()
+        except json.decoder.JSONDecodeError:
+            raise ValidationError("Please send the HTTP header Accept-Model-Fields as an array of strings")
 
         for key, value in model_fields.items():
             if key in allowed_fields:
