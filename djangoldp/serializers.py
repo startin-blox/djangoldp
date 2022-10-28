@@ -1,4 +1,5 @@
 import uuid
+import json
 from collections import OrderedDict, Mapping, Iterable
 from typing import Any
 from urllib import parse
@@ -22,7 +23,7 @@ from rest_framework.serializers import HyperlinkedModelSerializer, ListSerialize
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
-from rest_framework.utils.serializer_helpers import ReturnDict
+from rest_framework.utils.serializer_helpers import ReturnDict, BindingDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
@@ -405,6 +406,30 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
+    @property
+    def fields(self):
+        """
+        A dictionary of {field_name: field_instance}.
+        """
+        # `fields` is evaluated lazily. We do this to ensure that we don't
+        # have issues importing modules that use ModelSerializers as fields,
+        # even if Django's app-loading stage has not yet run.
+        fields = BindingDict(self)
+
+        # we allow the request object to specify a subset of fields which should be serialized
+        model_fields = self.get_fields()
+        req_header_accept_shape = self.context['request'].META.get('HTTP_ACCEPT_MODEL_FIELDS') if 'request' in self.context else None
+        try:
+            allowed_fields = list(set(json.loads(req_header_accept_shape)).intersection(model_fields.keys())) if req_header_accept_shape is not None else model_fields.keys()
+        except json.decoder.JSONDecodeError:
+            raise ValidationError("Please send the HTTP header Accept-Model-Fields as an array of strings")
+
+        for key, value in model_fields.items():
+            if key in allowed_fields:
+                fields[key] = value
+        
+        return fields
+
     def get_default_field_names(self, declared_fields, model_info):
         try:
             fields = list(self.Meta.model._meta.serializer_fields)
@@ -460,7 +485,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
                     serializer_generator.depth = parent_depth
                     serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
-                    if parent_depth is 0:
+                    if parent_depth == 0:
                         serializer.Meta.fields = ["@id"]
 
                     if isinstance(instance, QuerySet):
@@ -551,7 +576,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     fields = '__all__'
 
             def to_internal_value(self, data):
-                if data is '':
+                if data == '':
                     return ''
                 # workaround for Hubl app - 293
                 if 'username' in data and not self.url_field_name in data:
@@ -750,7 +775,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
     def remove_empty_value(self, validated_data):
         '''sets any empty strings in the validated_data to None'''
         for attr, value in validated_data.items():
-            if value is '':
+            if value == '':
                 validated_data[attr] = None
         return validated_data
 
@@ -765,7 +790,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for attr, value in validated_data.items():
             if isinstance(value, dict):
                 value = self.update_dict_value(attr, instance, value)
-            if value is '' and not isinstance(getattr(instance, attr), str):
+            if value == '' and not isinstance(getattr(instance, attr), str):
                 setattr(instance, attr, None)
             else:
                 setattr(instance, attr, value)

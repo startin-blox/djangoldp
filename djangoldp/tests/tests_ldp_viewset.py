@@ -67,6 +67,22 @@ class LDPViewSet(APITestCase):
         result = get_prefetch_fields(model, serializer, depth)
         self.assertEqual(expected_fields, result)'''
 
+    def test_get_shape_param(self):
+        self.setUpLoggedInUser()
+        circle = Circle.objects.create(name='test circle')
+
+        # request id and name only
+        fields_shape = '["@id", "name"]'
+
+        response = self.client.get('/circles/', HTTP_ACCEPT_MODEL_FIELDS=fields_shape)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response_data_keys = response.data['ldp:contains'][0].keys()
+        self.assertEqual(len(response_data_keys), 4)
+        self.assertIn('@id', response_data_keys)
+        self.assertIn('name', response_data_keys)
+        self.assertIn('@type', response_data_keys)
+        self.assertIn('permissions', response_data_keys)
+
     def test_search_fields_basic(self):
         self.setUpLoggedInUser()
         lowercase_circle = Circle.objects.create(name='test circle')
