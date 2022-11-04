@@ -27,7 +27,9 @@ user_template = {
     'fields': {
         'username': 'john',
         'email': 'jlennon@c.coop',
-        'password':'glass onion'
+        'password':'glassonion',
+        'first_name': 'John',
+        'last_name': 'Lennon'
     }
 }
 
