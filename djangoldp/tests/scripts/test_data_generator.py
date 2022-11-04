@@ -10,6 +10,7 @@ for help run python test_data_generator.py -h
 
 parser = argparse.ArgumentParser(description='generates and outputs random test data, into a file used by the performance unit tests')
 parser.add_argument(dest='count', metavar='N', type=int, help='the number of users (and projects) to generate')
+parser.add_argument('-f', dest='file_dest', type=str, default="../fixtures/test.json", help='the file destination to write to')
 
 args = parser.parse_args()
 count = args.count
@@ -20,7 +21,9 @@ user_template = {
     'fields': {
         'username': 'john',
         'email': 'jlennon@c.coop',
-        'password':'glass onion'
+        'password':'glassonion',
+        'first_name': 'John',
+        'last_name': 'Lennon'
     }
 }
 
@@ -36,7 +39,7 @@ project_template = {
 fixture = generate_users(count, user_template)
 fixture = generate_projects(count, project_template, fixture=fixture, production=False)
 
-with open(Path(__file__).parent / "../fixtures/test.json", 'w') as output:
+with open(Path(__file__).parent / args.file_dest, 'w') as output:
     json.dump(fixture, output)
 
 print(str(count))

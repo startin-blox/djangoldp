@@ -1,17 +1,22 @@
 from copy import deepcopy
 import random
-
+from faker import Faker
 
 '''
 Contains definitions used in common by multiple scripts within this directory
 '''
-
-
 def generate_user(i, user_template):
+    myFactory = Faker()
     user = deepcopy(user_template)
+    email = myFactory.unique.email().split('@')
+    email.insert(1, str(random.randint(0, 5)))
+    email.insert(2, "@")
+    email_str = "".join(email)
     user['pk'] = i
-    user['fields']['username'] = str('fixture-' + str(i))
-    user['fields']['email'] = user['fields']['username'] + "@c.coop"
+    user['fields']['username'] = myFactory.unique.user_name() + str(random.randint(0, 100))
+    user['fields']['email'] = email_str
+    user['fields']['first_name'] = myFactory.first_name()
+    user['fields']['last_name'] = myFactory.last_name()
     return user
 
 
