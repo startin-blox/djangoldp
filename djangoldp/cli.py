@@ -128,7 +128,7 @@ def configure(admin, dummy_admin, email):
             cmd.append('--with-dummy-admin')
         subprocess.run(cmd).check_returncode()
 
-        click.echo('Confguration done!')
+        click.echo('Configuration done!')
 
     except subprocess.CalledProcessError as e:
         click.echo(f'Configuration error: {e}')
