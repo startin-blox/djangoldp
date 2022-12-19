@@ -450,7 +450,8 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
-    filter_backends = [LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend]
+    # filter_backends = [LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend]
+    filter_backends = [SearchByQueryParamFilterBackend]
     prefetch_fields = None
 
     def __init__(self, **kwargs):
