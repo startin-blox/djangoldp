@@ -8,7 +8,6 @@ from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions
 from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
 from djangoldp.views import LDPViewSet
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 def __clean_path(path):
     '''ensures path is Django-friendly'''
@@ -45,6 +44,7 @@ urlpatterns = [
 ]
 
 if settings.ENABLE_SWAGGER_DOCUMENTATION:
+    from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
     urlpatterns.extend([
         path("schema/", SpectacularAPIView.as_view(), name="schema"),
         path(
