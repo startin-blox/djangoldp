@@ -14,6 +14,7 @@ Check the [official documentation](https://docs.startinblox.com/import_documenta
 * `STORE_ACTIVITIES`: sets whether to store activities sent and backlinks received, or to treat them as transient (value should be `"VERBOSE"`, `"ERROR"` or `None`). Defaults to `"ERROR"`
 * `MAX_RECORDS_ACTIVITY_CACHE`: sets the maximum number of serializer cache records, at which point the cache will be cleared (reset). If set to 0 disables the cache. Defaults to 10,000
 * `ENABLE_SWAGGER_DOCUMENTATION`: enables the automatic OpenAPI-based API schema and documentation generation, made available at `http://yourserver/docs/` is the flag is set to True. Default to False
+* `DISABLE_LOCAL_OBJECT_FILTER`: disabled the LocalObjectBackendFilter which is processing-time costly and only need activation in federated architecture, so we preferred to add a way to disable it as a workaround for in-progress performances improvements. Default to False
 
 ## Synopsis
 
