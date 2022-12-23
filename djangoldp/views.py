@@ -450,8 +450,8 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
-    # filter_backends = [LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend]
-    filter_backends = [SearchByQueryParamFilterBackend]
+
+    filter_backends = [SearchByQueryParamFilterBackend, LocalObjectOnContainerPathBackend]
     prefetch_fields = None
 
     def __init__(self, **kwargs):
@@ -462,6 +462,11 @@ class LDPViewSet(LDPViewSetGenerator):
             filtered_classes = [p for p in self.permission_classes if hasattr(p, 'filter_backends') and p.filter_backends is not None]
             for p in filtered_classes:
                 self.filter_backends = list(set(self.filter_backends).union(set(p.filter_backends)))
+
+        # Workaround: Push the costly filter activation as a setting
+        if getattr(settings, "DISABLE_LOCAL_OBJECT_FILTER", False):
+            if(LocalObjectOnContainerPathBackend in self.filter_backends):
+                self.filter_backends.remove(LocalObjectOnContainerPathBackend)
 
         self.serializer_class = self.build_read_serializer()
         self.write_serializer_class = self.build_write_serializer()
