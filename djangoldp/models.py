@@ -326,9 +326,22 @@ class Model(models.Model):
         if owner_field is None:
             return False
 
-        return (getattr(obj, owner_field) == user
-                or (hasattr(user, 'urlid') and getattr(obj, owner_field) == user.urlid)
-                or getattr(obj, owner_field) == user.id)
+        # owner fields might be nested (e.g. "collection__author")
+        owner_field_nesting = owner_field.split("__")
+        if len(owner_field_nesting) > 1:
+            obj_copy = obj
+
+            for level in owner_field_nesting:
+                owner_value = getattr(obj_copy, level)
+                obj_copy = owner_value
+
+        # or they might not be (e.g. "author")
+        else:
+            owner_value = getattr(obj, owner_field)
+        
+        return (owner_value == user
+                or (hasattr(user, 'urlid') and owner_value == user.urlid)
+                or owner_value == user.id)
 
     @classmethod
     def is_external(cls, value):

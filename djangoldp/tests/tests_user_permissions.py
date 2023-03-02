@@ -4,7 +4,7 @@ from django.conf import settings
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import JobOffer, LDPDummy, PermissionlessDummy, UserProfile, OwnedResource, \
-    NoSuperUsersAllowedModel, ComplexPermissionClassesModel
+    NoSuperUsersAllowedModel, ComplexPermissionClassesModel, OwnedResourceNestedOwnership
 
 import json
 
@@ -229,6 +229,25 @@ class TestUserPermissions(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['ldp:contains']), 1)
         self.assertEqual(response.data['ldp:contains'][0]['@id'], my_resource.urlid)
+    
+    # a repeat of the previous test but using a model where the owner_field is nested
+    def test_list_owned_resources_nested(self):
+        my_resource = OwnedResource.objects.create(description='test', user=self.user)
+        my_second_resource = OwnedResource.objects.create(description='test', user=self.user)
+        another_user = get_user_model().objects.create_user(username='test', email='test@test.com', password='test')
+        their_resource = OwnedResource.objects.create(description='another test', user=another_user)
+
+        my_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_resource)
+        my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
+        their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
+
+        response = self.client.get('/ownedresourcenestedownerships/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
+        ids = [r['@id'] for r in response.data['ldp:contains']]
+        self.assertIn(my_nested.urlid, ids)
+        self.assertIn(my_second_nested.urlid, ids)
+        self.assertNotIn(their_nested.urlid, ids)
 
     # I do not have model permissions as an authenticated user, but I am the resources' owner
     def test_get_owned_resource(self):
