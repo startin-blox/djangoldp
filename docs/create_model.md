@@ -354,7 +354,7 @@ class Todo(Model):
         authenticated_perms = ['inherit', 'add'] # inherits from anonymous
         owner_perms = ['inherit', 'change', 'control', 'delete'] # inherits from authenticated
         superuser_perms = ['inherit'] # inherits from owner
-        owner_field = 'user'
+        owner_field = 'user' # can be nested, e.g. user__parent
 ```
 
 

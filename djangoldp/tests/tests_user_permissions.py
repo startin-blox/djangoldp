@@ -1,22 +1,25 @@
+from django.core.exceptions import FieldDoesNotExist
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission, Group
 from django.conf import settings
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import JobOffer, LDPDummy, PermissionlessDummy, UserProfile, OwnedResource, \
-    NoSuperUsersAllowedModel, ComplexPermissionClassesModel
+    NoSuperUsersAllowedModel, ComplexPermissionClassesModel, OwnedResourceNestedOwnership, \
+    OwnedResourceTwiceNestedOwnership
 
 import json
 
 
-class TestUserPermissions(APITestCase):
-
+class UserPermissionsTestCase(APITestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
         self.client = APIClient(enforce_csrf_checks=True)
         self.client.force_authenticate(user=self.user)
         self.job = JobOffer.objects.create(title="job", slug="slug1")
 
+
+class TestUserPermissions(UserPermissionsTestCase):
     def setUpGroup(self):
         self.group = Group.objects.create(name='Test')
         view_perm = Permission.objects.get(codename='view_permissionlessdummy')
@@ -360,3 +363,87 @@ class TestUserPermissions(APITestCase):
         resource = OwnedResourceVariant.objects.get(pk=resource.pk)
         self.assertNotEqual(resource.user, self.user)
     '''
+
+
+class TestOwnerFieldUserPermissions(UserPermissionsTestCase):
+    restore_meta = None
+
+    def setUpTempOwnerFieldForModel(self, model, new_owner_field):
+        # store the old meta information for tearDown to cleanup after the test
+        if self.restore_meta is None:
+            self.restore_meta = []
+        
+        self.restore_meta.append({
+            "model": model,
+            "owner_field": model._meta.owner_field
+        })
+
+        # replace the owner_field attribute for the test to run
+        model._meta.owner_field = new_owner_field
+
+    def tearDown(self):
+        # restore any previously changed owner_field attributes in the test
+        if self.restore_meta is not None:
+            for idx, model in enumerate(self.restore_meta):
+                model = self.restore_meta[idx]["model"]
+                model._meta.owner_field = self.restore_meta[idx]["owner_field"]
+            self.restore_meta = None
+
+    def test_list_owned_resources_nested(self):
+        my_resource = OwnedResource.objects.create(description='test', user=self.user)
+        my_second_resource = OwnedResource.objects.create(description='test', user=self.user)
+        another_user = get_user_model().objects.create_user(username='test', email='test@test.com', password='test')
+        their_resource = OwnedResource.objects.create(description='another test', user=another_user)
+
+        my_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_resource)
+        my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
+        their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
+
+        response = self.client.get('/ownedresourcenestedownerships/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
+        ids = [r['@id'] for r in response.data['ldp:contains']]
+        self.assertIn(my_nested.urlid, ids)
+        self.assertIn(my_second_nested.urlid, ids)
+        self.assertNotIn(their_nested.urlid, ids)
+    
+    def test_list_owned_resources_nested_variation_urlid(self):
+        self.setUpTempOwnerFieldForModel(
+            OwnedResourceNestedOwnership,
+            OwnedResourceNestedOwnership._meta.owner_field + "__urlid"
+        )
+        self.test_list_owned_resources_nested()
+    
+    def test_list_owned_resources_nested_variation_twice_nested(self):
+        my_resource = OwnedResource.objects.create(description='test', user=self.user)
+        my_second_resource = OwnedResource.objects.create(description='test', user=self.user)
+        another_user = get_user_model().objects.create_user(username='test', email='test@test.com', password='test')
+        their_resource = OwnedResource.objects.create(description='another test', user=another_user)
+
+        my_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_resource)
+        my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
+        their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
+
+        my_twice_nested = OwnedResourceTwiceNestedOwnership.objects.create(description="test", parent=my_nested)
+        their_twice_nested = OwnedResourceTwiceNestedOwnership.objects.create(description="test", parent=their_nested)
+
+        response = self.client.get('/ownedresourcetwicenestedownerships/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['ldp:contains']), 1)
+        ids = [r['@id'] for r in response.data['ldp:contains']]
+        self.assertIn(my_twice_nested.urlid, ids)
+        self.assertNotIn(their_twice_nested.urlid, ids)
+
+    def test_list_owned_resources_nested_does_not_exist(self):
+        self.setUpTempOwnerFieldForModel(OwnedResourceNestedOwnership, "parent__doesnotexist")
+
+        my_resource = OwnedResource.objects.create(description='test', user=self.user)
+        my_second_resource = OwnedResource.objects.create(description='test', user=self.user)
+        another_user = get_user_model().objects.create_user(username='test', email='test@test.com', password='test')
+        their_resource = OwnedResource.objects.create(description='another test', user=another_user)
+
+        my_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_resource)
+        my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
+        their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
+
+        self.assertRaises(FieldDoesNotExist, self.client.get, '/ownedresourcenestedownerships/')
