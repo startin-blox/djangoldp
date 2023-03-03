@@ -123,7 +123,21 @@ class OwnedResourceNestedOwnership(Model):
         anonymous_perms = []
         authenticated_perms = []
         owner_perms = ['view', 'delete', 'add', 'change', 'control']
-        owner_field = 'parent__user__urlid'
+        owner_field = 'parent__user'
+        serializer_fields = ['@id', 'description', 'parent']
+        depth = 1
+
+
+class OwnedResourceTwiceNestedOwnership(Model):
+    description = models.CharField(max_length=255, blank=True, null=True)
+    parent = models.ForeignKey(OwnedResourceNestedOwnership, blank=True, null=True, related_name="owned_resources",
+                               on_delete=models.CASCADE)
+
+    class Meta(Model.Meta):
+        anonymous_perms = []
+        authenticated_perms = []
+        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        owner_field = 'parent__parent__user'
         serializer_fields = ['@id', 'description', 'parent']
         depth = 1
 

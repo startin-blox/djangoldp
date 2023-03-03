@@ -4,7 +4,8 @@ from django.conf import settings
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import JobOffer, LDPDummy, PermissionlessDummy, UserProfile, OwnedResource, \
-    NoSuperUsersAllowedModel, ComplexPermissionClassesModel, OwnedResourceNestedOwnership
+    NoSuperUsersAllowedModel, ComplexPermissionClassesModel, OwnedResourceNestedOwnership, \
+    OwnedResourceTwiceNestedOwnership
 
 import json
 
@@ -248,6 +249,30 @@ class TestUserPermissions(APITestCase):
         self.assertIn(my_nested.urlid, ids)
         self.assertIn(my_second_nested.urlid, ids)
         self.assertNotIn(their_nested.urlid, ids)
+    
+    def test_list_owned_resources_nested_variation_urlid(self):
+        OwnedResourceNestedOwnership._meta.owner_field = OwnedResourceNestedOwnership._meta.owner_field + "__urlid"
+        self.test_list_owned_resources_nested()
+    
+    def test_list_owned_resources_nested_variation_twice_nested(self):
+        my_resource = OwnedResource.objects.create(description='test', user=self.user)
+        my_second_resource = OwnedResource.objects.create(description='test', user=self.user)
+        another_user = get_user_model().objects.create_user(username='test', email='test@test.com', password='test')
+        their_resource = OwnedResource.objects.create(description='another test', user=another_user)
+
+        my_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_resource)
+        my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
+        their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
+
+        my_twice_nested = OwnedResourceTwiceNestedOwnership.objects.create(description="test", parent=my_nested)
+        their_twice_nested = OwnedResourceTwiceNestedOwnership.objects.create(description="test", parent=their_nested)
+
+        response = self.client.get('/ownedresourcetwicenestedownerships/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['ldp:contains']), 1)
+        ids = [r['@id'] for r in response.data['ldp:contains']]
+        self.assertIn(my_twice_nested.urlid, ids)
+        self.assertNotIn(their_twice_nested.urlid, ids)
 
     # I do not have model permissions as an authenticated user, but I am the resources' owner
     def test_get_owned_resource(self):
