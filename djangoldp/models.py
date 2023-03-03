@@ -5,7 +5,7 @@ import copy
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError, FieldDoesNotExist
 from django.db import models
 from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
@@ -326,18 +326,21 @@ class Model(models.Model):
         if owner_field is None:
             return False
 
-        # owner fields might be nested (e.g. "collection__author")
-        owner_field_nesting = owner_field.split("__")
-        if len(owner_field_nesting) > 1:
-            obj_copy = obj
+        try:
+            # owner fields might be nested (e.g. "collection__author")
+            owner_field_nesting = owner_field.split("__")
+            if len(owner_field_nesting) > 1:
+                obj_copy = obj
 
-            for level in owner_field_nesting:
-                owner_value = getattr(obj_copy, level)
-                obj_copy = owner_value
+                for level in owner_field_nesting:
+                    owner_value = getattr(obj_copy, level)
+                    obj_copy = owner_value
 
-        # or they might not be (e.g. "author")
-        else:
-            owner_value = getattr(obj, owner_field)
+            # or they might not be (e.g. "author")
+            else:
+                owner_value = getattr(obj, owner_field)
+        except AttributeError:
+            raise FieldDoesNotExist(f"the owner_field setting {owner_field} contains field(s) which do not exist on model {model_class.__name__}")
         
         return (owner_value == user
                 or (hasattr(user, 'urlid') and owner_value == user.urlid)

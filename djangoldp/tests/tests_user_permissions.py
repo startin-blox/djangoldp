@@ -1,3 +1,4 @@
+from django.core.exceptions import FieldDoesNotExist
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission, Group
 from django.conf import settings
@@ -432,3 +433,17 @@ class TestOwnerFieldUserPermissions(UserPermissionsTestCase):
         ids = [r['@id'] for r in response.data['ldp:contains']]
         self.assertIn(my_twice_nested.urlid, ids)
         self.assertNotIn(their_twice_nested.urlid, ids)
+
+    def test_list_owned_resources_nested_does_not_exist(self):
+        self.setUpTempOwnerFieldForModel(OwnedResourceNestedOwnership, "parent__doesnotexist")
+
+        my_resource = OwnedResource.objects.create(description='test', user=self.user)
+        my_second_resource = OwnedResource.objects.create(description='test', user=self.user)
+        another_user = get_user_model().objects.create_user(username='test', email='test@test.com', password='test')
+        their_resource = OwnedResource.objects.create(description='another test', user=another_user)
+
+        my_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_resource)
+        my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
+        their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
+
+        self.assertRaises(FieldDoesNotExist, self.client.get, '/ownedresourcenestedownerships/')
