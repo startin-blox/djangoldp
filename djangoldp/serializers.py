@@ -202,10 +202,7 @@ class LDListMixin:
                 Model.get_container_permissions(child_model, self.context['request'], self.context['view']))
 
         else:
-            try:
-                parent_model = Model.resolve_parent(self.context['request'].path)
-            except:
-                parent_model = child_model
+            parent_model = self.context['request'].parent_model if self.context['request'].parent_model is not None else child_model
 
             if not self.id.startswith('http'):
                 self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
