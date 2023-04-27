@@ -118,6 +118,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'djangoldp.middleware.AllowRequestedCORSMiddleware',
+    'djangoldp.middleware.PrefetchParentModel',
     'django.middleware.gzip.GZipMiddleware',
     'django_brotli.middleware.BrotliMiddleware'
 ]
