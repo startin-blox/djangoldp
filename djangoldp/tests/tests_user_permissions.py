@@ -6,7 +6,7 @@ from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import JobOffer, LDPDummy, PermissionlessDummy, UserProfile, OwnedResource, \
     NoSuperUsersAllowedModel, ComplexPermissionClassesModel, OwnedResourceNestedOwnership, \
-    OwnedResourceTwiceNestedOwnership
+    OwnedResourceTwiceNestedOwnership, Dummy, Skill
 
 import json
 
@@ -260,6 +260,12 @@ class TestUserPermissions(UserPermissionsTestCase):
         # TODO: technically this should be 403, since I do have permission to view their user profile
         #  https://git.startinblox.com/djangoldp-packages/djangoldp/issues/336
         self.assertEqual(response.status_code, 404)
+
+    def test_delete_non_owned_resource(self):
+        my_resource = Skill.objects.create(title='test')
+
+        response = self.client.delete('/skills/{}/'.format(my_resource.pk))
+        self.assertEqual(response.status_code, 400)
 
     def test_delete_owned_resource(self):
         my_resource = OwnedResource.objects.create(description='test', user=self.user)
