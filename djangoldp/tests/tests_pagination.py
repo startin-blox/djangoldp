@@ -18,11 +18,11 @@ class TestPagination(APITestCase):
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('link', response._headers)
-        self.assertEquals(response._headers['link'][1], '<http://testserver/posts/?limit=5&offset=5>; rel="next"')
+        self.assertEquals(response._headers['link'][1], '<http://testserver/posts/?p=2>; rel="next"')
 
     def test_previous(self):
-        response = self.client.get('/posts/?offset=2&limit=2', content_type='application/ld+json')
+        response = self.client.get('/posts/?p=2', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('link', response._headers)
         self.assertEquals(response._headers['link'][1],
-                          '<http://testserver/posts/?limit=2>; rel="prev", <http://testserver/posts/?limit=2&offset=4>; rel="next"')
+                          '<http://testserver/posts/>; rel="prev", <http://testserver/posts/?p=3>; rel="next"')
