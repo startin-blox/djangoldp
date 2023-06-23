@@ -8,7 +8,7 @@ class TestPagination(APITestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.client = APIClient()
-        for i in range(0, 10):
+        for i in range(0, 30):
             Post.objects.create(content="content {}".format(i))
 
     def tearDown(self):
