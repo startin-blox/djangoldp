@@ -111,7 +111,7 @@ def generate_skills(count, skill_template, fixture=None, offset=0):
         j = offset + i
         skill = generate_skill(j, skill_template)
 
-        skill = append_users_to_skill(skill, offset, 1500)
+        skill = append_users_to_skill(skill, offset, count)
         fixture.append(skill)
 
     return fixture
