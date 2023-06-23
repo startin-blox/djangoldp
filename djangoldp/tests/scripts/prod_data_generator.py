@@ -2,7 +2,7 @@ import json
 import argparse
 from pathlib import Path
 from datetime import datetime
-from utils import generate_users, generate_projects
+from utils import generate_users, generate_projects, generate_skills
 
 '''
 A script which generates and outputs random production data, into a parameterised file (csv), which can be used as
@@ -43,8 +43,17 @@ project_template = {
     }
 }
 
+skill_template = {
+    'model': 'djangoldp_skill.skill',
+    'pk': 0,
+    'fields': {
+        'name': 'PHP',
+    }
+}
+
 fixture = generate_users(count, user_template, offset=OFFSET)
 fixture = generate_projects(count, project_template, fixture=fixture, offset=OFFSET)
+fixture = generate_skills(count, skill_template, fixture=fixture, offset=OFFSET)
 
 with open(Path(__file__).parent / args.file_dest, 'w') as output:
     json.dump(fixture, output)

@@ -68,6 +68,53 @@ def generate_project_members(project_pk, fixture, offset, total_users):
 
     return fixture
 
+def generate_skill(i, skill_template):
+    myFactory = Faker()
+    skill = deepcopy(skill_template)
+
+    skill['pk'] = i
+    skill['fields']['name'] = myFactory.unique.job()
+    return skill
+
+
+def generate_user_pks(skill_pk, offset, total_users, max_users_per_skill):
+    '''
+    returns a generator of tuples ()
+    raises error if there are not enough users
+    '''
+    # we want to select a handful of random users
+    # to save time we just select a random user within a safe range and then grab a bunch of adjacent users
+    start_user_pk = random.randint(0, offset + (total_users - (max_users_per_skill + 1)))
+    # if start_user_pk < offset:
+    #     raise IndexError('not enough users!')
+    
+    for i in range(random.randint(1, max_users_per_skill)):
+        j = offset + (i + (skill_pk * max_users_per_skill))  # generate a unique integer id
+        user_pk = start_user_pk + i  # select the next user
+
+        yield (j, user_pk)
+
+def append_users_to_skill(skill, offset, total_users):
+    max_users_per_skill = 250
+
+    skill['fields']['users'] = []
+    for (j, user_pk) in generate_user_pks(skill['pk'], offset, total_users, max_users_per_skill):
+        skill['fields']['users'].append(user_pk)
+
+    return skill
+
+def generate_skills(count, skill_template, fixture=None, offset=0):
+    if fixture is None:
+        fixture = list()
+
+    for i in range(count):
+        j = offset + i
+        skill = generate_skill(j, skill_template)
+
+        skill = append_users_to_skill(skill, offset, 1500)
+        fixture.append(skill)
+
+    return fixture
 
 def generate_project(i, project_template):
     project = deepcopy(project_template)
