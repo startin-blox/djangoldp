@@ -3,12 +3,12 @@ import validators
 from collections import OrderedDict
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import include, re_path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
+from django.urls import include, re_path
 from django.urls.resolvers import get_resolver
 from django.utils.decorators import classonlymethod
 from django.views import View

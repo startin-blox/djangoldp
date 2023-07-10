@@ -7,4 +7,3 @@ options.DEFAULT_NAMES += (
     'container_path', 'permission_classes', 'serializer_fields', 'serializer_fields_exclude', 'empty_containers',
     'nested_fields', 'nested_fields_exclude', 'depth', 'anonymous_perms', 'authenticated_perms', 'owner_perms',
     'superuser_perms')
-default_app_config = 'djangoldp.apps.DjangoldpConfig'

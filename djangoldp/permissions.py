@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.auth.models import _user_get_all_permissions
 from django.contrib.auth import _get_backends
 from rest_framework.permissions import DjangoObjectPermissions
 from djangoldp.utils import is_anonymous_user
@@ -136,7 +135,7 @@ class ModelConfiguredPermissions(LDPBasePermission):
 
 class LDPObjectLevelPermissions(LDPBasePermission):
     def get_all_user_object_permissions(self, user, obj):
-        return _user_get_all_permissions(user, obj)
+        return user.get_all_permissions(obj)
 
     def get_object_permissions(self, request, view, obj):
         '''overridden to append permissions from all backends given to the user (e.g. Groups and object-level perms)'''

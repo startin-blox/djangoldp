@@ -1,8 +1,7 @@
 from importlib import import_module
 
 from django.conf import settings
-from django.conf.urls import re_path, include
-from django.urls import path
+from django.urls import path, re_path, include
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import LDPPermissions

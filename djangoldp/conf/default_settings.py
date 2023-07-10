@@ -109,7 +109,6 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # middleware will be applied in the order given, and in the response
 # phase the middleware will be applied in reverse order.
 MIDDLEWARE = [
-    'django_cookies_samesite.middleware.CookiesSameSite',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -162,3 +161,5 @@ OIDC_ACCESS_CONTROL_ALLOW_HEADERS = 'Content-Type, if-match, accept, authorizati
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3
 
 DISABLE_LOCAL_OBJECT_FILTER = False
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
