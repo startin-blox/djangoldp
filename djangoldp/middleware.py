@@ -28,7 +28,7 @@ class AllowRequestedCORSMiddleware:
         response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"
         response["Access-Control-Allow-Headers"] = \
             getattr(settings, 'OIDC_ACCESS_CONTROL_ALLOW_HEADERS',
-                    "authorization, Content-Type, if-match, accept, DPoP")
+                    "authorization, Content-Type, if-match, accept, DPoP, cache-control, prefer")
         response["Access-Control-Expose-Headers"] = "Location, User"
         response["Access-Control-Allow-Credentials"] = 'true'
 
