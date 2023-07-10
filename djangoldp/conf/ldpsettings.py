@@ -7,12 +7,8 @@ from django.conf import settings as django_settings
 from pathlib import Path
 from collections import OrderedDict
 from typing import Iterable
+from importlib import import_module
 from . import default_settings
-
-try:
-    from importlib import import_module
-except ImportError:
-    from django.utils.importlib import import_module
 
 
 logger = logging.getLogger(__name__)
