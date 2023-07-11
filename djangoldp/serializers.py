@@ -403,6 +403,12 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
+    def __init__(self, *args, **kwargs):
+        # for performance reasons, we don't serialize permissions on a resource if we're in a larger container
+        self.in_container = kwargs.pop('in_container', False)
+        super().__init__(*args, **kwargs)
+
+
     @property
     def fields(self):
         """
@@ -457,8 +463,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             model_class = obj.get_model_class()
         else:
             model_class = type(obj)
-        data['permissions'] = _serialize_object_permissions(
-            Model.get_permissions(model_class, self.context['request'], self.context['view'], obj))
+        if not self.in_container:
+            data['permissions'] = _serialize_object_permissions(
+                Model.get_permissions(model_class, self.context['request'], self.context['view'], obj))
 
         return data
 
@@ -650,6 +657,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
     @classmethod
     def many_init(cls, *args, **kwargs):
         allow_empty = kwargs.pop('allow_empty', None)
+        # we pass in_container to tell the child that they're in a container
+        #  then in the child we optimize the permissions serialization based on this
+        kwargs['in_container'] = True
         child_serializer = cls(*args, **kwargs)
         list_kwargs = {
             'child': child_serializer,
