@@ -59,10 +59,6 @@ class LocalObjectFilterBackend(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         domain = urlparse(settings.SITE_URL).netloc
         return queryset.filter(urlid__contains=domain)
-        from djangoldp.models import Model
-
-        internal_ids = [x.pk for x in queryset if not Model.is_external(x)]
-        return queryset.filter(pk__in=internal_ids)
 
 
 class LocalObjectOnContainerPathBackend(LocalObjectFilterBackend):
