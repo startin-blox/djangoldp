@@ -625,7 +625,7 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.prefetch_fields is None:
             depth = getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0))
             self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
-        # queryset = queryset.prefetch_related(*self.prefetch_fields)
+        queryset = queryset.prefetch_related(*self.prefetch_fields)
 
         # Caches a permission checker with a prefetched queryset on the current user
         self.request.user._permission_checker = ObjectPermissionChecker(self.request.user)
