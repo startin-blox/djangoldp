@@ -72,10 +72,10 @@ model_classes = get_all_non_abstract_subclasses_dict(Model)
 for class_name in model_classes:
     model_class = model_classes[class_name]
     # the path is the url for this model
-    path = __clean_path(model_class.get_container_path())
+    model_path = __clean_path(model_class.get_container_path())
     # urls_fct will be a method which generates urls for a ViewSet (defined in LDPViewSetGenerator)
     urls_fct = model_class.get_view_set().urls
-    urlpatterns.append(re_path(r'^' + path,
+    urlpatterns.append(re_path(r'^' + model_path,
         urls_fct(model=model_class,
                  lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
                  permission_classes=Model.get_meta(model_class, 'permission_classes', [LDPPermissions]),
