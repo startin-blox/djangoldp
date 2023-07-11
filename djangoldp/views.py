@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.utils import model_meta
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
+from guardian.core import ObjectPermissionChecker
 
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
 from djangoldp.models import LDPSource, Model, Follower
@@ -624,7 +625,18 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.prefetch_fields is None:
             depth = getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0))
             self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
-        return queryset.prefetch_related(*self.prefetch_fields)
+        # queryset = queryset.prefetch_related(*self.prefetch_fields)
+
+        # Caches a permission checker with a prefetched queryset on the current user
+        self.request.user._permission_checker = ObjectPermissionChecker(self.request.user)
+        self.request.user._permission_checker.prefetch_perms(queryset)
+        # Also prefetch related fields
+        for related in self.prefetch_fields:
+            if model_meta.get_field_info(self.model).relations.get(related):
+                related_queryset = queryset.values(related)
+                related_queryset.model = model_meta.get_field_info(self.model).relations.get(related).related_model
+                self.request.user._permission_checker.prefetch_perms(related_queryset)
+        return queryset
 
     def dispatch(self, request, *args, **kwargs):
         '''overriden dispatch method to append some custom headers'''

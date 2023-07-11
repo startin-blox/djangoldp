@@ -135,7 +135,12 @@ class ModelConfiguredPermissions(LDPBasePermission):
 
 class LDPObjectLevelPermissions(LDPBasePermission):
     def get_all_user_object_permissions(self, user, obj):
-        return user.get_all_permissions(obj)
+        # use the cached permission checker on the user if it is present
+        if hasattr(user, "_permission_checker"):
+            return user._permission_checker.get_perms(obj)
+        else:
+            return user.get_all_permissions(obj)
+
 
     def get_object_permissions(self, request, view, obj):
         '''overridden to append permissions from all backends given to the user (e.g. Groups and object-level perms)'''
