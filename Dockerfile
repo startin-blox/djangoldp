@@ -1,5 +1,5 @@
 # use with your own settings.yml
-FROM python:3.6
+FROM python:3.11
 LABEL maintainer="Plup <plup@plup.io>"
 
 # get server
