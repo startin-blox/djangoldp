@@ -57,8 +57,7 @@ class LocalObjectFilterBackend(BaseFilterBackend):
     For querysets which should only include local objects
     """
     def filter_queryset(self, request, queryset, view):
-        domain = urlparse(settings.SITE_URL).netloc
-        return queryset.filter(urlid__contains=domain)
+        return queryset.filter(urlid__startswith=settings.SITE_URL)
 
 
 class LocalObjectOnContainerPathBackend(LocalObjectFilterBackend):
