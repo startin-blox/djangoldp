@@ -8,7 +8,7 @@ from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
-from django.urls import include, re_path
+from django.urls import include, re_path, path
 from django.urls.resolvers import get_resolver
 from django.utils.decorators import classonlymethod
 from django.views import View
@@ -397,7 +397,7 @@ class LDPViewSetGenerator(ModelViewSet):
         detail_expr = cls.get_detail_expr(**kwargs)
 
         urls = [
-            re_path('^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
+            path('', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
             re_path('^' + detail_expr + '$', cls.as_view(cls.detail_actions, **kwargs),
                     name='{}-detail'.format(model_name)),
         ]

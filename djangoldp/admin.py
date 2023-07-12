@@ -38,14 +38,14 @@ class DjangoLDPUserAdmin(UserAdmin, GuardedModelAdmin):
         return fieldsets
 
 
-# NOTE: when upgrading to django >= 3.2
-# @admin.action(description='Resend activity')
+@admin.action(description='Resend activity')
 def resend_activity(modeladmin, request, queryset):
     for a in queryset:
         ActivityQueueService.send_activity(a.external_id, a.to_activitystream())
 resend_activity.short_description = 'Resend activity'
 
 
+@admin.register(Activity, ScheduledActivity)
 class ActivityAdmin(DjangoLDPAdmin):
     fields = ['urlid', 'type', 'local_id', 'external_id', 'created_at', 'success', 'payload_view', 'response_code',
               'response_location', 'response_body_view']
@@ -61,12 +61,10 @@ class ActivityAdmin(DjangoLDPAdmin):
         return str(obj.response_to_json())
 
 
+@admin.register(Follower)
 class FollowerAdmin(DjangoLDPAdmin):
     fields = ['urlid', 'object', 'inbox', 'follower']
     list_display = ['urlid', 'object', 'inbox', 'follower']
     search_fields = ['object', 'inbox', 'follower']
 
 
-admin.site.register(Activity, ActivityAdmin)
-admin.site.register(ScheduledActivity, ActivityAdmin)
-admin.site.register(Follower, FollowerAdmin)
