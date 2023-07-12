@@ -17,12 +17,12 @@ class TestPagination(APITestCase):
     def test_next(self):
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('link', response._headers)
-        self.assertEquals(response._headers['link'][1], '<http://testserver/posts/?p=2>; rel="next"')
+        self.assertIn('link', response.headers)
+        self.assertEquals(response.headers['link'], '<http://testserver/posts/?p=2>; rel="next"')
 
     def test_previous(self):
         response = self.client.get('/posts/?p=2', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('link', response._headers)
-        self.assertEquals(response._headers['link'][1],
+        self.assertIn('link', response.headers)
+        self.assertEquals(response.headers['link'],
                           '<http://testserver/posts/>; rel="prev", <http://testserver/posts/?p=3>; rel="next"')
