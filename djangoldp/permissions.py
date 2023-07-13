@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import _get_backends
 from rest_framework.permissions import DjangoObjectPermissions
+from guardian.core import ObjectPermissionChecker
 from djangoldp.utils import is_anonymous_user
 from djangoldp.filters import LDPPermissionsFilterBackend
 
@@ -135,11 +136,13 @@ class ModelConfiguredPermissions(LDPBasePermission):
 
 class LDPObjectLevelPermissions(LDPBasePermission):
     def get_all_user_object_permissions(self, user, obj):
-        # use the cached permission checker on the user if it is present
-        if hasattr(user, "_permission_checker"):
-            return user._permission_checker.get_perms(obj)
-        else:
-            return user.get_all_permissions(obj)
+        checker = ObjectPermissionChecker(self.request.user)
+        # check if the user has a queryset to prefetch
+        if getattr(user, "_prefetch", None):
+            for queryset in user._prefetch:
+                checker.prefetch_perms(queryset)
+            user._prefetch = None
+        return checker.get_perms(obj)
 
 
     def get_object_permissions(self, request, view, obj):
