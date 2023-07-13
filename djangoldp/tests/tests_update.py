@@ -59,7 +59,7 @@ class Update(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['title'], "new")
         self.assertEquals(response.data['obligatoire'], "new")
-        self.assertIn('location', response._headers)
+        self.assertIn('location', response.headers)
 
     def test_patch_resource(self):
         skill = Skill.objects.create(title='original', obligatoire='original', slug='skill1')

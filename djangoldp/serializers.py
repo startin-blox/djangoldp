@@ -1,6 +1,7 @@
 import uuid
 import json
-from collections import OrderedDict, Mapping, Iterable
+from collections import OrderedDict
+from collections.abc import Mapping, Iterable
 from typing import Any
 from urllib import parse
 

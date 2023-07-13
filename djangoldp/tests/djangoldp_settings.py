@@ -18,3 +18,5 @@ MIDDLEWARE = [
 INSTALLED_APPS = [
     'djangoldp.tests.dummy.apps.DummyConfig'
 ]
+
+SECRET_KEY = "$r&)p-4k@h5b!1yrft6&q%j)_p$lxqh6#)jeeu0z1iag&y&wdu"

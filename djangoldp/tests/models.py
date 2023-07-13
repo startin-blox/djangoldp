@@ -10,6 +10,7 @@ from djangoldp.permissions import LDPPermissions, SuperUserPermission
 class User(AbstractUser, Model):
 
     class Meta(AbstractUser.Meta, Model.Meta):
+        ordering = ['pk']
         serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
                              'conversation_set', 'circle_set', 'projects']
         anonymous_perms = ['view', 'add']
@@ -28,6 +29,7 @@ class Skill(Model):
         return self.joboffer_set.filter(date__gte=date.today())
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add', 'change']
         owner_perms = ['inherit', 'delete', 'control']
@@ -49,6 +51,7 @@ class JobOffer(Model):
         return self.skills.all().first()
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'change', 'add']
         owner_perms = ['inherit', 'delete', 'control']
@@ -66,6 +69,7 @@ class Conversation(models.Model):
     observers = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='observed_conversations')
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -77,6 +81,7 @@ class Resource(Model):
     description = models.CharField(max_length=255)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view', 'add', 'delete', 'change', 'control']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit']
@@ -92,6 +97,7 @@ class OwnedResource(Model):
                              on_delete=models.CASCADE)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = []
         authenticated_perms = []
         owner_perms = ['view', 'delete', 'add', 'change', 'control']
@@ -106,6 +112,7 @@ class OwnedResourceVariant(Model):
                              on_delete=models.CASCADE)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = []
         authenticated_perms = ['view', 'change']
         owner_perms = ['view', 'delete', 'add', 'change', 'control']
@@ -120,6 +127,7 @@ class OwnedResourceNestedOwnership(Model):
                                on_delete=models.CASCADE)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = []
         authenticated_perms = []
         owner_perms = ['view', 'delete', 'add', 'change', 'control']
@@ -134,6 +142,7 @@ class OwnedResourceTwiceNestedOwnership(Model):
                                on_delete=models.CASCADE)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = []
         authenticated_perms = []
         owner_perms = ['view', 'delete', 'add', 'change', 'control']
@@ -148,6 +157,7 @@ class UserProfile(Model):
     slug = models.SlugField(blank=True, null=True, unique=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit', 'change', 'control']
@@ -162,6 +172,7 @@ class NotificationSetting(Model):
     receiveMail = models.BooleanField(default=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view', 'change']
         authenticated_perms = ['inherit']
         owner_perms = ['inherit', 'change', 'control']
@@ -173,6 +184,7 @@ class Message(models.Model):
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -183,6 +195,7 @@ class Dummy(models.Model):
     slug = models.SlugField(blank=True, null=True, unique=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -192,6 +205,7 @@ class LDPDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
         owner_perms = ['inherit', 'change', 'delete', 'control']
@@ -204,6 +218,7 @@ class PermissionlessDummy(Model):
     parent = models.ForeignKey(LDPDummy, on_delete=models.DO_NOTHING, related_name="anons", blank=True, null=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = []
         authenticated_perms = []
         owner_perms = []
@@ -219,6 +234,7 @@ class Post(Model):
                                   on_delete=models.SET_NULL)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         auto_author = 'author'
         auto_author_field = 'userprofile'
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
@@ -232,6 +248,7 @@ class Invoice(Model):
     date = models.DateField(blank=True, null=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         depth = 2
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add', 'change']
@@ -245,6 +262,7 @@ class Circle(Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING, null=True, blank=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         serializer_fields = ['@id', 'name', 'description', 'members', 'team', 'owner', 'space']
@@ -256,7 +274,7 @@ class Space(Model):
     circle = models.OneToOneField(to=Circle, null=True, blank=True, on_delete=models.CASCADE, related_name='space')
 
     class Meta(Model.Meta):
-        pass
+        ordering = ['pk']
 
 
 class Batch(Model):
@@ -264,6 +282,7 @@ class Batch(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         serializer_fields = ['@id', 'title', 'invoice', 'tasks']
         anonymous_perms = ['view', 'add']
         authenticated_perms = ['inherit', 'add']
@@ -278,6 +297,7 @@ class CircleMember(Model):
     is_admin = models.BooleanField(default=False)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         container_path = "circle-members/"
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ['inherit']
@@ -290,6 +310,7 @@ class Task(models.Model):
     title = models.CharField(max_length=255)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         serializer_fields = ['@id', 'title', 'batch']
         anonymous_perms = ['view']
         authenticated_perms = ['inherit', 'add']
@@ -298,7 +319,7 @@ class Task(models.Model):
 
 class ModelTask(Model, Task):
     class Meta(Model.Meta):
-        pass
+        ordering = ['pk']
 
 STATUS_CHOICES = [
     ('Public', 'Public'),
@@ -312,6 +333,7 @@ class Project(Model):
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='projects')
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
         authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'
@@ -322,6 +344,7 @@ class DateModel(Model):
     value = models.DateField()
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         rdf_type = "hd:date"
         serializer_fields_exclude = ['excluded']
 
@@ -330,6 +353,7 @@ class DateChild(Model):
     parent = models.ForeignKey(DateModel, on_delete=models.CASCADE, related_name='children')
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         rdf_type = 'hd:datechild'
 
 
@@ -337,6 +361,7 @@ class MyAbstractModel(Model):
     defaultsomething = models.CharField(max_length=255, blank=True)
 
     class Meta(Model.Meta):
+        ordering = ['pk']
         permission_classes = [LDPPermissions]
         abstract = True
         rdf_type = "wow:defaultrdftype"
@@ -344,6 +369,7 @@ class MyAbstractModel(Model):
 
 class NoSuperUsersAllowedModel(Model):
     class Meta(Model.Meta):
+        ordering = ['pk']
         anonymous_perms = []
         authenticated_perms = []
         owner_perms = []
@@ -353,5 +379,6 @@ class NoSuperUsersAllowedModel(Model):
 
 class ComplexPermissionClassesModel(Model):
     class Meta(Model.Meta):
+        ordering = ['pk']
         permission_classes = [LDPPermissions, SuperUserPermission]
         superuser_perms = []

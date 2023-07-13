@@ -448,6 +448,7 @@ class TestsInbox(APITestCase):
         self.assertNotEqual(backlink.pk, 100)
 
     def test_missing_not_null_field_activity(self):
+        # TODO: catch the warning
         # DateChild must not have a null reference to parent
         # and parent must not have a null field 'date', which here is missing
         obj = {
