@@ -624,17 +624,7 @@ class LDPViewSet(LDPViewSetGenerator):
         if self.prefetch_fields is None:
             depth = getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0))
             self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
-        queryset = queryset.prefetch_related(*self.prefetch_fields)
-
-        # sets the queryset on the user so that it's prefetched before the permissions are retrieved
-        self.request.user._prefetch = {queryset}
-        # Also prefetch related fields
-        for related in self.prefetch_fields:
-            if model_meta.get_field_info(self.model).relations.get(related):
-                related_queryset = queryset.values(related)
-                related_queryset.model = model_meta.get_field_info(self.model).relations.get(related).related_model
-                self.request.user._prefetch.add(related_queryset)
-        return queryset
+        return queryset.prefetch_related(*self.prefetch_fields)
 
     def dispatch(self, request, *args, **kwargs):
         '''overriden dispatch method to append some custom headers'''
