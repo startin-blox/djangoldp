@@ -136,16 +136,24 @@ class Model(models.Model):
     @classonlymethod
     def slug_field(cls, instance_or_model):
         if isinstance(instance_or_model, ModelBase):
-            object_name = instance_or_model.__name__.lower()
+            model = instance_or_model
         else:
-            object_name = instance_or_model._meta.object_name.lower()
+            model = type(instance_or_model)
+        
+        # Use cached value if present
+        if hasattr(model, "_slug_field"):
+            return model._slug_field
+        object_name = model.__name__.lower()
         view_name = '{}-detail'.format(object_name)
+
         try:
             slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         except MultiValueDictKeyError:
-            slug_field = Model.get_meta(instance_or_model, 'lookup_field', 'pk')
+            slug_field = Model.get_meta(model, 'lookup_field', 'pk')
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
+        
+        model._slug_field = slug_field
         return slug_field
 
     @classonlymethod
@@ -293,12 +301,15 @@ class Model(models.Model):
     @classonlymethod
     def get_container_permissions(cls, model_class, request, view, obj=None):
         '''outputs the permissions given by all permissions_classes on the model_class on the model-level'''
+        if hasattr(cls, "_cached_container_permissions"):
+            return cls._cached_container_permissions
         perms = set()
         view = copy.copy(view)
         view.model = model_class
         for permission_class in Model.get_permission_classes(model_class, [LDPPermissions]):
             if hasattr(permission_class, 'get_container_permissions'):
                 perms = perms.union(permission_class().get_container_permissions(request, view, obj))
+        cls._cached_container_permissions = perms
         return perms
 
     @classonlymethod
@@ -353,15 +364,12 @@ class Model(models.Model):
         :return: True if the urlid is external to the server, False otherwise
         '''
         try:
+            if not value:
+                return False
             if not isinstance(value, str):
                 value = value.urlid
 
-            if value is not None:
-                value_netloc = parse.urlparse(value).netloc
-
-                return value_netloc is not None and value_netloc != '' and\
-                       value_netloc != parse.urlparse(settings.SITE_URL).netloc
-            return False
+            return not value.startswith(settings.SITE_URL)
         except:
             return False
 
