@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import _get_backends
 from rest_framework.permissions import DjangoObjectPermissions
-from guardian.core import ObjectPermissionChecker
 from djangoldp.utils import is_anonymous_user
 from djangoldp.filters import LDPPermissionsFilterBackend
 
@@ -110,8 +109,7 @@ class ModelConfiguredPermissions(LDPBasePermission):
         '''analyses the Model's set anonymous, authenticated and owner_permissions and returns these'''
         from djangoldp.models import Model
 
-        model = view.model
-        anonymous_perms, authenticated_perms, owner_perms, superuser_perms = self.get_permission_settings(model)
+        anonymous_perms, authenticated_perms, owner_perms, superuser_perms = self.get_permission_settings(view.model)
 
         perms = super().get_container_permissions(request, view, obj)
         if is_anonymous_user(request.user):
@@ -136,13 +134,7 @@ class ModelConfiguredPermissions(LDPBasePermission):
 
 class LDPObjectLevelPermissions(LDPBasePermission):
     def get_all_user_object_permissions(self, user, obj):
-        checker = ObjectPermissionChecker(self.request.user)
-        # check if the user has a queryset to prefetch
-        if getattr(user, "_prefetch", None):
-            for queryset in user._prefetch:
-                checker.prefetch_perms(queryset)
-            user._prefetch = None
-        return checker.get_perms(obj)
+        return user.get_all_permissions(obj)
 
 
     def get_object_permissions(self, request, view, obj):
