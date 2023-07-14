@@ -7,6 +7,18 @@ class DjangoldpConfig(AppConfig):
     def ready(self):
         self.auto_register_model_admin()
         self.start_activity_queue()
+        
+        # Patch guardian core to avoid prefetching permissions several times
+        from guardian.core import ObjectPermissionChecker
+        ObjectPermissionChecker._prefetch_cache_orig = ObjectPermissionChecker._prefetch_cache
+
+        def _prefetch_cache(self):
+            if hasattr(self.user, "_guardian_perms_cache"):
+                self._obj_perms_cache = self.user._guardian_perms_cache
+                return
+            self._prefetch_cache_orig()
+
+        ObjectPermissionChecker._prefetch_cache = _prefetch_cache
 
     def start_activity_queue(self):
         from djangoldp.activities.services import ActivityQueueService
