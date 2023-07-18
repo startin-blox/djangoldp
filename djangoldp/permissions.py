@@ -99,7 +99,7 @@ class ModelConfiguredPermissions(LDPBasePermission):
 
     def get_container_permissions(self, request, view, obj=None):
         '''analyses the Model's set anonymous, authenticated and owner_permissions and returns these'''
-        perms = super().get_container_permissions(request, obj=obj)
+        perms = super().get_container_permissions(request, view, obj=obj)
         from djangoldp.models import Model
         if isinstance(view.model, Model):
             anonymous_perms, authenticated_perms, owner_perms, superuser_perms = view.model.get_permission_settings()
