@@ -22,7 +22,7 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
         from djangoldp.permissions import LDPPermissions, ModelConfiguredPermissions
 
         # compares the requirement for GET, with what the user has on the container
-        configured_permission_classes = Model.get_permission_classes(view.model, [LDPPermissions])
+        configured_permission_classes = getattr(view.model._meta, 'permission_classes', [LDPPermissions])
         for permission_class in [p() for p in configured_permission_classes]:
             # inherits from LDPBasePermissions
             if hasattr(permission_class, 'has_container_permission') and \
@@ -34,8 +34,7 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
         if not is_anonymous_user(request.user):
             # those objects I have by grace of group or object
             # first figure out if the superuser has special permissions (important to the implementation in superclass)
-            perms_class = ModelConfiguredPermissions()
-            anon_perms, auth_perms, owner_perms, superuser_perms = perms_class.get_permission_settings(view.model)
+            anon_perms, auth_perms, owner_perms, superuser_perms = view.model.get_permission_settings()
             self.shortcut_kwargs['with_superuser'] = 'view' in superuser_perms
 
             object_perms = super().filter_queryset(request, queryset, view)
@@ -43,6 +42,7 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
             # those objects I have by grace of being owner
             if Model.get_meta(view.model, 'owner_field', None) is not None:
                 if 'view' in owner_perms:
+                    #TODO do not iterate queryset in the filter!!
                     owned_objects = [q.pk for q in queryset if Model.is_owner(view.model, request.user, q)]
                     return object_perms | queryset.filter(pk__in=owned_objects)
             return object_perms

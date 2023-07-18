@@ -18,7 +18,7 @@ from django.utils.decorators import classonlymethod
 from rest_framework.utils import model_meta
 
 from djangoldp.fields import LDPUrlField
-from djangoldp.permissions import LDPPermissions, DEFAULT_DJANGOLDP_PERMISSIONS
+from djangoldp.permissions import LDPPermissions, select_container_permissions, DEFAULT_DJANGOLDP_PERMISSIONS
 
 logger = logging.getLogger('djangoldp')
 
@@ -39,9 +39,9 @@ class LDPModelManager(models.Manager):
                 if field_name is not None:
                     nested_fields.add(field_name)
         # include all nested fields explicitly included on the model
-        nested_fields.update(set(Model.get_meta(self.model, 'nested_fields', set())))
+        nested_fields.update(set(getattr(self.model._meta, 'nested_fields', set())))
         # exclude anything marked explicitly to be excluded
-        nested_fields = nested_fields.difference(set(Model.get_meta(self.model, 'nested_fields_exclude', set())))
+        nested_fields = nested_fields.difference(set(getattr(self.model._meta, 'nested_fields_exclude', set())))
         return list(nested_fields)
 
     def fields(self):
@@ -62,7 +62,7 @@ class Model(models.Model):
     @classmethod
     def filter_backends(cls):
         '''constructs a list of filter_backends configured on the permissions classes applied to this model'''
-        filtered_classes = [p for p in cls.get_permission_classes(cls, [LDPPermissions]) if
+        filtered_classes = [p for p in getattr(cls._meta, 'permission_classes', [LDPPermissions]) if
                             hasattr(p, 'filter_backends') and p.filter_backends is not None]
         filter_backends = list()
         for p in filtered_classes:
@@ -149,7 +149,7 @@ class Model(models.Model):
         try:
             slug_field = '/{}'.format(get_resolver().reverse_dict[view_name][0][0][1][0])
         except MultiValueDictKeyError:
-            slug_field = Model.get_meta(model, 'lookup_field', 'pk')
+            slug_field = getattr(model._meta, 'lookup_field', 'pk')
         if slug_field.startswith('/'):
             slug_field = slug_field[1:]
         
@@ -264,7 +264,7 @@ class Model(models.Model):
         if model is get_user_model():
             return "foaf:user"
         else:
-            return Model.get_meta(model, "rdf_type")
+            return getattr(model._meta, "rdf_type", None)
 
     @classonlymethod
     def get_subclass_with_rdf_type(cls, type):
@@ -273,17 +273,13 @@ class Model(models.Model):
             return get_user_model()
 
         for subcls in Model.__subclasses__():
-            if Model.get_meta(subcls, 'rdf_type') == type:
+            if subcls._meta.rdf_type == type:
                 return subcls
 
         return None
 
     @classonlymethod
-    def get_permission_classes(cls, related_model, default_permissions_classes):
-        '''returns the permission_classes set in the models Meta class'''
-        return cls.get_meta(related_model, 'permission_classes', default_permissions_classes)
-
-    @classonlymethod
+    #TODO: deprecate
     def get_meta(cls, model_class, meta_name, default=None):
         '''returns the models Meta class'''
         if hasattr(model_class, 'Meta'):
@@ -297,42 +293,66 @@ class Model(models.Model):
     @classmethod
     def get_model_class(cls):
         return cls
-
+    
     @classonlymethod
-    def get_container_permissions(cls, model_class, request, view, obj=None):
-        '''outputs the permissions given by all permissions_classes on the model_class on the model-level'''
-        if hasattr(cls, "_cached_container_permissions"):
-            return cls._cached_container_permissions
-        perms = set()
-        view = copy.copy(view)
-        view.model = model_class
-        for permission_class in Model.get_permission_classes(model_class, [LDPPermissions]):
-            if hasattr(permission_class, 'get_container_permissions'):
-                perms = perms.union(permission_class().get_container_permissions(request, view, obj))
-        cls._cached_container_permissions = perms
+    def _get_permissions_setting(cls, model, perm_name, inherit_perms=None):
+        '''Auxiliary function returns the configured permissions given to parameterised setting, or default'''
+        # gets the model-configured setting or default if it exists
+        if not model:
+            model = cls
+        perms = getattr(model._meta, perm_name, [])
+        if not perms:
+            # If no specific permission is set on the Model, take the ones on all Permission classes
+            #TODO: there should be a default meta param, instead of passing the default here?
+            for permission_class in getattr(model._meta, 'permission_classes', [LDPPermissions]):
+                perms = perms + getattr(permission_class, perm_name, [])
+
+        if inherit_perms is not None and 'inherit' in perms:
+            perms += set(inherit_perms) - set(perms)
+        
         return perms
+    
+    @classonlymethod
+    def get_permission_settings(cls, model=None):
+        '''returns a tuple of (Auth, Anon, Owner) settings for a given model'''
+        # takes a model so that it can be called on Django native models
+        if not model:
+            model = cls
+        anonymous_perms = cls._get_permissions_setting(model, 'anonymous_perms')
+        authenticated_perms = cls._get_permissions_setting(model, 'authenticated_perms', anonymous_perms)
+        owner_perms = cls._get_permissions_setting(model, 'owner_perms', authenticated_perms)
+        superuser_perms = cls._get_permissions_setting(model, 'superuser_perms', owner_perms)
+
+        return anonymous_perms, authenticated_perms, owner_perms, superuser_perms
+    
+    #TODO review architecture of permissions
+    @classonlymethod
+    def get_container_permissions(cls, model, request, view, obj=None):
+        '''outputs the permissions given by all permissions_classes on the model on the model-level'''
+        anonymous_perms, authenticated_perms, owner_perms, superuser_perms = cls.get_permission_settings(model)
+        return select_container_permissions(request, obj, model, anonymous_perms, authenticated_perms, owner_perms, superuser_perms)
 
     @classonlymethod
-    def get_object_permissions(cls, model_class, request, view, obj):
-        '''outputs the permissions given by all permissions_classes on the model_class on the object-level'''
+    def get_object_permissions(cls, model, request, view, obj):
+        '''outputs the permissions given by all permissions_classes on the model on the object-level'''
         perms = set()
-        for permission_class in Model.get_permission_classes(model_class, [LDPPermissions]):
+        for permission_class in getattr(model._meta, 'permission_classes', [LDPPermissions]):
             if hasattr(permission_class, 'get_object_permissions'):
                 perms = perms.union(permission_class().get_object_permissions(request, view, obj))
         return perms
 
     @classonlymethod
-    def get_permissions(cls, model_class, request, view, obj=None):
-        '''outputs the permissions given by all permissions_classes on the model_class on both the model and the object level'''
-        perms = Model.get_container_permissions(model_class, request, view, obj)
+    def get_permissions(cls, model, request, view, obj=None):
+        '''outputs the permissions given by all permissions_classes on the model on both the model and the object level'''
+        perms = Model.get_container_permissions(model, request, view, obj)
         if obj is not None:
-            perms = perms.union(Model.get_object_permissions(model_class, request, view, obj))
+            perms = perms.union(Model.get_object_permissions(model, request, view, obj))
         return perms
 
     @classmethod
-    def is_owner(cls, model_class, user, obj):
+    def is_owner(cls, model, user, obj):
         '''returns True if I given user is the owner of given object instance, otherwise False'''
-        owner_field = Model.get_meta(model_class, 'owner_field')
+        owner_field = getattr(model._meta, 'owner_field', None)
 
         if owner_field is None:
             return False
@@ -351,7 +371,7 @@ class Model(models.Model):
             else:
                 owner_value = getattr(obj, owner_field)
         except AttributeError:
-            raise FieldDoesNotExist(f"the owner_field setting {owner_field} contains field(s) which do not exist on model {model_class.__name__}")
+            raise FieldDoesNotExist(f"the owner_field setting {owner_field} contains field(s) which do not exist on model {model.__name__}")
         
         return (owner_value == user
                 or (hasattr(user, 'urlid') and owner_value == user.urlid)
@@ -476,7 +496,7 @@ def invalidate_cache_if_has_entry(entry):
 
 
 def invalidate_model_cache_if_has_entry(model):
-    entry = Model.get_meta(model, 'label')
+    entry = getattr(model._meta, 'label', None)
     invalidate_cache_if_has_entry(entry)
 
 
