@@ -268,12 +268,13 @@ class Model(models.Model):
 
     @classonlymethod
     def get_subclass_with_rdf_type(cls, type):
+        #TODO: deprecate
         '''returns Model subclass with Meta.rdf_type matching parameterised type, or None'''
         if type == 'foaf:user':
             return get_user_model()
 
         for subcls in Model.__subclasses__():
-            if subcls._meta.rdf_type == type:
+            if getattr(subcls._meta, "rdf_type", None) == type:
                 return subcls
 
         return None
@@ -300,9 +301,10 @@ class Model(models.Model):
         # gets the model-configured setting or default if it exists
         if not model:
             model = cls
-        perms = getattr(model._meta, perm_name, [])
-        if not perms:
+        perms = getattr(model._meta, perm_name, None)
+        if perms is None:
             # If no specific permission is set on the Model, take the ones on all Permission classes
+            perms = []
             #TODO: there should be a default meta param, instead of passing the default here?
             for permission_class in getattr(model._meta, 'permission_classes', [LDPPermissions]):
                 perms = perms + getattr(permission_class, perm_name, [])

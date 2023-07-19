@@ -34,8 +34,9 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
         if not is_anonymous_user(request.user):
             # those objects I have by grace of group or object
             # first figure out if the superuser has special permissions (important to the implementation in superclass)
-            anon_perms, auth_perms, owner_perms, superuser_perms = view.model.get_permission_settings()
-            self.shortcut_kwargs['with_superuser'] = 'view' in superuser_perms
+            from djangoldp.models import Model
+            anon_perms, auth_perms, owner_perms, superuser_perms = Model.get_permission_settings(view.model)
+            self.shortcut_kwargs['with_superuser'] = ('view' in superuser_perms)
 
             object_perms = super().filter_queryset(request, queryset, view)
 
