@@ -45,7 +45,7 @@ class PostTestCase(TestCase):
                 {
                     'http://happy-dev.fr/owl/#title': "title",
                     'http://happy-dev.fr/owl/#invoice': {
-                        '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)
+                        '@id': "http://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)
                     }
                 }
             ]
@@ -90,7 +90,7 @@ class PostTestCase(TestCase):
                 '@id': "_:b216",
                 'http://happy-dev.fr/owl/#description': "user update",
                 'http://happy-dev.fr/owl/#ddummy': {
-                    "@id": "https://happy-dev.fr{}{}/".format(Model.container_id(dummy), dummy.id)
+                    "@id": "http://happy-dev.fr{}{}/".format(Model.container_id(dummy), dummy.id)
                 }
             },
             {
@@ -262,7 +262,7 @@ class PostTestCase(TestCase):
         post = {
             'http://happy-dev.fr/owl/#invoice': {
                 '@value': {'title': 'title',
-                           '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)}
+                           '@id': "http://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)}
             }
         }
         response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')

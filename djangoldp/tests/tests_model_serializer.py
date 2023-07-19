@@ -711,7 +711,7 @@ class LDPModelSerializerTestCase(TestCase):
         self.assertEquals(result.skills.all()[2].title, "skill3")  # creation on the fly
 
     # variation switching the http prefix of the BASE_URL in the request
-    @override_settings(BASE_URL='http://happy-dev.fr/')
+    @override_settings(BASE_URL='https://happy-dev.fr/')
     def test_save_m2m_switch_base_url_prefix(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
 
