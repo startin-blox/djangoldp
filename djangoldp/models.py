@@ -391,7 +391,7 @@ class Model(models.Model):
             if not isinstance(value, str):
                 value = value.urlid
 
-            return not value.startswith(settings.SITE_URL)
+            return value.startswith('http') and not value.startswith(settings.SITE_URL)
         except:
             return False
 
