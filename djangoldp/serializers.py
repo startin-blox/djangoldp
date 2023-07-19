@@ -687,8 +687,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return serializer
 
     def to_internal_value(self, data):
-        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(
-            settings.BASE_URL)
+        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and Model.is_external(data['@id'])
         if is_user_and_external:
             data['username'] = 'external'
         ret = super().to_internal_value(data)
@@ -790,7 +789,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def update(self, instance, validated_data):
         model = self.Meta.model
-
         nested_fields = []
         nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_fields_name:
