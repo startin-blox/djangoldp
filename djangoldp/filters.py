@@ -1,4 +1,3 @@
-from urllib.parse import urlparse
 from django.conf import settings
 from django.db.models import Q
 from rest_framework.filters import BaseFilterBackend
