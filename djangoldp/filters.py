@@ -11,11 +11,6 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
     Django-Guardian's get_objects_for_user
     """
 
-    shortcut_kwargs = {
-        'accept_global_perms': False,
-        'with_superuser': True
-    }
-
     def filter_queryset(self, request, queryset, view):
         from djangoldp.models import Model
         from djangoldp.permissions import LDPPermissions, ModelConfiguredPermissions
@@ -35,6 +30,7 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
             # first figure out if the superuser has special permissions (important to the implementation in superclass)
             from djangoldp.models import Model
             anon_perms, auth_perms, owner_perms, superuser_perms = Model.get_permission_settings(view.model)
+            #if no view permission for superuser, set the shortcut to False
             self.shortcut_kwargs['with_superuser'] = ('view' in superuser_perms)
 
             object_perms = super().filter_queryset(request, queryset, view)
