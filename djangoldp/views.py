@@ -90,6 +90,7 @@ class JSONLDRenderer(JSONRenderer):
 
 # https://github.com/digitalbazaar/pyld
 class JSONLDParser(JSONParser):
+    #TODO: It current only works with pyld 1.0. We need to check our support of JSON-LD
     media_type = 'application/ld+json'
 
     def parse(self, stream, media_type=None, parser_context=None):
