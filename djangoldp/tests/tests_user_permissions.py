@@ -446,4 +446,4 @@ class TestOwnerFieldUserPermissions(UserPermissionsTestCase):
         my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
         their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
 
-        self.assertRaises(FieldDoesNotExist, self.client.get, '/ownedresourcenestedownerships/')
+        self.assertRaises(ValueError, self.client.get, '/ownedresourcenestedownerships/')
