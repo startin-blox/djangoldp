@@ -408,11 +408,14 @@ class TestOwnerFieldUserPermissions(UserPermissionsTestCase):
         self.assertNotIn(their_nested.urlid, ids)
     
     def test_list_owned_resources_nested_variation_urlid(self):
-        self.setUpTempOwnerFieldForModel(
-            OwnedResourceNestedOwnership,
-            OwnedResourceNestedOwnership._meta.owner_field + "__urlid"
-        )
+        owner_field = OwnedResourceNestedOwnership._meta.owner_field
+        OwnedResourceNestedOwnership._meta.owner_field = None
+        OwnedResourceNestedOwnership._meta.owner_urlid_field = owner_field + "__urlid"
+
         self.test_list_owned_resources_nested()
+        OwnedResourceNestedOwnership._meta.owner_urlid_field = None
+        OwnedResourceNestedOwnership._meta.owner_field = owner_field
+
     
     def test_list_owned_resources_nested_variation_twice_nested(self):
         my_resource = OwnedResource.objects.create(description='test', user=self.user)

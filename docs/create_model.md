@@ -339,7 +339,7 @@ With inherit, Users can herit from Anons. Also Owners can herit from Users.
 
 Eg. with this model Anons can view, Auths can add & Owners can edit & delete.
 
-Note that `owner_perms` need a `owner_field` meta that point the field with owner user.
+Note that `owner_perms` need a `owner_field` or a `owner_urlid_field` meta that point the field with owner user.
 
 ```python
 from djangoldp.models import Model
@@ -357,6 +357,7 @@ class Todo(Model):
         owner_field = 'user' # can be nested, e.g. user__parent
 ```
 
+You can also use owner_urlid_field to point to a field that holds the urlid of the owner instead of a foreignkey to a User object.
 
 Important note:
 If you need to give permissions to owner's object, don't forget to add auto_author in model's meta

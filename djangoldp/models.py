@@ -355,9 +355,16 @@ class Model(models.Model):
     def is_owner(cls, model, user, obj):
         '''returns True if I given user is the owner of given object instance, otherwise False'''
         owner_field = getattr(model._meta, 'owner_field', None)
+        owner_urlid_field = getattr(model._meta, 'owner_urlid_field', None)
 
+        if owner_field is not None and owner_urlid_field is not None:
+            raise AttributeError("you can not set both owner_field and owner_urlid_field")
         if owner_field is None:
-            return False
+            if owner_urlid_field is None:
+                return False
+            else:
+                # use the one that is set, the check with urlid is done at the end
+                owner_field = owner_urlid_field
 
         try:
             # owner fields might be nested (e.g. "collection__author")

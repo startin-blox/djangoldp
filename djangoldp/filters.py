@@ -34,9 +34,11 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
             filtered_queryset = super().filter_queryset(request, queryset, view)
 
             # those objects I have by grace of being owner
-            if Model.get_meta(view.model, 'owner_field', None) is not None:
-                if 'view' in owner_perms:
+            if 'view' in owner_perms:
+                if getattr(view.model._meta, 'owner_field', None) is not None:
                     return (filtered_queryset | queryset.filter(**{view.model._meta.owner_field: request.user})).distinct()
+                if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
+                    return (filtered_queryset | queryset.filter(**{view.model._meta.owner_urlid_field: request.user.urlid})).distinct()
             return filtered_queryset
 
         # user is anonymous without anonymous permissions
