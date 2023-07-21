@@ -151,7 +151,7 @@ class TestUserPermissions(UserPermissionsTestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_put_request_for_authenticated_user(self):
-        body = {'https://happy-dev.fr/owl/#title':"job_updated"}
+        body = {'http://happy-dev.fr/owl/#title':"job_updated"}
         response = self.client.put('/job-offers/{}/'.format(self.job.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)

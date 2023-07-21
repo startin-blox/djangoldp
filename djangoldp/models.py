@@ -398,6 +398,7 @@ class Model(models.Model):
             if not isinstance(value, str):
                 value = value.urlid
 
+            # This expects all @ids to start with http which mlight not be universal. Maybe needs a fix.
             return value.startswith('http') and not value.startswith(settings.SITE_URL)
         except:
             return False

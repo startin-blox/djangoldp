@@ -275,7 +275,7 @@ class PostTestCase(TestCase):
         invoice = Invoice.objects.create(title="title 3")
         post = {
             'http://happy-dev.fr/owl/#invoice': {
-                '@value': {'title': 'title', '@id': "https://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)},
+                '@value': {'title': 'title', '@id': "http://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)},
                 '@type': '@json'
             }
         }
