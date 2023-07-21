@@ -24,6 +24,8 @@ class TestGET(APITestCase):
         self.assertEquals(response.data['content'], "content")
         self.assertIn('author', response.data)
         self.assertIn('@type', response.data)
+        self.assertIn('permissions', response.data)
+
 
         # test headers returned
         self.assertEqual(response['Content-Type'], 'application/ld+json') 
@@ -51,6 +53,7 @@ class TestGET(APITestCase):
         self.assertEquals(1, len(response.data['ldp:contains']))
         self.assertIn('@type', response.data)
         self.assertIn('@type', response.data['ldp:contains'][0])
+        self.assertNotIn('permissions', response.data['ldp:contains'][0])
         self.assertEquals(4, len(response.data['permissions'])) # configured anonymous permissions to give all
 
         Invoice.objects.create(title="content")
@@ -112,9 +115,12 @@ class TestGET(APITestCase):
         response = self.client.get('/invoices/{}/batches/'.format(invoice.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
+        self.assertIn('permissions', response.data)
         self.assertEquals(len(response.data['ldp:contains']), 2)
         self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertIn('@type', response.data['ldp:contains'][1])
+        self.assertNotIn('permissions', response.data['ldp:contains'][0])
+        self.assertNotIn('permissions', response.data['ldp:contains'][1])
         self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
         self.assertEqual(response.data['ldp:contains'][1]['@id'], distant_batch.urlid)
 

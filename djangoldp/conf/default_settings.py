@@ -126,7 +126,8 @@ MIDDLEWARE = [
 # REST FRAMEWORK #
 ##################
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'djangoldp.pagination.LDPOffsetPagination'
 }
 
 ###################
@@ -162,4 +163,5 @@ PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3
 
 DISABLE_LOCAL_OBJECT_FILTER = False
 
+GUARDIAN_AUTO_PREFETCH = True
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

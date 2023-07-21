@@ -15,6 +15,7 @@ from django.urls import resolve, Resolver404, get_script_prefix
 from django.urls.resolvers import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.encoding import uri_to_iri
+from django.utils.functional import cached_property
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
@@ -404,7 +405,13 @@ class LDPSerializer(HyperlinkedModelSerializer):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
-    @property
+    def __init__(self, *args, **kwargs):
+        # for performance reasons, we don't serialize permissions on a resource if we're in a larger container
+        self.in_container = kwargs.pop('in_container', False)
+        super().__init__(*args, **kwargs)
+
+
+    @cached_property
     def fields(self):
         """
         A dictionary of {field_name: field_instance}.
@@ -458,8 +465,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
             model_class = obj.get_model_class()
         else:
             model_class = type(obj)
-        data['permissions'] = _serialize_object_permissions(
-            Model.get_permissions(model_class, self.context['request'], self.context['view'], obj))
+        if not self.in_container:
+            data['permissions'] = _serialize_object_permissions(
+                Model.get_permissions(model_class, self.context['request'], self.context['view'], obj))
 
         return data
 
@@ -651,6 +659,9 @@ class LDPSerializer(HyperlinkedModelSerializer):
     @classmethod
     def many_init(cls, *args, **kwargs):
         allow_empty = kwargs.pop('allow_empty', None)
+        # we pass in_container to tell the child that they're in a container
+        #  then in the child we optimize the permissions serialization based on this
+        kwargs['in_container'] = True
         child_serializer = cls(*args, **kwargs)
         list_kwargs = {
             'child': child_serializer,
@@ -676,8 +687,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return serializer
 
     def to_internal_value(self, data):
-        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and not data['@id'].startswith(
-            settings.BASE_URL)
+        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and Model.is_external(data['@id'])
         if is_user_and_external:
             data['username'] = 'external'
         ret = super().to_internal_value(data)
@@ -779,7 +789,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
     def update(self, instance, validated_data):
         model = self.Meta.model
-
         nested_fields = []
         nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_fields_name:

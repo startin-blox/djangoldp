@@ -77,11 +77,10 @@ class LDPViewSet(APITestCase):
         response = self.client.get('/circles/', HTTP_ACCEPT_MODEL_FIELDS=fields_shape)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data_keys = response.data['ldp:contains'][0].keys()
-        self.assertEqual(len(response_data_keys), 4)
+        self.assertEqual(len(response_data_keys), 3)
         self.assertIn('@id', response_data_keys)
         self.assertIn('name', response_data_keys)
         self.assertIn('@type', response_data_keys)
-        self.assertIn('permissions', response_data_keys)
 
     def test_search_fields_basic(self):
         self.setUpLoggedInUser()

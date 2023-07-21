@@ -75,6 +75,19 @@ class LDPBasePermission(DjangoObjectPermissions):
                 return False
         return True
 
+def select_container_permissions(request, obj, model, anonymous_perms, authenticated_perms, owner_perms, superuser_perms):
+    from djangoldp.models import Model
+    
+    if is_anonymous_user(request.user):
+        return set(anonymous_perms)
+    else:
+        if obj is not None and Model.is_owner(model, request.user, obj):
+            perms = set(owner_perms)
+        else:
+            perms = set(authenticated_perms)
+        if request.user.is_superuser:
+            perms = perms.union(set(superuser_perms))
+    return perms
 
 class ModelConfiguredPermissions(LDPBasePermission):
     # *DEFAULT* model-level permissions for anon, auth and owner statuses
@@ -84,46 +97,15 @@ class ModelConfiguredPermissions(LDPBasePermission):
     # superuser has all permissions by default
     superuser_perms = getattr(settings, 'DEFAULT_SUPERUSER_PERMS', DEFAULT_DJANGOLDP_PERMISSIONS)
 
-    def _get_permissions_setting(self, model, setting, parent_perms=None):
-        '''Auxiliary function returns the configured permissions given to parameterised setting, or default'''
-        from djangoldp.models import Model
-
-        # gets the model-configured setting or default if it exists
-        return_perms = Model.get_meta(model, setting, getattr(self, setting))
-
-        if parent_perms is not None and 'inherit' in return_perms:
-            return_perms = return_perms + list(set(parent_perms) - set(return_perms))
-
-        return return_perms
-
-    def get_permission_settings(self, model):
-        '''returns a tuple of (Auth, Anon, Owner) settings for a given model'''
-        anonymous_perms = self._get_permissions_setting(model, 'anonymous_perms')
-        authenticated_perms = self._get_permissions_setting(model, 'authenticated_perms', anonymous_perms)
-        owner_perms = self._get_permissions_setting(model, 'owner_perms', authenticated_perms)
-        superuser_perms = self._get_permissions_setting(model, 'superuser_perms', owner_perms)
-
-        return anonymous_perms, authenticated_perms, owner_perms, superuser_perms
-
     def get_container_permissions(self, request, view, obj=None):
         '''analyses the Model's set anonymous, authenticated and owner_permissions and returns these'''
+        perms = super().get_container_permissions(request, view, obj=obj)
         from djangoldp.models import Model
-
-        model = view.model
-        anonymous_perms, authenticated_perms, owner_perms, superuser_perms = self.get_permission_settings(model)
-
-        perms = super().get_container_permissions(request, view, obj)
-        if is_anonymous_user(request.user):
-            perms = perms.union(set(anonymous_perms))
+        if isinstance(view.model, Model):
+            anonymous_perms, authenticated_perms, owner_perms, superuser_perms = view.model.get_permission_settings()
         else:
-            if obj is not None and Model.is_owner(view.model, request.user, obj):
-                perms = perms.union(set(owner_perms))
-            else:
-                perms = perms.union(set(authenticated_perms))
-
-            if request.user.is_superuser:
-                perms = perms.union(set(superuser_perms))
-        return perms
+            anonymous_perms, authenticated_perms, owner_perms, superuser_perms = Model.get_permission_settings(view.model)
+        return select_container_permissions(request, obj, view.model, anonymous_perms, authenticated_perms, owner_perms, superuser_perms)
 
     def has_permission(self, request, view):
         """concerned with the permissions to access the _view_"""
@@ -136,6 +118,7 @@ class ModelConfiguredPermissions(LDPBasePermission):
 class LDPObjectLevelPermissions(LDPBasePermission):
     def get_all_user_object_permissions(self, user, obj):
         return user.get_all_permissions(obj)
+
 
     def get_object_permissions(self, request, view, obj):
         '''overridden to append permissions from all backends given to the user (e.g. Groups and object-level perms)'''
