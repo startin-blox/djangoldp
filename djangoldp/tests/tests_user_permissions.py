@@ -151,7 +151,7 @@ class TestUserPermissions(UserPermissionsTestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_put_request_for_authenticated_user(self):
-        body = {'https://happy-dev.fr/owl/#title':"job_updated"}
+        body = {'http://happy-dev.fr/owl/#title':"job_updated"}
         response = self.client.put('/job-offers/{}/'.format(self.job.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
@@ -408,11 +408,14 @@ class TestOwnerFieldUserPermissions(UserPermissionsTestCase):
         self.assertNotIn(their_nested.urlid, ids)
     
     def test_list_owned_resources_nested_variation_urlid(self):
-        self.setUpTempOwnerFieldForModel(
-            OwnedResourceNestedOwnership,
-            OwnedResourceNestedOwnership._meta.owner_field + "__urlid"
-        )
+        owner_field = OwnedResourceNestedOwnership._meta.owner_field
+        OwnedResourceNestedOwnership._meta.owner_field = None
+        OwnedResourceNestedOwnership._meta.owner_urlid_field = owner_field + "__urlid"
+
         self.test_list_owned_resources_nested()
+        OwnedResourceNestedOwnership._meta.owner_urlid_field = None
+        OwnedResourceNestedOwnership._meta.owner_field = owner_field
+
     
     def test_list_owned_resources_nested_variation_twice_nested(self):
         my_resource = OwnedResource.objects.create(description='test', user=self.user)
@@ -446,4 +449,4 @@ class TestOwnerFieldUserPermissions(UserPermissionsTestCase):
         my_second_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=my_second_resource)
         their_nested = OwnedResourceNestedOwnership.objects.create(description="test", parent=their_resource)
 
-        self.assertRaises(FieldDoesNotExist, self.client.get, '/ownedresourcenestedownerships/')
+        self.assertRaises(ValueError, self.client.get, '/ownedresourcenestedownerships/')
