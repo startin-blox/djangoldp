@@ -19,12 +19,12 @@ Check the [official documentation](https://docs.startinblox.com/import_documenta
 ## Synopsis
 
 This module is an add-on for Django REST Framework that serves a django model respecting the Linked Data Platform convention.
+
 It aims at enabling people with little development skills to serve their own data, to be used with a LDP application.
 
 ## Check technical documentation
 
 * [Using DjangoLDP with your models](./docs/create_model.md)
-
 
 ## Contribute to DjangoLDP
 
