@@ -27,6 +27,7 @@ crypto-test:
     - test
 
 publish:
+  cache: []
   extends: .publish_pypi
 
 
