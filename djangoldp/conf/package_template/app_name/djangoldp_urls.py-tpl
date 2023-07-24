@@ -1,7 +1,7 @@
-from django.conf.urls import url
+from django.urls import path
 from .models import Dummy
 from .views import DummyViewset
 
 urlpatterns = [
-    url(r'^dummy/', DummyViewset.urls(model_prefix="dummy", model=Dummy))
+    path('dummy/', DummyViewset.urls(model_prefix="dummy", model=Dummy))
 ]

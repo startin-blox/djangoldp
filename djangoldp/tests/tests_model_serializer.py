@@ -719,7 +719,7 @@ class LDPModelSerializerTestCase(TestCase):
                "slug": "slug1",
                "skills": {
                    "ldp:contains": [
-                       {"@id": "https://happy-dev.fr/skills/{}/".format(skill1.slug)},
+                       {"@id": "http://happy-dev.fr/skills/{}/".format(skill1.slug)},
                    ]}
                }
 

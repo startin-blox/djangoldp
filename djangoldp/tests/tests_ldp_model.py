@@ -56,7 +56,7 @@ class LDPModelTest(TestCase):
         self.assertEqual(nested_fields, expected_nested_fields)
 
     def test_ldp_manager_nested_fields_exclude(self):
-        setattr(Circle.Meta, 'nested_fields_exclude', ['team'])
+        Circle._meta.nested_fields_exclude = ['team']
         nested_fields = Circle.objects.nested_fields()
         expected_nested_fields = ['members']
         self.assertEqual(nested_fields, expected_nested_fields)

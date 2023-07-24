@@ -3,12 +3,12 @@ import validators
 from collections import OrderedDict
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls import include, re_path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
+from django.urls import include, re_path, path
 from django.urls.resolvers import get_resolver
 from django.utils.decorators import classonlymethod
 from django.views import View
@@ -90,6 +90,7 @@ class JSONLDRenderer(JSONRenderer):
 
 # https://github.com/digitalbazaar/pyld
 class JSONLDParser(JSONParser):
+    #TODO: It current only works with pyld 1.0. We need to check our support of JSON-LD
     media_type = 'application/ld+json'
 
     def parse(self, stream, media_type=None, parser_context=None):
@@ -397,7 +398,7 @@ class LDPViewSetGenerator(ModelViewSet):
         detail_expr = cls.get_detail_expr(**kwargs)
 
         urls = [
-            re_path('^$', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
+            path('', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
             re_path('^' + detail_expr + '$', cls.as_view(cls.detail_actions, **kwargs),
                     name='{}-detail'.format(model_name)),
         ]

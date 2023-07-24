@@ -7,12 +7,8 @@ from django.conf import settings as django_settings
 from pathlib import Path
 from collections import OrderedDict
 from typing import Iterable
+from importlib import import_module
 from . import default_settings
-
-try:
-    from importlib import import_module
-except ImportError:
-    from django.utils.importlib import import_module
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +42,7 @@ class LDPSettings(object):
             raise ImproperlyConfigured('Settings have been configured already')
 
         self._config = config
+        self._explicit_settings = set(default_settings.__dict__.keys()) #default settings are explicit
         self._settings = self.build_settings()
 
     def build_settings(self, extend=['INSTALLED_APPS', 'MIDDLEWARE']):
@@ -62,13 +59,13 @@ class LDPSettings(object):
 
         # helper loop
         def update_with(config):
-            for k, v in config.items():
+            for setting, value in config.items():
+                self._explicit_settings.add(setting)
+                if setting in extend:
+                    settings[setting].extend(value)
 
-                if k in extend:
-                    settings[k].extend(v)
-
-                elif not k.startswith('_'):
-                    settings.update({k: v})
+                elif not setting.startswith('_'):
+                    settings.update({setting: value})
 
         # start from default core settings
         settings = default_settings.__dict__.copy()
@@ -151,3 +148,5 @@ class LDPSettings(object):
             # raise the django exception for inexistent parameter
             raise AttributeError(f'no "{param}" parameter found in settings')
 
+    def is_overridden(self, setting):
+        return setting in self._explicit_settings

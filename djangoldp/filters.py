@@ -11,40 +11,35 @@ class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
     Django-Guardian's get_objects_for_user
     """
 
-    shortcut_kwargs = {
-        'accept_global_perms': False,
-        'with_superuser': True
-    }
-
     def filter_queryset(self, request, queryset, view):
         from djangoldp.models import Model
         from djangoldp.permissions import LDPPermissions, ModelConfiguredPermissions
 
         # compares the requirement for GET, with what the user has on the container
-        configured_permission_classes = Model.get_permission_classes(view.model, [LDPPermissions])
+        configured_permission_classes = getattr(view.model._meta, 'permission_classes', [LDPPermissions])
         for permission_class in [p() for p in configured_permission_classes]:
             # inherits from LDPBasePermissions
             if hasattr(permission_class, 'has_container_permission') and \
                 permission_class.has_container_permission(request, view):
-
                 return queryset
 
         # the user did not have permission on the container, so now we filter the queryset for permissions on the object
         if not is_anonymous_user(request.user):
             # those objects I have by grace of group or object
             # first figure out if the superuser has special permissions (important to the implementation in superclass)
-            perms_class = ModelConfiguredPermissions()
-            anon_perms, auth_perms, owner_perms, superuser_perms = perms_class.get_permission_settings(view.model)
-            self.shortcut_kwargs['with_superuser'] = 'view' in superuser_perms
-
-            object_perms = super().filter_queryset(request, queryset, view)
+            from djangoldp.models import Model
+            anon_perms, auth_perms, owner_perms, superuser_perms = Model.get_permission_settings(view.model)
+            #if no view permission for superuser, set the shortcut to False
+            self.shortcut_kwargs['with_superuser'] = ('view' in superuser_perms)
+            filtered_queryset = super().filter_queryset(request, queryset, view)
 
             # those objects I have by grace of being owner
-            if Model.get_meta(view.model, 'owner_field', None) is not None:
-                if 'view' in owner_perms:
-                    owned_objects = [q.pk for q in queryset if Model.is_owner(view.model, request.user, q)]
-                    return object_perms | queryset.filter(pk__in=owned_objects)
-            return object_perms
+            if 'view' in owner_perms:
+                if getattr(view.model._meta, 'owner_field', None) is not None:
+                    return (filtered_queryset | queryset.filter(**{view.model._meta.owner_field: request.user})).distinct()
+                if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
+                    return (filtered_queryset | queryset.filter(**{view.model._meta.owner_urlid_field: request.user.urlid})).distinct()
+            return filtered_queryset
 
         # user is anonymous without anonymous permissions
         return view.model.objects.none()
@@ -56,10 +51,7 @@ class LocalObjectFilterBackend(BaseFilterBackend):
     For querysets which should only include local objects
     """
     def filter_queryset(self, request, queryset, view):
-        from djangoldp.models import Model
-
-        internal_ids = [x.pk for x in queryset if not Model.is_external(x)]
-        return queryset.filter(pk__in=internal_ids)
+        return queryset.filter(urlid__startswith=settings.SITE_URL)
 
 
 class LocalObjectOnContainerPathBackend(LocalObjectFilterBackend):
@@ -110,9 +102,9 @@ class SearchByQueryParamFilterBackend(BaseFilterBackend):
                         search_query = search_query & Q(**s)
 
                     continue
-                
+
                 search_query = Q(**s)
-            
+
             return search_query
 
         search_fields = search_fields.split(',')
@@ -126,7 +118,7 @@ class SearchByQueryParamFilterBackend(BaseFilterBackend):
                 search.append(query)
 
             queryset = queryset.filter(_construct_search_query(search))
-        
+
         elif search_method == "ibasic":
             # NOTE: to use, see https://stackoverflow.com/questions/54071944/fielderror-unsupported-lookup-unaccent-for-charfield-or-join-on-the-field-not
             unaccent_extension = getattr(settings, 'SEARCH_UNACCENT_EXTENSION', False) and 'django.contrib.postgres' in settings.INSTALLED_APPS
@@ -140,7 +132,7 @@ class SearchByQueryParamFilterBackend(BaseFilterBackend):
                 search.append(query)
 
             queryset = queryset.filter(_construct_search_query(search))
-        
+
         elif search_method == "exact":
             search = []
 
