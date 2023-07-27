@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v3.0.5 (2023-07-24)
+
+### Fix
+
+* Readme ([`8792530`](https://github.com/djangoldp-packages/djangoldp/commit/87925305b2093282230511bceb38978db4b279a2))
+
 ## v3.0.4 (2023-07-24)
 
 ### Fix

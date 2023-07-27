@@ -156,7 +156,7 @@ DCS_SESSION_COOKIE_SAMESITE = 'none'
 
 AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend']
 
-OIDC_ACCESS_CONTROL_ALLOW_HEADERS = 'Content-Type, if-match, accept, authorization, DPoP'
+OIDC_ACCESS_CONTROL_ALLOW_HEADERS = 'Content-Type, if-match, accept, authorization, DPoP, cache-control, pragma, prefer'
 
 # The minimum number of seconds a password reset link is valid for
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3
