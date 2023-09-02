@@ -470,7 +470,10 @@ class ActivityPubService(object):
                 value = getattr(instance, field_name, None)
                 if value is None:
                     continue
-
+                
+                if not hasattr(value, 'urlid'):
+                    continue
+                
                 sub_object = {
                     "@id": value.urlid,
                     "@type": Model.get_model_rdf_type(type(value))

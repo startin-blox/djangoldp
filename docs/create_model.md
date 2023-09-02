@@ -308,38 +308,16 @@ Now when an instance of `MyModel` is saved, its `author_user` property will be s
 
 ## permissions
 
-Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information
+Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information.
 
-### Serializing Permissions
+By default, no permission class is applied on your model, which means there will be no permission check. In other words, anyone will be able to run any kind of request, read and write, even without being authenticated.
 
-* `SERIALIZE_EXCLUDE_PERMISSIONS`. Permissions which should always be excluded from serialization defaults to `['inherit']`
-* `SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT`. Excluded also when serializing containers `['delete']`
-* `SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT`. Excluded also when serializing objects `[]`
-
-## permissions_classes
+### Default Permission classes
+### Role based permissions
+### Custom permission classes
 
 This allows you to add permissions for anonymous, logged in user, author ... in the url:
-By default `LDPPermissions` is used.
-Specific permissin classes can be developed to fit special needs.
-
-## anonymous_perms, user_perms, owner_perms, superuser_perms
-
-Those allow you to set permissions from your model's meta.
-
-You can give the following permission to them:
-
-* `view`
-* `add`
-* `change`
-* `control`
-* `delete`
-* `inherit`
-
-With inherit, Users can herit from Anons. Also Owners can herit from Users.
-
-Eg. with this model Anons can view, Auths can add & Owners can edit & delete.
-
-Note that `owner_perms` need a `owner_field` or a `owner_urlid_field` meta that point the field with owner user.
+Specific permission classes can be developed to fit special needs.
 
 ```python
 from djangoldp.models import Model
@@ -350,10 +328,6 @@ class Todo(Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL)
 
     class Meta:
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add'] # inherits from anonymous
-        owner_perms = ['inherit', 'change', 'control', 'delete'] # inherits from authenticated
-        superuser_perms = ['inherit'] # inherits from owner
         owner_field = 'user' # can be nested, e.g. user__parent
 ```
 
@@ -381,10 +355,6 @@ class Todo(Model):
         view_set =  TodoViewSet
 
 ```
-
-### container_path
-
-See 3.1. Configure container path (optional)
 
 ### serializer_fields
 
@@ -420,16 +390,11 @@ Only `deadline` will be serialized
 
 This is achieved when `LDPViewSet` sets the `exclude` property on the serializer in `build_serializer` method. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself
 
-### nested_fields -- DEPRECIATED
-
-Set on a model to auto-generate viewsets and containers for nested relations (e.g. `/circles/<pk>/members/`)
-
-Depreciated in DjangoLDP 0.8.0, as all to-many fields are included as nested fields by default
-
 ### nested_fields_exclude
 
 ```python
-<Model>._meta.nested_fields_exclude=["skills"]
+    class Meta:
+        nested_fields_exclude=["skills"]
 ```
 
 Will exclude the field `skills` from the model's nested fields, and prevent a container `/model/<pk>/skills/` from being generated
@@ -465,21 +430,11 @@ REST_FRAMEWORK = {
 }
 ```
 
-## Sources
-
-To enable sources auto creation for all models, change `djangoldp` by `djangoldp.apps.DjangoldpConfig`, on `INSTALLED_APPS`
-
-```python
-INSTALLED_APPS = [
-    'djangoldp.apps.DjangoldpConfig',
-]
-```
-
 ## 301 on domain mismatch
 
-To enable 301 redirection on domain mismatch, add `djangoldp.middleware.AllowOnlySiteUrl` on `MIDDLEWARE`
+To enable 301 redirection on domain mismatch, add `djangoldp.middleware.AllowOnlySiteUrl` in `MIDDLEWARE`
 
-This ensure that your clients will use `SITE_URL` and avoid mismatch betwen url & the id of a resource/container
+This ensures that your clients will use `SITE_URL` and avoid mismatch betwen url & the id of a resource/container
 
 ```python
 MIDDLEWARE = [
@@ -487,4 +442,4 @@ MIDDLEWARE = [
 ]
 ```
 
-Notice tht it'll redirect only HTTP 200 Code.
+Notice that it will return only HTTP 200 Code.

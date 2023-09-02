@@ -1,14 +1,57 @@
+from copy import copy
 from django.conf import settings
-from django.contrib.auth import _get_backends
-from rest_framework.permissions import DjangoObjectPermissions
-from djangoldp.utils import is_anonymous_user
-from djangoldp.filters import LDPPermissionsFilterBackend
+from rest_framework.permissions import BasePermission, DjangoObjectPermissions, OR
+from rest_framework.filters import BaseFilterBackend
+from rest_framework_guardian.filters import ObjectPermissionsFilter
+from djangoldp.filters import OwnerFilterBackend
+from djangoldp.utils import is_anonymous_user, is_authenticated_user
 
+DEFAULT_DJANGOLDP_PERMISSIONS = {'view', 'add', 'change', 'delete', 'control'}
 
-DEFAULT_DJANGOLDP_PERMISSIONS = ['add', 'change', 'delete', 'view', 'control']
+def join_filter_backends(*permissions, model, union=False):
+    '''Creates a new Filter backend by joining a list of existing backends.
+    It chains the filterings or joins them, depending on the argument union'''
+    backends = []
+    for permission in permissions:
+        if hasattr(permission, 'get_filter_backend'):
+            backends.append(permission.get_filter_backend(model))
+    class JointFilterBackend(BaseFilterBackend):
+        def __init__(self) -> None:
+            self.filters = []
+            for backend in backends:
+                if backend:
+                    self.filters.append(backend())
+        def filter_queryset(self, request, queryset, view):
+            for filter in self.filters:
+                if union:
+                    queryset = queryset | filter.filter_queryset(request, queryset, view)
+                else:
+                    queryset = filter.filter_queryset(request, queryset, view)
+            return queryset
+    return JointFilterBackend
 
+permission_map ={
+    'GET': ['%(app_label)s.view_%(model_name)s'],
+    'OPTIONS': ['%(app_label)s.view_%(model_name)s'],
+    'HEAD': ['%(app_label)s.view_%(model_name)s'],
+    'POST': ['%(app_label)s.add_%(model_name)s'],
+    'PUT': ['%(app_label)s.change_%(model_name)s'],
+    'PATCH': ['%(app_label)s.change_%(model_name)s'],
+    'DELETE': ['%(app_label)s.delete_%(model_name)s'],
+}
 
-class LDPBasePermission(DjangoObjectPermissions):
+# Patch of OR class to enable chaining of LDPBasePermissions
+def OR_get_permissions(self, user, model, obj=None):
+    perms1 = self.op1.get_permissions(user, model, obj) if hasattr(self.op1, 'get_permissions') else set()
+    perms2 = self.op2.get_permissions(user, model, obj) if hasattr(self.op2, 'get_permissions') else set()
+    return set.union(perms1, perms2)    
+OR.get_permissions = OR_get_permissions
+def OR_get_filter_backend(self, model):
+    # only join if both filters are set
+    return join_filter_backends(self.op1, self.op2, model=model, union=True)
+OR.get_filter_backend = OR_get_filter_backend
+
+class LDPBasePermission(BasePermission):
     """
     A base class from which all permission classes should inherit.
     Extends the DRF permissions class to include the concept of model-permissions, separate from the view, and to
@@ -16,166 +59,136 @@ class LDPBasePermission(DjangoObjectPermissions):
     """
     # filter backends associated with the permissions class. This will be used to filter queryset in the (auto-generated)
     # view for a model, and in the serializing nested fields
-    filter_backends = []
+    filter_backend = None
+    # by default, all permissions
+    permissions = getattr(settings, 'DJANGOLDP_PERMISSIONS', DEFAULT_DJANGOLDP_PERMISSIONS)
     # perms_map defines the permissions required for different methods
-    perms_map = {
-        'GET': ['%(app_label)s.view_%(model_name)s'],
-        'OPTIONS': [],
-        'HEAD': ['%(app_label)s.view_%(model_name)s'],
-        'POST': ['%(app_label)s.add_%(model_name)s'],
-        'PUT': ['%(app_label)s.change_%(model_name)s'],
-        'PATCH': ['%(app_label)s.change_%(model_name)s'],
-        'DELETE': ['%(app_label)s.delete_%(model_name)s'],
-    }
+    perms_map = permission_map
 
-    def get_container_permissions(self, request, view, obj=None):
-        """
-        outputs a set of permissions of a given container. Used in the generation of WebACLs in LDPSerializer
-        """
-        return set()
-
-    def get_object_permissions(self, request, view, obj):
-        """
-        outputs the permissions of a given object instance. Used in the generation of WebACLs in LDPSerializer
-        """
-        return set()
-
-    def get_user_permissions(self, request, view, obj):
-        '''
-        returns a set of all model permissions and object permissions for given parameters
-        You shouldn't override this function
-        '''
-        perms = self.get_container_permissions(request, view, obj)
-        if obj is not None:
-            return perms.union(self.get_object_permissions(request, view, obj))
-        return perms
-
+    @classmethod
+    def get_filter_backend(cls, model):
+        '''returns the Filter backend associated with this permission class'''
+        return cls.filter_backend
+    def check_all_permissions(self, required_permissions):
+        '''returns True if the all the permissions are included in the permissions of the class'''
+        return all([permission.split('.')[1].split('_')[0] in self.permissions for permission in required_permissions])
+    def get_allowed_methods(self):
+        '''returns the list of methods allowed for the permissions of the class, depending on the permission map'''
+        return [method for method, permissions in self.perms_map.items() if self.check_all_permissions(permissions)]
     def has_permission(self, request, view):
-        """concerned with the permissions to access the _view_"""
+        '''checks if the request is allowed at all, based on its method and the permissions of the class'''
+        return request.method in self.get_allowed_methods()
+    def has_object_permission(self, request, view, obj=None):
+        '''checks if the access to the object is allowed,'''
+        return True
+    def get_permissions(self, user, model, obj=None):
+        '''returns the permissions the user has on a given model or on a given object'''
+        return self.permissions
+
+class AnonymousReadOnly(LDPBasePermission):
+    """Anonymous users can only view, no check for others"""
+    permissions = {'view'}
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) or is_authenticated_user(request.user)
+    def get_permissions(self, user, model, obj=None):
+        if is_anonymous_user(user):
+            return self.permissions
+        else:
+            return super().permissions #all permissions
+
+class AuthenticatedOnly(LDPBasePermission):
+    """Only authenticated users have permissions"""
+    def has_permission(self, request, view):
+        return is_authenticated_user(request.user)
+
+class ReadOnly(LDPBasePermission):
+    """Users can only view"""
+    permissions = {'view'}
+
+class ReadAndCreate(LDPBasePermission):
+    """Users can only view and create"""
+    permissions = {'view', 'add'}
+
+class LDPPermissions(DjangoObjectPermissions, LDPBasePermission):
+    """Permissions based on the rights given in db, on model for container requests or on object for resource requests"""
+    filter_backend = ObjectPermissionsFilter
+    perms_map = permission_map
+    def has_permission(self, request, view):
+        if view.action in ('list', 'create'): # The container permission only apply to containers requests
+            return super().has_permission(request, view)
         return True
 
-    def has_container_permission(self, request, view):
-        """
-        concerned with the permissions to access the _model_
-        in most situations you won't need to override this. It is primarily called by has_object_permission
-        checked when POSTing to LDPViewSet
-        """
-        required_perms = self.get_required_permissions(request.method, view.model)
-        return self.compare_permissions(required_perms, self.get_container_permissions(request, view))
+    def get_permissions(self, user, model, obj=None):
+        model_name = model._meta.model_name
+        app_label = model._meta.app_label
+        if obj:
+            return {perm.replace('_'+model_name, '') for perm in user.get_all_permissions(obj)}
 
+        permissions = set(filter(lambda perm: perm.startswith(app_label) and perm.endswith(model_name), user.get_all_permissions()))
+        return {perm.replace(app_label+'.', '').replace('_'+model_name, '') for perm in permissions}
+
+class OwnerPermissions(LDPBasePermission):
+    """Gives all permissions to the owner of the object"""
+    filter_backend = OwnerFilterBackend
     def has_object_permission(self, request, view, obj):
-        """concerned with the permissions to access the _object_"""
-        required_perms = self.get_required_permissions(request.method, view.model)
-        return self.compare_permissions(required_perms, self.get_user_permissions(request, view, obj))
-
-    def compare_permissions(self, required_perms, user_perms):
-        '''returns True if all user_perms are in required_perms'''
-        for perm in required_perms:
-            if not perm.split('.')[-1].split('_')[0] in user_perms:
-                return False
+        if request.user.is_superuser:
+            return True
+        if getattr(view.model._meta, 'owner_field', None):
+            return request.user == getattr(obj, view.model._meta.owner_field)
+        if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
+            return request.user.urlid == getattr(obj, view.model._meta.owner_urlid_field)
         return True
+    def get_permissions(self, request, view, obj=None):
+        if not obj or self.has_object_permission(request, view, obj):
+            return self.permissions
+        return set()
 
-def select_container_permissions(request, obj, model, anonymous_perms, authenticated_perms, owner_perms, superuser_perms):
-    from djangoldp.models import Model
+class InheritPermissions(LDPBasePermission):
+    """Gets the permissions from a related objects"""
+    def get_parent_model(self, model):
+        '''checks that the model is adequately configured and returns the associated model'''
+        assert hasattr(model._meta, 'inherit_permissions'), \
+            f'Model {model} has InheritPermissions applied without "inherit_permissions" defined'
+        assert model._meta.inherit_permissions in model._meta.fields_map, \
+            f'Field {model._meta.inherit_permissions} declared in "inherit_permissions" is not a relation of model {model}'
+        
+        parent_model = model._meta.fields_map[model._meta.inherit_permissions].model
+        assert hasattr(parent_model._meta, 'permissions_classes'), \
+            f'Related model {parent_model} has no "permissions_classes" defined'
+        return parent_model
+    def get_parent_object(self, obj):
+        '''gets the parent object'''
+        if obj:
+            return getattr(obj, obj._meta.inherit_permissions)
+        return None
     
-    if is_anonymous_user(request.user):
-        return set(anonymous_perms)
-    else:
-        if obj is not None and Model.is_owner(model, request.user, obj):
-            perms = set(owner_perms)
-        else:
-            perms = set(authenticated_perms)
-        if request.user.is_superuser:
-            perms = perms.union(set(superuser_perms))
-    return perms
-
-class ModelConfiguredPermissions(LDPBasePermission):
-    # *DEFAULT* model-level permissions for anon, auth and owner statuses
-    anonymous_perms = ['view']
-    authenticated_perms = ['inherit']
-    owner_perms = ['inherit']
-    # superuser has all permissions by default
-    superuser_perms = getattr(settings, 'DEFAULT_SUPERUSER_PERMS', DEFAULT_DJANGOLDP_PERMISSIONS)
-
-    def get_container_permissions(self, request, view, obj=None):
-        '''analyses the Model's set anonymous, authenticated and owner_permissions and returns these'''
-        perms = super().get_container_permissions(request, view, obj=obj)
-        from djangoldp.models import Model
-        if isinstance(view.model, Model):
-            anonymous_perms, authenticated_perms, owner_perms, superuser_perms = view.model.get_permission_settings()
-        else:
-            anonymous_perms, authenticated_perms, owner_perms, superuser_perms = Model.get_permission_settings(view.model)
-        return select_container_permissions(request, obj, view.model, anonymous_perms, authenticated_perms, owner_perms, superuser_perms)
+    def clone_with_model(self, request, view, model):
+        '''changes the model on the argument, so that they can be called on the parent model'''
+        request = copy(request)
+        request.model = model
+        view = copy(view)
+        view.queryset = None #to make sure the model is taken into account
+        view.model = view
+        return request, view
+    
+    @classmethod
+    def get_filter_backend(cls, model):
+        '''returns a new Filter backend that applies all filters of the parent model'''
+        filter_backends = {perm.get_filter_backend(model) for perm in model._meta.permissions_classes}
+        return join_filter_backends(*filter_backends, model=model)
 
     def has_permission(self, request, view):
-        """concerned with the permissions to access the _view_"""
-        if is_anonymous_user(request.user):
-            if not self.has_container_permission(request, view):
-                return False
-        return True
-
-
-class LDPObjectLevelPermissions(LDPBasePermission):
-    def get_all_user_object_permissions(self, user, obj):
-        return user.get_all_permissions(obj)
-
-
-    def get_object_permissions(self, request, view, obj):
-        '''overridden to append permissions from all backends given to the user (e.g. Groups and object-level perms)'''
-        from djangoldp.models import Model
-
-        model_name = Model.get_meta(view.model, 'model_name')
-
-        perms = super().get_object_permissions(request, view, obj)
-
-        if obj is not None and not is_anonymous_user(request.user):
-            forbidden_string = "_" + model_name
-            return perms.union(set([p.replace(forbidden_string, '') for p in
-                                    self.get_all_user_object_permissions(request.user, obj)]))
-
-        return perms
-
-
-class SuperUserPermission(LDPBasePermission):
-    filter_backends = []
-
-    def get_container_permissions(self, request, view, obj=None):
-        if request.user.is_superuser:
-            return set(DEFAULT_DJANGOLDP_PERMISSIONS)
-        return super().get_container_permissions(request, view, obj)
-
-    def get_object_permissions(self, request, view, obj):
-        if request.user.is_superuser:
-            return set(DEFAULT_DJANGOLDP_PERMISSIONS)
-        return super().get_object_permissions(request, view, obj)
-
-    def has_permission(self, request, view):
-        if request.user.is_superuser:
-            return True
-        return super().has_permission(request, view)
-
-    def has_container_permission(self, request, view):
-        if request.user.is_superuser:
-            return True
-        return super().has_container_permission(request, view)
-
-    def has_object_permission(self, request, view, obj):
-        if request.user.is_superuser:
-            return True
-        return super().has_object_permission(request, view, obj)
-
-
-class LDPPermissions(LDPObjectLevelPermissions, ModelConfiguredPermissions):
-    filter_backends = [LDPPermissionsFilterBackend]
-
-    def get_all_user_object_permissions(self, user, obj):
-        # if the super_user perms are no different from authenticated_perms, then we want to skip Django's auth backend
-        restore_super = False
-        if user.is_superuser:
-            user.is_superuser = False
-            restore_super = True
-
-        perms = super().get_all_user_object_permissions(user, obj)
-
-        user.is_superuser = restore_super
-        return perms
+        model = self.get_parent_model(view.model)
+        request, view = self.clone_with_model(request, view, model)
+        return all([perm.has_permission(request, view) for perm in model._meta.permissions_classes])
+    
+    def has_object_permissions(self, request, view, obj):
+        model = self.get_parent_model(view.model)
+        request, view = self.clone_with_model(request, view, model)
+        obj = self.get_parent_object(obj)
+        return all([perm.has_object_permissions(request, view, obj) for perm in model._meta.permissions_classes])
+    
+    def get_permissions(self, user, model, obj=None):
+        model = self.get_parent_model(model)
+        obj = self.get_parent_object(obj)
+        return set.intersection([perm.get_permissions(user, model, obj) for perm in model._meta.permissions_classes])

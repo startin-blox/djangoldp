@@ -1,49 +1,20 @@
 from django.conf import settings
 from django.db.models import Q
 from rest_framework.filters import BaseFilterBackend
-from rest_framework_guardian.filters import ObjectPermissionsFilter
-from djangoldp.utils import is_anonymous_user
 
-
-class LDPPermissionsFilterBackend(ObjectPermissionsFilter):
-    """
-    Default FilterBackend for LDPPermissions. If user does not have model-level permissions, filters by
-    Django-Guardian's get_objects_for_user
-    """
-
+class OwnerFilterBackend(BaseFilterBackend):
+    """Adds the objects owned by the user"""
     def filter_queryset(self, request, queryset, view):
-        from djangoldp.models import Model
-        from djangoldp.permissions import LDPPermissions, ModelConfiguredPermissions
-
-        # compares the requirement for GET, with what the user has on the container
-        configured_permission_classes = getattr(view.model._meta, 'permission_classes', [LDPPermissions])
-        for permission_class in [p() for p in configured_permission_classes]:
-            # inherits from LDPBasePermissions
-            if hasattr(permission_class, 'has_container_permission') and \
-                permission_class.has_container_permission(request, view):
-                return queryset
-
-        # the user did not have permission on the container, so now we filter the queryset for permissions on the object
-        if not is_anonymous_user(request.user):
-            # those objects I have by grace of group or object
-            # first figure out if the superuser has special permissions (important to the implementation in superclass)
-            from djangoldp.models import Model
-            anon_perms, auth_perms, owner_perms, superuser_perms = Model.get_permission_settings(view.model)
-            #if no view permission for superuser, set the shortcut to False
-            self.shortcut_kwargs['with_superuser'] = ('view' in superuser_perms)
-            filtered_queryset = super().filter_queryset(request, queryset, view)
-
-            # those objects I have by grace of being owner
-            if 'view' in owner_perms:
-                if getattr(view.model._meta, 'owner_field', None) is not None:
-                    return (filtered_queryset | queryset.filter(**{view.model._meta.owner_field: request.user})).distinct()
-                if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
-                    return (filtered_queryset | queryset.filter(**{view.model._meta.owner_urlid_field: request.user.urlid})).distinct()
-            return filtered_queryset
-
-        # user is anonymous without anonymous permissions
-        return view.model.objects.none()
-
+        if request.user.is_superuser:
+            return queryset
+        if getattr(view.model._meta, 'owner_field', None) is not None:
+            return queryset.filter(**{view.model._meta.owner_field: request.user})
+        if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
+            return queryset.filter(**{view.model._meta.owner_urlid_field: request.user.urlid})
+        if getattr(view.model._meta, 'auto_author', None) is not None:
+            return queryset.filter(**{view.model._meta.auto_author: request.user})
+        return queryset
+        
 
 class LocalObjectFilterBackend(BaseFilterBackend):
     """

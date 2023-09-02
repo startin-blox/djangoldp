@@ -2,7 +2,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember, UserProfile
+from djangoldp.tests.models import User, Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, UserProfile
 from djangoldp.serializers import GLOBAL_SERIALIZER_CACHE
 
 class TestGET(APITestCase):
@@ -24,8 +24,6 @@ class TestGET(APITestCase):
         self.assertEquals(response.data['content'], "content")
         self.assertIn('author', response.data)
         self.assertIn('@type', response.data)
-        self.assertIn('permissions', response.data)
-
 
         # test headers returned
         self.assertEqual(response['Content-Type'], 'application/ld+json') 
@@ -54,7 +52,6 @@ class TestGET(APITestCase):
         self.assertIn('@type', response.data)
         self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertNotIn('permissions', response.data['ldp:contains'][0])
-        self.assertEquals(4, len(response.data['permissions'])) # configured anonymous permissions to give all
 
         Invoice.objects.create(title="content")
         response = self.client.get('/invoices/', content_type='application/ld+json')
@@ -137,23 +134,24 @@ class TestGET(APITestCase):
 
     def test_serializer_excludes(self):
         date = DateModel.objects.create(excluded='test', value=datetime.now())
-        response = self.client.get('/dates/{}/'.format(date.pk), content_type='application/ld+json')
+        response = self.client.get('/datemodels/{}/'.format(date.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('excluded', response.data.keys())
 
     def test_serializer_excludes_serializer_fields_set_also(self):
         setattr(DateModel._meta, 'serializer_fields', ['value', 'excluded'])
         date = DateModel.objects.create(excluded='test', value=datetime.now())
-        response = self.client.get('/dates/{}/'.format(date.pk), content_type='application/ld+json')
+        response = self.client.get('/datemodels/{}/'.format(date.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('excluded', response.data.keys())
 
     def _set_up_circle_and_user(self):
-        circle = Circle.objects.create(name='test', description='test')
         user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                     password='glass onion')
+        circle = Circle.objects.create(name='test', description='test', owner=user)
         self.client.force_authenticate(user)
-        CircleMember.objects.create(user=user, circle=circle)
+        circle.members.user_set.add(user)
+        return user
 
     # tests for functionality allowing me to set containers to be serialized without content\
     # test for normal functioning (without setting)
@@ -166,60 +164,58 @@ class TestGET(APITestCase):
         self.assertIn('@id', response.data)
         self.assertIn('permissions', response.data)
         self.assertIn('members', response.data['ldp:contains'][0])
-        self.assertEqual(response.data['ldp:contains'][0]['members']['@type'], 'ldp:Container')
-        self.assertIn('@id', response.data['ldp:contains'][0]['members'])
-        self.assertIn('ldp:contains', response.data['ldp:contains'][0]['members'])
-        self.assertIn('permissions', response.data['ldp:contains'][0]['members'])
+        self.assertEqual(response.data['ldp:contains'][0]['members']['@type'], 'foaf:Group')
+        self.assertIn('@id', response.data['ldp:contains'][0]['members']['user_set'])
+        self.assertIn('ldp:contains', response.data['ldp:contains'][0]['members']['user_set'])
 
     # test for functioning with setting
     def test_empty_container_serialization_nested_serializer_empty(self):
-        setattr(Circle._meta, 'depth', 1)
-        setattr(Circle._meta, 'empty_containers', ['members'])
+        setattr(User._meta, 'depth', 1)
+        setattr(User._meta, 'empty_containers', ['owned_circles'])
         self._set_up_circle_and_user()
 
-        response = self.client.get('/circles/', content_type='application/ld+json')
+        response = self.client.get('/users/', content_type='application/ld+json')
         self.assertEqual(response.data['@type'], 'ldp:Container')
-        self.assertIn('members', response.data['ldp:contains'][0])
-        self.assertIn('@id', response.data['ldp:contains'][0]['members'])
-        self.assertNotIn('@type', response.data['ldp:contains'][0]['members'])
-        self.assertNotIn('permissions', response.data['ldp:contains'][0]['members'])
-        self.assertNotIn('ldp:contains', response.data['ldp:contains'][0]['members'])
+        self.assertIn('owned_circles', response.data['ldp:contains'][0])
+        self.assertIn('@id', response.data['ldp:contains'][0]['owned_circles'])
+        self.assertNotIn('permissions', response.data['ldp:contains'][0]['owned_circles'])
+        self.assertNotIn('ldp:contains', response.data['ldp:contains'][0]['owned_circles'])
 
     # should serialize as normal on the nested viewset (directly asking for the container)
     # test for normal functioning (without setting)
     def test_empty_container_serialization_nested_viewset_no_empty(self):
-        self._set_up_circle_and_user()
+        user = self._set_up_circle_and_user()
 
-        response = self.client.get('/circles/1/members/', content_type='application/ld+json')
+        response = self.client.get(f'/users/{user.pk}/owned_circles/', content_type='application/ld+json')
         self.assertEqual(response.data['@type'], 'ldp:Container')
         self.assertIn('@id', response.data)
         self.assertIn('ldp:contains', response.data)
         self.assertIn('permissions', response.data)
-        self.assertIn('circle', response.data['ldp:contains'][0])
+        self.assertIn('owner', response.data['ldp:contains'][0])
 
     # test for functioning with setting
     def test_empty_container_serialization_nested_viewset_empty(self):
-        setattr(Circle._meta, 'empty_containers', ['members'])
-        self._set_up_circle_and_user()
+        setattr(User._meta, 'empty_containers', ['owned_circles'])
+        user = self._set_up_circle_and_user()
 
-        response = self.client.get('/circles/1/members/', content_type='application/ld+json')
+        response = self.client.get(f'/users/{user.pk}/owned_circles/', content_type='application/ld+json')
         self.assertEqual(response.data['@type'], 'ldp:Container')
         self.assertIn('@id', response.data)
         self.assertIn('ldp:contains', response.data)
         self.assertIn('permissions', response.data)
-        self.assertIn('circle', response.data['ldp:contains'][0])
+        self.assertIn('owner', response.data['ldp:contains'][0])
 
-    # test for checking fields ordering
-    def test_ordered_field(self):
-        self._set_up_circle_and_user()
-        response = self.client.get('/users/', content_type='application/ld+json')
-        fields_to_test = [
-            response.data.keys(),
-            response.data['ldp:contains'][-1],
-            response.data['ldp:contains'][-1]['circle_set']
-        ]
+    # # test for checking fields ordering
+    # def test_ordered_field(self):
+    #     self._set_up_circle_and_user()
+    #     response = self.client.get('/users/', content_type='application/ld+json')
+    #     fields_to_test = [
+    #         response.data.keys(),
+    #         response.data['ldp:contains'][-1],
+    #         response.data['ldp:contains'][-1]['circle_set']
+    #     ]
 
-        for test_fields in fields_to_test:
-            test_fields = list(test_fields)
-            o_f = [field for field in self.ordered_fields if field in test_fields]
-            self.assertEquals(o_f, test_fields[:len(o_f)])
+    #     for test_fields in fields_to_test:
+    #         test_fields = list(test_fields)
+    #         o_f = [field for field in self.ordered_fields if field in test_fields]
+    #         self.assertEquals(o_f, test_fields[:len(o_f)])

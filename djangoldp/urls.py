@@ -1,10 +1,11 @@
 from importlib import import_module
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.urls import path, re_path, include
 
 from djangoldp.models import LDPSource, Model
-from djangoldp.permissions import LDPPermissions
+from djangoldp.permissions import ReadOnly
 from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
 from djangoldp.views import LDPViewSet
 
@@ -24,7 +25,7 @@ def get_all_non_abstract_subclasses(cls):
     '''
     def valid_subclass(sc):
         '''returns True if the parameterised subclass is valid and should be returned'''
-        return not Model.get_meta(sc, 'abstract', False)
+        return not getattr(sc._meta, 'abstract', False)
 
     return set(c for c in cls.__subclasses__() if valid_subclass(c)).union(
         [s for c in cls.__subclasses__() for s in get_all_non_abstract_subclasses(c) if valid_subclass(s)])
@@ -34,10 +35,10 @@ def get_all_non_abstract_subclasses_dict(cls):
     '''returns a dict of class name -> class for all subclasses of given cls parameter (recursively)'''
     return {cls.__name__: cls for cls in get_all_non_abstract_subclasses(cls)}
 
-
 urlpatterns = [
+    path('groups/', LDPViewSet.urls(model=Group, fields=['@id', 'name', 'user_set']),),
     re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
-                                                                    permission_classes=[LDPPermissions], )),
+                                                                    permission_classes=[ReadOnly], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
     path('inbox/', InboxView.as_view())
 ]
@@ -74,13 +75,13 @@ for class_name in model_classes:
     # the path is the url for this model
     model_path = __clean_path(model_class.get_container_path())
     # urls_fct will be a method which generates urls for a ViewSet (defined in LDPViewSetGenerator)
-    urls_fct = model_class.get_view_set().urls
+    urls_fct = getattr(model_class, 'view_set', LDPViewSet).urls
     urlpatterns.append(path('' + model_path,
         urls_fct(model=model_class,
-                 lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
-                 permission_classes=Model.get_meta(model_class, 'permission_classes', [LDPPermissions]),
-                 fields=Model.get_meta(model_class, 'serializer_fields', []),
-                 nested_fields=model_class.nested.fields())))
+                 lookup_field=getattr(model_class._meta, 'lookup_field', 'pk'),
+                 permission_classes=getattr(model_class._meta, 'permission_classes', []),
+                 fields=getattr(model_class._meta, 'serializer_fields', []),
+                 nested_fields=model_class.nested_fields())))
 
 # NOTE: this route will be ignored if a custom (subclass of Model) user model is used, or it is registered by a package
 # Django matches the first url it finds for a given path

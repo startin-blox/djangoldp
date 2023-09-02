@@ -30,8 +30,10 @@ class TestsGuardian(APITestCase):
         for perm in perms:
             perm = perm + '_' + model_name
             if group:
+                assign_perm('tests.'+perm, self.group)
                 assign_perm(perm, self.group, dummy)
             else:
+                assign_perm('tests.'+perm, self.user)
                 assign_perm(perm, self.user, dummy)
 
         return dummy

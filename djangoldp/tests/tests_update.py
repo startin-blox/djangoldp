@@ -419,6 +419,7 @@ class Update(TestCase):
 
         response = self.client.get('/userprofiles/{}/'.format(profile.pk),
                                    content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['description'], "user update")
 
     # unit tests for a specific bug: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/307

@@ -1,21 +1,18 @@
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
-from djangoldp.permissions import LDPPermissions, SuperUserPermission
+from djangoldp.permissions import LDPPermissions, AuthenticatedOnly, ReadOnly, ReadAndCreate, AnonymousReadOnly, OwnerPermissions
 
 
 class User(AbstractUser, Model):
-
     class Meta(AbstractUser.Meta, Model.Meta):
         ordering = ['pk']
         serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
-                             'conversation_set', 'circle_set', 'projects']
-        anonymous_perms = ['view', 'add']
-        authenticated_perms = ['inherit', 'change']
-        owner_perms = ['inherit']
+                             'conversation_set','groups', 'projects', 'owned_circles']
+        permission_classes = [ReadAndCreate|OwnerPermissions]
         rdf_type = 'foaf:user'
 
 
@@ -30,9 +27,7 @@ class Skill(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add', 'change']
-        owner_perms = ['inherit', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
         serializer_fields = ["@id", "title", "recent_jobs", "slug", "obligatoire"]
         lookup_field = 'slug'
         rdf_type = 'hd:skill'
@@ -52,9 +47,7 @@ class JobOffer(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'change', 'add']
-        owner_perms = ['inherit', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly, ReadOnly|OwnerPermissions]
         serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
         container_path = "job-offers/"
         lookup_field = 'slug'
@@ -70,9 +63,8 @@ class Conversation(models.Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
+        nested_fields=["message_set", "observers"]
         owner_field = 'author_user'
 
 
@@ -82,9 +74,6 @@ class Resource(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view', 'add', 'delete', 'change', 'control']
-        authenticated_perms = ['inherit']
-        owner_perms = ['inherit']
         serializer_fields = ["@id", "joboffers"]
         depth = 1
         rdf_type = 'hd:Resource'
@@ -98,9 +87,7 @@ class OwnedResource(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = []
-        authenticated_perms = []
-        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        permission_classes = [OwnerPermissions]
         owner_field = 'user'
         serializer_fields = ['@id', 'description', 'user']
         depth = 1
@@ -113,9 +100,7 @@ class OwnedResourceVariant(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = []
-        authenticated_perms = ['view', 'change']
-        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        permission_classes = [ReadOnly|OwnerPermissions]
         owner_field = 'user'
         serializer_fields = ['@id', 'description', 'user']
         depth = 1
@@ -128,9 +113,7 @@ class OwnedResourceNestedOwnership(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = []
-        authenticated_perms = []
-        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        permission_classes = [OwnerPermissions]
         owner_field = 'parent__user'
         serializer_fields = ['@id', 'description', 'parent']
         depth = 1
@@ -143,9 +126,7 @@ class OwnedResourceTwiceNestedOwnership(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = []
-        authenticated_perms = []
-        owner_perms = ['view', 'delete', 'add', 'change', 'control']
+        permission_classes = [OwnerPermissions]
         owner_field = 'parent__parent__user'
         serializer_fields = ['@id', 'description', 'parent']
         depth = 1
@@ -158,9 +139,7 @@ class UserProfile(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit']
-        owner_perms = ['inherit', 'change', 'control']
+        permission_classes = [AuthenticatedOnly,ReadOnly|OwnerPermissions]
         owner_field = 'user'
         lookup_field = 'slug'
         serializer_fields = ['@id', 'description', 'settings', 'user', 'post_set']
@@ -173,9 +152,7 @@ class NotificationSetting(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view', 'change']
-        authenticated_perms = ['inherit']
-        owner_perms = ['inherit', 'change', 'control']
+        permission_classes = [ReadAndCreate|OwnerPermissions]
 
 
 class Message(models.Model):
@@ -185,9 +162,7 @@ class Message(models.Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
 
 
 class Dummy(models.Model):
@@ -196,9 +171,7 @@ class Dummy(models.Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
 
 
 class LDPDummy(Model):
@@ -206,12 +179,10 @@ class LDPDummy(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
 
 
-# model used in django-guardian permission tests (no anonymous etc permissions set)
+# model used in django-guardian permission tests (no permission to anyone except suuperusers)
 class PermissionlessDummy(Model):
     some = models.CharField(max_length=255, blank=True, null=True)
     slug = models.SlugField(blank=True, null=True, unique=True)
@@ -219,12 +190,9 @@ class PermissionlessDummy(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = []
-        authenticated_perms = []
-        owner_perms = []
-        permissions = (
-            ('custom_permission_permissionlessdummy', 'Custom Permission'),
-        )
+        permission_classes = [LDPPermissions]
+        lookup_field='slug'
+        permissions = (('custom_permission_permissionlessdummy', 'Custom Permission'),)
 
 
 class Post(Model):
@@ -237,9 +205,6 @@ class Post(Model):
         ordering = ['pk']
         auto_author = 'author'
         auto_author_field = 'userprofile'
-        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
-        authenticated_perms = ['inherit']
-        owner_perms = ['inherit']
         rdf_type = 'hd:post'
 
 
@@ -250,22 +215,26 @@ class Invoice(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         depth = 2
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add', 'change']
-        owner_perms = ['inherit', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
 
 
 class Circle(Model):
     name = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, blank=True)
-    team = models.ManyToManyField(settings.AUTH_USER_MODEL, through="CircleMember", blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING, null=True, blank=True)
+    members = models.ForeignKey(Group, related_name="circles", on_delete=models.SET_NULL, null=True, blank=True)
+    admins = models.ForeignKey(Group, related_name="admin_circles", on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
-        authenticated_perms = ["inherit"]
-        serializer_fields = ['@id', 'name', 'description', 'members', 'team', 'owner', 'space']
+        auto_author = 'owner'
+        depth = 1
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
+        permission_roles = {
+            'members': {'perms': ['view'], 'add_author': True},
+            'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
+        }
+        serializer_fields = ['@id', 'name', 'description', 'members', 'owner', 'space']
         rdf_type = 'hd:circle'
 
 
@@ -284,25 +253,9 @@ class Batch(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         serializer_fields = ['@id', 'title', 'invoice', 'tasks']
-        anonymous_perms = ['view', 'add']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        permission_classes = [ReadAndCreate|OwnerPermissions]
         depth = 1
         rdf_type = 'hd:batch'
-
-
-class CircleMember(Model):
-    circle = models.ForeignKey(Circle, on_delete=models.CASCADE, related_name='members')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="circles")
-    is_admin = models.BooleanField(default=False)
-
-    class Meta(Model.Meta):
-        ordering = ['pk']
-        container_path = "circle-members/"
-        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
-        authenticated_perms = ['inherit']
-        unique_together = ['user', 'circle']
-        rdf_type = 'hd:circlemember'
 
 
 class Task(models.Model):
@@ -312,9 +265,7 @@ class Task(models.Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         serializer_fields = ['@id', 'title', 'batch']
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add']
-        owner_perms = ['inherit', 'change', 'delete', 'control']
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
 
 
 class ModelTask(Model, Task):
@@ -334,8 +285,6 @@ class Project(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = ['view', 'add', 'delete', 'add', 'change', 'control']
-        authenticated_perms = ["inherit"]
         rdf_type = 'hd:project'
 
 
@@ -370,15 +319,4 @@ class MyAbstractModel(Model):
 class NoSuperUsersAllowedModel(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
-        anonymous_perms = []
-        authenticated_perms = []
-        owner_perms = []
-        superuser_perms = []
         permission_classes = [LDPPermissions]
-
-
-class ComplexPermissionClassesModel(Model):
-    class Meta(Model.Meta):
-        ordering = ['pk']
-        permission_classes = [LDPPermissions, SuperUserPermission]
-        superuser_perms = []
