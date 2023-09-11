@@ -1,11 +1,10 @@
-from django.core.exceptions import FieldDoesNotExist
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission, Group
 from django.conf import settings
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 from djangoldp.tests.models import JobOffer, LDPDummy, PermissionlessDummy, UserProfile, OwnedResource, \
-    NoSuperUsersAllowedModel, OwnedResourceNestedOwnership, OwnedResourceTwiceNestedOwnership
+    OwnedResourceNestedOwnership, OwnedResourceTwiceNestedOwnership
 
 import json
 

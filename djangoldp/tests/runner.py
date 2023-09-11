@@ -24,6 +24,7 @@ failures = test_runner.run_tests([
     'djangoldp.tests.tests_user_permissions',
     'djangoldp.tests.tests_guardian',
     'djangoldp.tests.tests_anonymous_permissions',
+    'djangoldp.tests.tests_permissions',
     'djangoldp.tests.tests_post',
     'djangoldp.tests.tests_update',
     'djangoldp.tests.tests_auto_author',

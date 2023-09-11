@@ -145,50 +145,68 @@ class OwnerPermissions(LDPBasePermission):
 
 class InheritPermissions(LDPBasePermission):
     """Gets the permissions from a related objects"""
-    def get_parent_model(self, model):
+    @classmethod
+    def get_parent_model(cls, model):
         '''checks that the model is adequately configured and returns the associated model'''
         assert hasattr(model._meta, 'inherit_permissions'), \
             f'Model {model} has InheritPermissions applied without "inherit_permissions" defined'
-        assert model._meta.inherit_permissions in model._meta.fields_map, \
-            f'Field {model._meta.inherit_permissions} declared in "inherit_permissions" is not a relation of model {model}'
-        
-        parent_model = model._meta.fields_map[model._meta.inherit_permissions].model
-        assert hasattr(parent_model._meta, 'permissions_classes'), \
-            f'Related model {parent_model} has no "permissions_classes" defined'
+
+        parent_field = model._meta.inherit_permissions
+        parent_model = model._meta.get_field(parent_field).related_model
+        assert hasattr(parent_model._meta, 'permission_classes'), \
+            f'Related model {parent_model} has no "permission_classes" defined'
         return parent_model
+
     def get_parent_object(self, obj):
         '''gets the parent object'''
         if obj:
             return getattr(obj, obj._meta.inherit_permissions)
         return None
     
+    @classmethod
     def clone_with_model(self, request, view, model):
         '''changes the model on the argument, so that they can be called on the parent model'''
-        request = copy(request)
+        request = copy(request._request)
         request.model = model
         view = copy(view)
         view.queryset = None #to make sure the model is taken into account
-        view.model = view
+        view.model = model
         return request, view
     
     @classmethod
     def get_filter_backend(cls, model):
         '''returns a new Filter backend that applies all filters of the parent model'''
-        filter_backends = {perm.get_filter_backend(model) for perm in model._meta.permissions_classes}
-        return join_filter_backends(*filter_backends, model=model)
+        parent = cls.get_parent_model(model)
+        filter_arg = f'{model._meta.inherit_permissions}__in'
+        backends = {perm.get_filter_backend(parent) for perm in parent._meta.permission_classes}
+
+        class InheritFilterBackend(BaseFilterBackend):
+            def __init__(self) -> None:
+                self.filters = []
+                for backend in backends:
+                    if backend:
+                        self.filters.append(backend())
+            def filter_queryset(self, request, queryset, view):
+                request, view = InheritPermissions.clone_with_model(request, view, parent)
+                for filter in self.filters:
+                    allowed_parents = filter.filter_queryset(request, parent.objects.all(), view)
+                    queryset = queryset.filter(**{filter_arg: allowed_parents})
+                return queryset
+
+        return InheritFilterBackend
 
     def has_permission(self, request, view):
-        model = self.get_parent_model(view.model)
-        request, view = self.clone_with_model(request, view, model)
-        return all([perm.has_permission(request, view) for perm in model._meta.permissions_classes])
+        model = InheritPermissions.get_parent_model(view.model)
+        request, view = InheritPermissions.clone_with_model(request, view, model)
+        return all([perm().has_permission(request, view) for perm in model._meta.permission_classes])
     
     def has_object_permissions(self, request, view, obj):
-        model = self.get_parent_model(view.model)
-        request, view = self.clone_with_model(request, view, model)
+        model = InheritPermissions.get_parent_model(view.model)
+        request, view = InheritPermissions.clone_with_model(request, view, model)
         obj = self.get_parent_object(obj)
-        return all([perm.has_object_permissions(request, view, obj) for perm in model._meta.permissions_classes])
+        return all([perm().has_object_permissions(request, view, obj) for perm in model._meta.permission_classes])
     
     def get_permissions(self, user, model, obj=None):
-        model = self.get_parent_model(model)
+        model = InheritPermissions.get_parent_model(model)
         obj = self.get_parent_object(obj)
-        return set.intersection([perm.get_permissions(user, model, obj) for perm in model._meta.permissions_classes])
+        return set.intersection(*[perm().get_permissions(user, model, obj) for perm in model._meta.permission_classes])

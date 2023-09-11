@@ -4,7 +4,8 @@ from django.db import models
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
-from djangoldp.permissions import LDPPermissions, AuthenticatedOnly, ReadOnly, ReadAndCreate, AnonymousReadOnly, OwnerPermissions
+from djangoldp.permissions import LDPPermissions, AuthenticatedOnly, ReadOnly, \
+    ReadAndCreate, AnonymousReadOnly, OwnerPermissions, InheritPermissions
 
 
 class User(AbstractUser, Model):
@@ -207,6 +208,27 @@ class Post(Model):
         auto_author_field = 'userprofile'
         rdf_type = 'hd:post'
 
+class AnonymousReadOnlyPost(Model):
+    content = models.CharField(max_length=255)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [AnonymousReadOnly]
+class AuthenticatedOnlyPost(Model):
+    content = models.CharField(max_length=255)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [AuthenticatedOnly]
+class ReadOnlyPost(Model):
+    content = models.CharField(max_length=255)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [ReadOnly]
+class ReadAndCreatePost(Model):
+    content = models.CharField(max_length=255)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [ReadAndCreate]
+        
 
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)
@@ -229,7 +251,7 @@ class Circle(Model):
         ordering = ['pk']
         auto_author = 'owner'
         depth = 1
-        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions|LDPPermissions]
         permission_roles = {
             'members': {'perms': ['view'], 'add_author': True},
             'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
@@ -237,6 +259,30 @@ class Circle(Model):
         serializer_fields = ['@id', 'name', 'description', 'members', 'owner', 'space']
         rdf_type = 'hd:circle'
 
+
+class RestrictedCircle(Model):
+    name = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_restrictedcircles", on_delete=models.DO_NOTHING, null=True, blank=True)
+    members = models.ForeignKey(Group, related_name="restrictedcircles", on_delete=models.SET_NULL, null=True, blank=True)
+    admins = models.ForeignKey(Group, related_name="admin_restrictedcircles", on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        auto_author = 'owner'
+        permission_classes = [LDPPermissions]
+        permission_roles = {
+            'members': {'perms': ['view'], 'add_author': True},
+            'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
+        }
+        rdf_type = 'hd:circle'
+class RestrictedResource(Model):
+    content = models.CharField(max_length=255, blank=True)
+    circle = models.ForeignKey(RestrictedCircle, on_delete=models.CASCADE)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [InheritPermissions]
+        inherit_permissions = 'circle'
 
 class Space(Model):
     name = models.CharField(max_length=255, blank=True)
