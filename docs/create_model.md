@@ -310,35 +310,61 @@ Now when an instance of `MyModel` is saved, its `author_user` property will be s
 
 Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information.
 
-By default, no permission class is applied on your model, which means there will be no permission check. In other words, anyone will be able to run any kind of request, read and write, even without being authenticated.
+By default, no permission class is applied on your model, which means there will be no permission check. In other words, anyone will be able to run any kind of request, read and write, even without being authenticated. Superusers always have all permissions on all resources.
 
 ### Default Permission classes
-### Role based permissions
-### Custom permission classes
 
-This allows you to add permissions for anonymous, logged in user, author ... in the url:
-Specific permission classes can be developed to fit special needs.
+DjangoLDP comes with a set of permission classes that you can use for standard behaviour.
+
+ * AuthenticatedOnly: Refuse access to anonymous users
+ * ReadOnly: Refuse access to any write request
+ * ReadAndCreate: Refuse access to any request changing an existing resource
+ * AnonymousReadOnly: Refuse access to anonymous users with any write request
+ * LDDPermissions: Give access based on the permissions in the database. For container requests (list and create), based on model level permissions. For all others, based on object level permissions. This permission class is associated with a filter that only renders objects on which the user has access.
+ * OwnerPermissions: Give access based on the owner of the object. This class must be used in conjonction with the Meta option `owner_field` or `owner_urlid_field`. This permission class is associated with a filter that only render objects of which the user is owner.
+ * InheritPermissions: Give access based on the permissions on a related model. This class must be used in conjonction with the Meta option `inherit_permission`, which value must be the name of the `ForeignKey` or `OneToOneField` pointing to the object bearing the permission classes. It also applies filter based on the related model.
+
+ Permission classes can be chained together in a list, or through the | and & operators. Chaining in a list is equivalent to using the & operator.
 
 ```python
-from djangoldp.models import Model
-
-class Todo(Model):
-    name = models.CharField(max_length=255)
-    deadline = models.DateTimeField()
-    user = models.ForeignKey(settings.AUTH_USER_MODEL)
-
+class MyModel(models.Model):
+    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    related = models.ForeignKey(SomeOtherModel)
     class Meta:
-        owner_field = 'user' # can be nested, e.g. user__parent
+        permission_classes = [InheritPermissions, AuthenticatedOnly&(ReadOnly|OwnerPermissions|LDPPermissions)]
+        inherit_permissions = 'related
+        owner_field = 'author_user'
+	auto_author_field = 'profile'
 ```
 
-You can also use owner_urlid_field to point to a field that holds the urlid of the owner instead of a foreignkey to a User object.
+### Role based permissions
 
-Important note:
-If you need to give permissions to owner's object, don't forget to add auto_author in model's meta
+Permissions can also be defind through roles defined in the Meta option `permission_roles`. When set, DjangoLDP will automatically create groups and assigne permissions on these groups when the object is created. The author can also be added automatically using the option `add_author`. The permission class `LDPPermissions` must be applied in order for the data base permission to be taken into account.
 
-Superuser's are by default configured to have all of the default DjangoLDP permissions
-* you can restrict their permissions globally by setting `DEFAULT_SUPERUSER_PERMS = []` in your server settings
-* you can change it on a per-model basis as described here. Please note that if you use a custom permissions class you will need to give superusers this permission explicitly, or use the `SuperUsersPermission` class on the model which will grant superusers all permissions
+```python
+class Circle(Model):
+    name = models.CharField(max_length=255, blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING, null=True, blank=True)
+    members = models.ForeignKey(Group, related_name="circles", on_delete=models.SET_NULL, null=True, blank=True)
+    admins = models.ForeignKey(Group, related_name="admin_circles", on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta(Model.Meta):
+        auto_author = 'owner'
+        permission_classes = [LDPPermissions]
+        permission_roles = {
+            'members': {'perms': ['view'], 'add_author': True},
+            'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
+        }
+```
+
+### Custom permission classes
+
+Custom classes can be defined to handle specific permission checks. These class must inherit `djangoldp.permissions.LDPBasePermissions` and can override the following method:
+
+* get_filter_backend: returns a Filter class to be applied on the queryset before rendering. You can also define `filter_backend` as a field of the class directly.
+* has_permission: called at the very begining of the request to check whether the user has permissions to call the specific HTTP method.
+* has_object_permission: called on object requests on the first access to the object to check whether the user has rights on the request object.
+* get_permissions: called on every single resource rendered to output the permissions of the user on that resource. This method should not access the database as it could severly affect performances.
 
 ### view_set
 
