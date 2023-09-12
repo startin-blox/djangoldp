@@ -7,6 +7,8 @@ from djangoldp.models import Model
 from djangoldp.permissions import LDPPermissions, AuthenticatedOnly, ReadOnly, \
     ReadAndCreate, AnonymousReadOnly, OwnerPermissions, InheritPermissions
 
+from .permissions import Only2WordsForToto, ReadOnlyStartsWithA
+
 
 class User(AbstractUser, Model):
     class Meta(AbstractUser.Meta, Model.Meta):
@@ -229,6 +231,17 @@ class ReadAndCreatePost(Model):
         ordering = ['pk']
         permission_classes = [ReadAndCreate]
         
+class ANDPermissionsDummy(Model):
+    title = models.CharField(max_length=255)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [ReadOnlyStartsWithA&Only2WordsForToto]
+class ORPermissionsDummy(Model):
+    title = models.CharField(max_length=255)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [ReadOnlyStartsWithA|Only2WordsForToto]
+
 
 class Invoice(Model):
     title = models.CharField(max_length=255, blank=True, null=True)

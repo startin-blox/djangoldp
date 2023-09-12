@@ -1,9 +1,9 @@
 from copy import copy
 from django.conf import settings
-from rest_framework.permissions import BasePermission, DjangoObjectPermissions, OR
+from rest_framework.permissions import BasePermission, DjangoObjectPermissions, OR, AND
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
-from djangoldp.filters import OwnerFilterBackend
+from djangoldp.filters import OwnerFilterBackend, NoFilterBackend
 from djangoldp.utils import is_anonymous_user, is_authenticated_user
 
 DEFAULT_DJANGOLDP_PERMISSIONS = {'view', 'add', 'change', 'delete', 'control'}
@@ -22,12 +22,16 @@ def join_filter_backends(*permissions, model, union=False):
                 if backend:
                     self.filters.append(backend())
         def filter_queryset(self, request, queryset, view):
+            if union:
+                result = queryset.none() #starts with empty for union
+            else:
+                result = queryset
             for filter in self.filters:
                 if union:
-                    queryset = queryset | filter.filter_queryset(request, queryset, view)
+                    result = result | filter.filter_queryset(request, queryset, view)
                 else:
-                    queryset = filter.filter_queryset(request, queryset, view)
-            return queryset
+                    result = filter.filter_queryset(request, result, view)
+            return result
     return JointFilterBackend
 
 permission_map ={
@@ -40,16 +44,24 @@ permission_map ={
     'DELETE': ['%(app_label)s.delete_%(model_name)s'],
 }
 
-# Patch of OR class to enable chaining of LDPBasePermissions
+# Patch of OR and AND classes to enable chaining of LDPBasePermissions
 def OR_get_permissions(self, user, model, obj=None):
     perms1 = self.op1.get_permissions(user, model, obj) if hasattr(self.op1, 'get_permissions') else set()
     perms2 = self.op2.get_permissions(user, model, obj) if hasattr(self.op2, 'get_permissions') else set()
     return set.union(perms1, perms2)    
 OR.get_permissions = OR_get_permissions
 def OR_get_filter_backend(self, model):
-    # only join if both filters are set
     return join_filter_backends(self.op1, self.op2, model=model, union=True)
 OR.get_filter_backend = OR_get_filter_backend
+
+def AND_get_permissions(self, user, model, obj=None):
+    perms1 = self.op1.get_permissions(user, model, obj) if hasattr(self.op1, 'get_permissions') else set()
+    perms2 = self.op2.get_permissions(user, model, obj) if hasattr(self.op2, 'get_permissions') else set()
+    return set.intersection(perms1, perms2)    
+AND.get_permissions = AND_get_permissions
+def AND_get_filter_backend(self, model):
+    return join_filter_backends(self.op1, self.op2, model=model, union=False)
+AND.get_filter_backend = AND_get_filter_backend
 
 class LDPBasePermission(BasePermission):
     """
@@ -59,7 +71,7 @@ class LDPBasePermission(BasePermission):
     """
     # filter backends associated with the permissions class. This will be used to filter queryset in the (auto-generated)
     # view for a model, and in the serializing nested fields
-    filter_backend = None
+    filter_backend = NoFilterBackend
     # by default, all permissions
     permissions = getattr(settings, 'DJANGOLDP_PERMISSIONS', DEFAULT_DJANGOLDP_PERMISSIONS)
     # perms_map defines the permissions required for different methods

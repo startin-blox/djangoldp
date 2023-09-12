@@ -14,7 +14,14 @@ class OwnerFilterBackend(BaseFilterBackend):
         if getattr(view.model._meta, 'auto_author', None) is not None:
             return queryset.filter(**{view.model._meta.auto_author: request.user})
         return queryset
-        
+
+class NoFilterBackend(BaseFilterBackend):
+    """
+    No filter applied.
+    This class is useful for permission classes that don't filter objects, so that they can be chained with other
+    """       
+    def filter_queryset(self, request, queryset, view):
+        return queryset 
 
 class LocalObjectFilterBackend(BaseFilterBackend):
     """

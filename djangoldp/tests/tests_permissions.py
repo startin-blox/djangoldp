@@ -4,7 +4,7 @@ from django.contrib.auth.models import Permission
 from guardian.models import GroupObjectPermission
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from djangoldp.tests.models import AnonymousReadOnlyPost, AuthenticatedOnlyPost, ReadOnlyPost, \
-    ReadAndCreatePost, OwnedResource, RestrictedCircle, RestrictedResource
+    ReadAndCreatePost, OwnedResource, RestrictedCircle, RestrictedResource, ANDPermissionsDummy, ORPermissionsDummy
 
 class TestPermissions(APITestCase):
     def setUp(self):
@@ -18,16 +18,16 @@ class TestPermissions(APITestCase):
         self.client = APIClient(enforce_csrf_checks=True)
         self.client.force_authenticate(user=self.user)
 
-    def check_can_add(self, url, status_code=201):
-        data = { "http://happy-dev.fr/owl/#content": "new post" }
+    def check_can_add(self, url, status_code=201, field='content'):
+        data = { f"http://happy-dev.fr/owl/#{field}": "new post" }
         response = self.client.post(url, data=json.dumps(data), content_type='application/ld+json')
         self.assertEqual(response.status_code, status_code)
         if status_code == 201:
             self.assertIn('@id', response.data)
             return response.data['@id']
     
-    def check_can_change(self, id, status_code=200):
-        data = { "http://happy-dev.fr/owl/#content": "changed post" }
+    def check_can_change(self, id, status_code=200, field='content'):
+        data = { f"http://happy-dev.fr/owl/#{field}": "changed post" }
         response = self.client.put(id, data=json.dumps(data), content_type='application/ld+json')
         self.assertEqual(response.status_code, status_code)
         if status_code == 200:
@@ -40,22 +40,24 @@ class TestPermissions(APITestCase):
         if status_code == 200:
             self.assertEqual(response.data['@id'], id)
 
-    def check_can_view(self, url, id, status_code=200):
+    def check_can_view(self, url, ids, status_code=200):
         response = self.client.get(url, content_type='application/ld+json')
         self.assertEqual(response.status_code, status_code)
         if status_code == 200:
-            self.assertEqual(len(response.data['ldp:contains']), 1)
-            self.assertEqual(response.data['ldp:contains'][0]['@id'], id)
-        self.check_can_view_one(id, status_code)
+            self.assertEqual(len(response.data['ldp:contains']), len(ids))
+            for resource, id in zip(response.data['ldp:contains'], ids):
+                self.assertEqual(resource['@id'], id)
+        for id in ids:
+            self.check_can_view_one(id, status_code)
         
 
     def test_permissionless_model(self):
         id = self.check_can_add('/posts/')
-        self.check_can_view('/posts/', id)
+        self.check_can_view('/posts/', [id])
 
     def test_anonymous_readonly(self):
         post = AnonymousReadOnlyPost.objects.create(content = "test post")
-        self.check_can_view('/anonymousreadonlyposts/', post.urlid)
+        self.check_can_view('/anonymousreadonlyposts/', [post.urlid])
         self.check_can_add('/anonymousreadonlyposts/', 403)
         self.check_can_change(post.urlid, 403)
 
@@ -65,7 +67,7 @@ class TestPermissions(APITestCase):
     
     def test_authenticated_only(self):
         post = AuthenticatedOnlyPost.objects.create(content = "test post")
-        self.check_can_view('/authenticatedonlyposts/', post.urlid, 403)
+        self.check_can_view('/authenticatedonlyposts/', [post.urlid], 403)
         self.check_can_add('/authenticatedonlyposts/', 403)
         self.check_can_change(post.urlid, 403)
         post.delete()
@@ -73,18 +75,18 @@ class TestPermissions(APITestCase):
         self.authenticate()
         #When authenticated it should behave like a non protected model
         id = self.check_can_add('/authenticatedonlyposts/')
-        self.check_can_view('/authenticatedonlyposts/', id)
+        self.check_can_view('/authenticatedonlyposts/', [id])
         self.check_can_change(id)
 
     def test_readonly(self):
         post = ReadOnlyPost.objects.create(content = "test post")
-        self.check_can_view('/readonlyposts/', post.urlid)
+        self.check_can_view('/readonlyposts/', [post.urlid])
         self.check_can_add('/readonlyposts/', 403)
         self.check_can_change(post.urlid, 403)
 
     def test_readandcreate(self):
         post = ReadAndCreatePost.objects.create(content = "test post")
-        self.check_can_view('/readandcreateposts/', post.urlid)
+        self.check_can_view('/readandcreateposts/', [post.urlid])
         self.check_can_add('/readandcreateposts/')
         self.check_can_change(post.urlid, 403)
         
@@ -94,7 +96,7 @@ class TestPermissions(APITestCase):
         mine = OwnedResource.objects.create(description="Mine!", user=self.user)
         theirs = OwnedResource.objects.create(description="Theirs", user=them)
         noones = OwnedResource.objects.create(description="I belong to NO ONE!")
-        self.check_can_view('/ownedresources/', mine.urlid) #checks I can access mine and only mine
+        self.check_can_view('/ownedresources/', [mine.urlid]) #checks I can access mine and only mine
         self.check_can_change(mine.urlid)
         self.check_can_view_one(theirs.urlid, 404)
         self.check_can_change(theirs.urlid, 404)
@@ -128,7 +130,7 @@ class TestPermissions(APITestCase):
         self.assertNotIn(self.user, noones.members.user_set.all())
         self.assertNotIn(self.user, noones.admins.user_set.all())
 
-        self.check_can_view('/restrictedcircles/', mine.urlid) #check filtering
+        self.check_can_view('/restrictedcircles/', [mine.urlid]) #check filtering
 
         self.check_permissions(mine, mine.members, RestrictedCircle._meta.permission_roles['members']['perms'])
         self.check_permissions(mine, mine.admins, RestrictedCircle._meta.permission_roles['admins']['perms'])
@@ -139,5 +141,44 @@ class TestPermissions(APITestCase):
         RestrictedResource.objects.create(content="theirs", circle=theirs)
         RestrictedResource.objects.create(content="noones", circle=noones)
 
-        self.check_can_view('/restrictedresources/', myresource.urlid)
+        self.check_can_view('/restrictedresources/', [myresource.urlid])
         self.check_can_change(myresource.urlid)
+
+    
+    def test_and_permissions(self):
+        self.authenticate()
+        abc = ANDPermissionsDummy.objects.create(title='ABC')
+        youpi = ANDPermissionsDummy.objects.create(title='youpi woopaa')
+        wonder = ANDPermissionsDummy.objects.create(title='A Wonderful World!!')
+        plop = ANDPermissionsDummy.objects.create(title='plop')
+        self.check_can_view('/andpermissionsdummys/', [wonder.urlid], 403)
+        self.check_can_add('/andpermissionsdummys/', 403, field='title')
+        self.check_can_change(wonder.urlid, 403, field='title')
+
+        self.user.username = 'toto'
+        self.user.save()
+        self.check_can_view('/andpermissionsdummys/', [wonder.urlid])
+        self.check_can_view_one(abc.urlid, 404)
+        self.check_can_view_one(youpi.urlid, 404)
+        self.check_can_view_one(plop.urlid, 404)
+        self.check_can_add('/andpermissionsdummys/', 403, field='title')
+        self.check_can_change(wonder.urlid, 403, field='title')
+        self.check_can_change(youpi.urlid, 403, field='title')
+
+    def test_or_permissions(self):
+        self.authenticate()
+        abc = ORPermissionsDummy.objects.create(title='ABC')
+        youpi = ORPermissionsDummy.objects.create(title='youpi woopaa')
+        wonder = ORPermissionsDummy.objects.create(title='A Wonderful World!!')
+        plop = ORPermissionsDummy.objects.create(title='plop')
+        self.check_can_view('/orpermissionsdummys/', [abc.urlid, wonder.urlid])
+        self.check_can_add('/andpermissionsdummys/', 403, field='title')
+        self.check_can_change(wonder.urlid, 403, field='title')
+
+        self.user.username = 'toto'
+        self.user.save()
+        self.check_can_view('/orpermissionsdummys/', [abc.urlid, youpi.urlid, wonder.urlid])
+        self.check_can_view_one(plop.urlid, 404)
+        self.check_can_add('/orpermissionsdummys/', field='title')
+        self.check_can_change(wonder.urlid, field='title')
+        self.check_can_change(plop.urlid, 404, field='title')
