@@ -2,7 +2,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember, UserProfile
+from djangoldp.tests.models import Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, CircleMember, UserProfile, Conversation, Message
 from djangoldp.serializers import GLOBAL_SERIALIZER_CACHE
 
 class TestGET(APITestCase):
@@ -123,6 +123,15 @@ class TestGET(APITestCase):
         self.assertNotIn('permissions', response.data['ldp:contains'][1])
         self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
         self.assertEqual(response.data['ldp:contains'][1]['@id'], distant_batch.urlid)
+
+    def test_get_nested_without_related_name(self):
+        user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com', password='glass onion')
+        conversation = Conversation.objects.create(author_user=user)
+        message = Message.objects.create(conversation=conversation, author_user=user)
+        response = self.client.get('/conversations/{}/message_set/'.format(conversation.pk), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEquals(response.data['@id'], 'http://happy-dev.fr/conversations/{}/message_set/'.format(conversation.pk))
+        self.assertEquals(len(response.data['ldp:contains']), 1)
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/335
     #  test getting a route with multiple nested fields (/job-offers/X/skills/Y/)
