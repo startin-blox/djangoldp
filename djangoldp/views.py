@@ -664,9 +664,9 @@ class LDPNestedViewSet(LDPViewSet):
         super().perform_create(serializer, **kwargs)
 
     def get_queryset(self, *args, **kwargs):
-        if self.related_field.many_to_many or self.related_field.one_to_many:
+        if self.related_field.many_to_many or self.related_field.many_to_one or self.related_field.one_to_many:
             return getattr(self.get_parent(), self.nested_field).all()
-        if self.related_field.many_to_one or self.related_field.one_to_one:
+        if self.related_field.one_to_one:
             return [getattr(self.get_parent(), self.nested_field)]
 
 
