@@ -121,7 +121,7 @@ class ReadAndCreate(LDPBasePermission):
     """Users can only view and create"""
     permissions = {'view', 'add'}
 
-class LDPPermissions(DjangoObjectPermissions, LDPBasePermission):
+class ACLPermissions(DjangoObjectPermissions, LDPBasePermission):
     """Permissions based on the rights given in db, on model for container requests or on object for resource requests"""
     filter_backend = ObjectPermissionsFilter
     perms_map = permission_map

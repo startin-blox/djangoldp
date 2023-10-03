@@ -331,7 +331,7 @@ class MyModel(models.Model):
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
     related = models.ForeignKey(SomeOtherModel)
     class Meta:
-        permission_classes = [InheritPermissions, AuthenticatedOnly&(ReadOnly|OwnerPermissions|LDPPermissions)]
+        permission_classes = [InheritPermissions, AuthenticatedOnly&(ReadOnly|OwnerPermissions|ACLPermissions)]
         inherit_permissions = 'related
         owner_field = 'author_user'
 	auto_author_field = 'profile'
@@ -339,7 +339,7 @@ class MyModel(models.Model):
 
 ### Role based permissions
 
-Permissions can also be defind through roles defined in the Meta option `permission_roles`. When set, DjangoLDP will automatically create groups and assigne permissions on these groups when the object is created. The author can also be added automatically using the option `add_author`. The permission class `LDPPermissions` must be applied in order for the data base permission to be taken into account.
+Permissions can also be defind through roles defined in the Meta option `permission_roles`. When set, DjangoLDP will automatically create groups and assigne permissions on these groups when the object is created. The author can also be added automatically using the option `add_author`. The permission class `ACLPermissions` must be applied in order for the data base permission to be taken into account.
 
 ```python
 class Circle(Model):
@@ -350,7 +350,7 @@ class Circle(Model):
 
     class Meta(Model.Meta):
         auto_author = 'owner'
-        permission_classes = [LDPPermissions]
+        permission_classes = [ACLPermissions]
         permission_roles = {
             'members': {'perms': ['view'], 'add_author': True},
             'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},

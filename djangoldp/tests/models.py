@@ -4,7 +4,7 @@ from django.db import models
 from django.utils.datetime_safe import date
 
 from djangoldp.models import Model
-from djangoldp.permissions import LDPPermissions, AuthenticatedOnly, ReadOnly, \
+from djangoldp.permissions import ACLPermissions, AuthenticatedOnly, ReadOnly, \
     ReadAndCreate, AnonymousReadOnly, OwnerPermissions, InheritPermissions
 
 from .permissions import Only2WordsForToto, ReadOnlyStartsWithA
@@ -193,7 +193,7 @@ class PermissionlessDummy(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        permission_classes = [LDPPermissions]
+        permission_classes = [ACLPermissions]
         lookup_field='slug'
         permissions = (('custom_permission_permissionlessdummy', 'Custom Permission'),)
 
@@ -264,7 +264,7 @@ class Circle(Model):
         ordering = ['pk']
         auto_author = 'owner'
         depth = 1
-        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions|LDPPermissions]
+        permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions|ACLPermissions]
         permission_roles = {
             'members': {'perms': ['view'], 'add_author': True},
             'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
@@ -283,7 +283,7 @@ class RestrictedCircle(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         auto_author = 'owner'
-        permission_classes = [LDPPermissions]
+        permission_classes = [ACLPermissions]
         permission_roles = {
             'members': {'perms': ['view'], 'add_author': True},
             'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
@@ -370,7 +370,7 @@ class MyAbstractModel(Model):
 
     class Meta(Model.Meta):
         ordering = ['pk']
-        permission_classes = [LDPPermissions]
+        permission_classes = [ACLPermissions]
         abstract = True
         rdf_type = "wow:defaultrdftype"
 
@@ -378,4 +378,4 @@ class MyAbstractModel(Model):
 class NoSuperUsersAllowedModel(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
-        permission_classes = [LDPPermissions]
+        permission_classes = [ACLPermissions]
