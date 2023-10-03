@@ -76,4 +76,5 @@ You can see a sample on the `check_integrity.py` file of DjangoLDP.
 
 ## License
 
+
 Licence MIT
