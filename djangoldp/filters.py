@@ -15,6 +15,15 @@ class OwnerFilterBackend(BaseFilterBackend):
             return queryset.filter(**{view.model._meta.auto_author: request.user})
         return queryset
 
+class PublicFilterBackend(BaseFilterBackend):
+    """
+    No filter applied.
+    This class is useful for permission classes that don't filter objects, so that they can be chained with other
+    """       
+    def filter_queryset(self, request, queryset, view):
+        public_field = queryset.model._meta.public_field
+        return queryset.filter(**{public_field: True})
+
 class NoFilterBackend(BaseFilterBackend):
     """
     No filter applied.

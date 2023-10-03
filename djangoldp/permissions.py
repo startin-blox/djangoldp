@@ -3,7 +3,7 @@ from django.conf import settings
 from rest_framework.permissions import BasePermission, DjangoObjectPermissions, OR, AND
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
-from djangoldp.filters import OwnerFilterBackend, NoFilterBackend
+from djangoldp.filters import OwnerFilterBackend, NoFilterBackend, PublicFilterBackend
 from djangoldp.utils import is_anonymous_user, is_authenticated_user
 
 DEFAULT_DJANGOLDP_PERMISSIONS = {'view', 'add', 'change', 'delete', 'control'}
@@ -154,6 +154,16 @@ class OwnerPermissions(LDPBasePermission):
         if not obj or self.has_object_permission(request, view, obj):
             return self.permissions
         return set()
+
+class PublicPermissions(LDPBasePermission):
+    """Gives read-only access to resources which have a public flag to True"""
+    filter_backend = PublicFilterBackend
+    def has_object_permission(self, request, view, obj=None):
+        assert hasattr(request.model._meta, 'public_field'), \
+            f'Model {request.model} has PublicPermissions applied without "public_field" defined'
+        public_field = request.model._meta.public_field
+        return getattr(obj, public_field, False)
+
 
 class InheritPermissions(LDPBasePermission):
     """Gets the permissions from a related objects"""
