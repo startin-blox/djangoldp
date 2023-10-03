@@ -321,6 +321,7 @@ DjangoLDP comes with a set of permission classes that you can use for standard b
  * ReadAndCreate: Refuse access to any request changing an existing resource
  * AnonymousReadOnly: Refuse access to anonymous users with any write request
  * LDDPermissions: Give access based on the permissions in the database. For container requests (list and create), based on model level permissions. For all others, based on object level permissions. This permission class is associated with a filter that only renders objects on which the user has access.
+ * PublicPermissions: Give access based on a public flag on the object. This class must be used in conjonction with the Meta option `public_field`. This permission class is associated with a filter that only render objects that have the public flag set.
  * OwnerPermissions: Give access based on the owner of the object. This class must be used in conjonction with the Meta option `owner_field` or `owner_urlid_field`. This permission class is associated with a filter that only render objects of which the user is owner.
  * InheritPermissions: Give access based on the permissions on a related model. This class must be used in conjonction with the Meta option `inherit_permission`, which value must be the name of the `ForeignKey` or `OneToOneField` pointing to the object bearing the permission classes. It also applies filter based on the related model.
 
