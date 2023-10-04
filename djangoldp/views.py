@@ -594,10 +594,11 @@ class LDPNestedViewSet(LDPViewSet):
         super().perform_create(serializer, **kwargs)
 
     def get_queryset(self, *args, **kwargs):
+        related = getattr(self.get_parent(), self.nested_field)
         if self.related_field.many_to_many or self.related_field.many_to_one or self.related_field.one_to_many:
-            return getattr(self.get_parent(), self.nested_field).all()
+            return related.all()
         if self.related_field.one_to_one:
-            return [getattr(self.get_parent(), self.nested_field)]
+            return type(related).objects.filter(pk=related.pk)
 
 
 class LDPAPIView(APIView):
