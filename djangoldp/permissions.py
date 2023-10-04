@@ -204,7 +204,7 @@ class InheritPermissions(LDPBasePermission):
         '''returns a new Filter backend that applies all filters of the parent model'''
         parent = cls.get_parent_model(model)
         filter_arg = f'{model._meta.inherit_permissions}__in'
-        backends = {perm.get_filter_backend(parent) for perm in parent._meta.permission_classes}
+        backends = {perm().get_filter_backend(parent) for perm in parent._meta.permission_classes}
 
         class InheritFilterBackend(BaseFilterBackend):
             def __init__(self) -> None:
