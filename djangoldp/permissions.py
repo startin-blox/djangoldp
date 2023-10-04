@@ -44,7 +44,7 @@ permission_map ={
     'DELETE': ['%(app_label)s.delete_%(model_name)s'],
 }
 
-# Patch of OR and AND classes to enable chaining of LDPBasePermissions
+# Patch of OR and AND classes to enable chaining of LDPBasePermission
 def OR_get_permissions(self, user, model, obj=None):
     perms1 = self.op1.get_permissions(user, model, obj) if hasattr(self.op1, 'get_permissions') else set()
     perms2 = self.op2.get_permissions(user, model, obj) if hasattr(self.op2, 'get_permissions') else set()
@@ -155,14 +155,18 @@ class OwnerPermissions(LDPBasePermission):
             return self.permissions
         return set()
 
-class PublicPermissions(LDPBasePermission):
+class PublicPermission(LDPBasePermission):
     """Gives read-only access to resources which have a public flag to True"""
     filter_backend = PublicFilterBackend
+    permissions = {'view', 'add'}
     def has_object_permission(self, request, view, obj=None):
         assert hasattr(request.model._meta, 'public_field'), \
-            f'Model {request.model} has PublicPermissions applied without "public_field" defined'
+            f'Model {request.model} has PublicPermission applied without "public_field" defined'
         public_field = request.model._meta.public_field
-        return getattr(obj, public_field, False)
+
+        if getattr(obj, public_field, False):
+            return super().has_object_permission(request, view, obj)
+        return False
 
 
 class InheritPermissions(LDPBasePermission):
