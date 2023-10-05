@@ -36,7 +36,7 @@ def get_all_non_abstract_subclasses_dict(cls):
     return {cls.__name__: cls for cls in get_all_non_abstract_subclasses(cls)}
 
 urlpatterns = [
-    path('groups/', LDPViewSet.urls(model=Group, fields=['@id', 'name', 'user_set']),),
+    path('groups/', LDPViewSet.urls(model=Group)),
     re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
                                                                     permission_classes=[ReadOnly], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
