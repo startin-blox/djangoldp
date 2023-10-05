@@ -174,8 +174,8 @@ class TestGET(APITestCase):
         self.assertIn('permissions', response.data)
         self.assertIn('members', response.data['ldp:contains'][0])
         self.assertEqual(response.data['ldp:contains'][0]['members']['@type'], 'foaf:Group')
-        self.assertIn('@id', response.data['ldp:contains'][0]['members']['user_set'])
-        self.assertIn('ldp:contains', response.data['ldp:contains'][0]['members']['user_set'])
+        self.assertIn('@id', response.data['ldp:contains'][0]['members'])
+        self.assertEqual(len(response.data['ldp:contains'][0]['members']['user_set']), 1)
 
     # test for functioning with setting
     def test_empty_container_serialization_nested_serializer_empty(self):

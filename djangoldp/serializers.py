@@ -92,6 +92,7 @@ class RDFSerializerMixin:
         return data
     
     def serialize_rdf_fields(self, obj, data, include_context=False):
+        '''adds the @type and the @context to the data'''
         rdf_type = getattr(obj._meta, 'rdf_type', None)
         rdf_context = getattr(obj._meta, 'rdf_context', None)
         if rdf_type:
@@ -99,6 +100,10 @@ class RDFSerializerMixin:
         if include_context and rdf_context:
             data['@context'] = rdf_context
         return data
+
+    def serialize_container(self, data, id, user, model, obj=None):
+        '''turns a list into a container representation'''
+        return self.add_permissions({'@id': id, '@type': 'ldp:Container', 'ldp:contains': data}, user, model, obj)
 
 class LDListMixin(RDFSerializerMixin):
     '''A Mixin for serializing containers into JSONLD format'''
@@ -179,23 +184,25 @@ class LDListMixin(RDFSerializerMixin):
         user = self.context['request'].user
         id = self.compute_id(value)
         
+        is_container = True
         if getattr(self, 'parent', None): #If we're in a nested container
             if isinstance(value, QuerySet) and getattr(self, 'parent', None):
                 value = self.filter_queryset(value, child_model)
 
             if getattr(self, 'field_name', None) is not None:
-                empty_containers = getattr(self.parent.Meta.model._meta, 'empty_containers', None)
-                if empty_containers is not None and self.field_name in empty_containers:
+                if self.field_name in getattr(self.parent.Meta.model._meta, 'empty_containers', []):
                     return {'@id': id}
+                if not self.field_name in getattr(self.parent.Meta.model._meta, 'nested_fields', []):
+                    is_container = False
 
-        
         cache_vary = str(user)
         cache_result = self.check_cache(value, id, child_model, cache_vary)
         if cache_result:
             return cache_result
         
-        data = {'@id': id, '@type': 'ldp:Container', 'ldp:contains': super().to_representation(value)}
-        data = self.add_permissions(data, user, child_model)
+        data = super().to_representation(value)
+        if is_container:
+            data = self.serialize_container(data, id, user, child_model)
 
         GLOBAL_SERIALIZER_CACHE.set(getattr(child_model._meta, 'label'), id, cache_vary, data)
         return GLOBAL_SERIALIZER_CACHE.get(getattr(child_model._meta, 'label'), id, cache_vary)
@@ -445,9 +452,8 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
                 if isinstance(instance, QuerySet):
                     id = '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source)
-                    data = {'@id': id, '@type': 'ldp:Container', 'ldp:contains':[serializer.to_representation(item) for item in instance]}
-                    data = self.parent.add_permissions(data, self.parent.context['request'].user, model)
-                    return data
+                    children = [serializer.to_representation(item) for item in instance]
+                    return self.parent.serialize_container(children, id, self.parent.context['request'].user, model)
                 else:
                     return serializer.to_representation(instance)
 

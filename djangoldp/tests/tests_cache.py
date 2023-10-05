@@ -222,15 +222,15 @@ class TestCache(TestCase):
         circle = Circle.objects.create(description='Test')
         response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['members']['user_set']['ldp:contains']), 0)
+        self.assertEqual(len(response.data['members']['user_set']), 0)
 
         circle.members.user_set.add(self.user)
         response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['members']['user_set']['ldp:contains']), 1)
+        self.assertEqual(len(response.data['members']['user_set']), 1)
         # assert the depth is applied
-        self.assertIn('first_name', response.data['members']['user_set']['ldp:contains'][0])
-        self.assertEqual(response.data['members']['user_set']['ldp:contains'][0]['first_name'], self.user.first_name)
+        self.assertIn('first_name', response.data['members']['user_set'][0])
+        self.assertEqual(response.data['members']['user_set'][0]['first_name'], self.user.first_name)
 
         # make a change to the _user_
         self.user.first_name = "Alan"
@@ -239,9 +239,9 @@ class TestCache(TestCase):
         # assert that the use under the circles members has been updated
         response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['members']['user_set']['ldp:contains']), 1)
-        self.assertIn('first_name', response.data['members']['user_set']['ldp:contains'][0])
-        self.assertEqual(response.data['members']['user_set']['ldp:contains'][0]['first_name'], self.user.first_name)
+        self.assertEqual(len(response.data['members']['user_set']), 1)
+        self.assertIn('first_name', response.data['members']['user_set'][0])
+        self.assertEqual(response.data['members']['user_set'][0]['first_name'], self.user.first_name)
 
     # test the cache behaviour when empty_containers is an active setting
     @override_settings(SERIALIZER_CACHE=True)
@@ -260,15 +260,12 @@ class TestCache(TestCase):
         self.assertIn('members', response.data['ldp:contains'][0])
         self.assertIn('@id', response.data['ldp:contains'][0]['members'])
         self.assertIn('user_set', response.data['ldp:contains'][0]['members'])
-        self.assertIn('ldp:contains', response.data['ldp:contains'][0]['members']['user_set'])
-        self.assertEqual(len(response.data['ldp:contains'][0]['members']['user_set']['ldp:contains']), 1)
-        self.assertIn('@id', response.data['ldp:contains'][0]['members']['user_set']['ldp:contains'][0])
-        self.assertEqual(response.data['ldp:contains'][0]['members']['user_set']['ldp:contains'][0]['@type'], 'foaf:user')
+        self.assertEqual(len(response.data['ldp:contains'][0]['members']['user_set']), 1)
+        self.assertIn('@id', response.data['ldp:contains'][0]['members']['user_set'][0])
+        self.assertEqual(response.data['ldp:contains'][0]['members']['user_set'][0]['@type'], 'foaf:user')
 
         # and a second on the child
         response = self.client.get(response.data['ldp:contains'][0]['members']['@id'], content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['user_set']['@type'], 'ldp:Container')
-        self.assertIn('@id', response.data['user_set'])
-        self.assertIn('ldp:contains', response.data['user_set'])
-        self.assertEqual(len(response.data['user_set']['ldp:contains']), 1)
+        self.assertIn('@id', response.data)
+        self.assertEqual(len(response.data['user_set']), 1)
