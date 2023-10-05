@@ -54,20 +54,6 @@ class Model(models.Model):
         return LDPSerializer
 
     @classmethod
-    def nested_fields(cls):
-        '''parses the relations on the model, and returns a list of nested field names'''
-        nested_fields = set()
-        # include all many-to-many relations
-        for field_name, relation_info in model_meta.get_field_info(cls).relations.items():
-            if relation_info.to_many and field_name:
-                nested_fields.add(field_name)
-        # include all nested fields explicitly included on the model
-        nested_fields.update(set(getattr(cls._meta, 'nested_fields', set())))
-        # exclude anything marked explicitly to be excluded
-        nested_fields = nested_fields.difference(set(getattr(cls._meta, 'nested_fields_exclude', set())))
-        return list(nested_fields)
-
-    @classmethod
     def get_container_path(cls):
         '''returns the url path which is used to access actions on this model (e.g. /users/)'''
         path = getattr(cls._meta, 'container_path', getattr(cls.Meta, 'container_path', None))

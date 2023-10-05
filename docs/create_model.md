@@ -183,10 +183,6 @@ Todo.objects.local() # { Local Todo } only
 
 For Views, we also define a FilterBackend to achieve the same purpose. See the section on ViewSets for this purpose
 
-#### nested_fields()
-
-returns a list of all nested field names for the model, built of a union of the model class' `nested_fields` setting, the to-many relations on the model, excluding all fields detailed by `nested_fields_exclude`
-
 ## LDPViewSet
 
 DjangoLDP automatically generates ViewSets for your models, and registers these at urls, according to the settings configured in the model Meta (see below for options)
@@ -205,10 +201,13 @@ LDPViewSet.urls(model=User, lookup_field='username')
 
 list of ForeignKey, ManyToManyField, OneToOneField and their reverse relations. When a field is listed in this parameter, a container will be created inside each single element of the container.
 
-In the following example, besides the urls `/members/` and `/members/<pk>/`, two other will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/`
+In the following example, besides the urls `/members/` and `/members/<pk>/`, two others will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/`.
+
+ForeignKey, ManyToManyField, OneToOneField that are not listed in the `nested_fields` option will be rendered as a flat list and will not have their own container endpoint.
 
 ```python
-<Model>._meta.nested_fields=["skills"]
+Meta:
+    nested_fields=["skills"]
 ```
 
 ### Improving Performance
@@ -416,15 +415,6 @@ class Todo(Model):
 Only `deadline` will be serialized
 
 This is achieved when `LDPViewSet` sets the `exclude` property on the serializer in `build_serializer` method. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself
-
-### nested_fields_exclude
-
-```python
-    class Meta:
-        nested_fields_exclude=["skills"]
-```
-
-Will exclude the field `skills` from the model's nested fields, and prevent a container `/model/<pk>/skills/` from being generated
 
 ### empty_containers
 

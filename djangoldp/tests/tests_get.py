@@ -196,6 +196,7 @@ class TestGET(APITestCase):
         user = self._set_up_circle_and_user()
 
         response = self.client.get(f'/users/{user.pk}/owned_circles/', content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['@type'], 'ldp:Container')
         self.assertIn('@id', response.data)
         self.assertIn('ldp:contains', response.data)
@@ -208,6 +209,7 @@ class TestGET(APITestCase):
         user = self._set_up_circle_and_user()
 
         response = self.client.get(f'/users/{user.pk}/owned_circles/', content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['@type'], 'ldp:Container')
         self.assertIn('@id', response.data)
         self.assertIn('ldp:contains', response.data)

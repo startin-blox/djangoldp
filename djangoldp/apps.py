@@ -34,7 +34,7 @@ class DjangoldpConfig(AppConfig):
         from django.conf import settings
         from django.contrib import admin
         from djangoldp.admin import DjangoLDPAdmin
-        from djangoldp.urls import get_all_non_abstract_subclasses_dict
+        from djangoldp.urls import get_all_non_abstract_subclasses
         from djangoldp.models import Model
 
         for package in settings.DJANGOLDP_PACKAGES:
@@ -49,9 +49,6 @@ class DjangoldpConfig(AppConfig):
             except ModuleNotFoundError:
                 pass
 
-        model_classes = get_all_non_abstract_subclasses_dict(Model)
-
-        for class_name in model_classes:
-            model_class = model_classes[class_name]
-            if not admin.site.is_registered(model_class):
-                admin.site.register(model_class, DjangoLDPAdmin)
+        for model in get_all_non_abstract_subclasses(Model):
+            if not admin.site.is_registered(model):
+                admin.site.register(model, DjangoLDPAdmin)

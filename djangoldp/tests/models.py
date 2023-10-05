@@ -17,6 +17,7 @@ class User(AbstractUser, Model):
                              'conversation_set','groups', 'projects', 'owned_circles']
         permission_classes = [ReadAndCreate|OwnerPermissions]
         rdf_type = 'foaf:user'
+        nested_fields = ['owned_circles']
 
 
 class Skill(Model):
@@ -32,6 +33,7 @@ class Skill(Model):
         ordering = ['pk']
         permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
         serializer_fields = ["@id", "title", "recent_jobs", "slug", "obligatoire"]
+        nested_fields = ['joboffer_set']
         lookup_field = 'slug'
         rdf_type = 'hd:skill'
 
@@ -52,6 +54,7 @@ class JobOffer(Model):
         ordering = ['pk']
         permission_classes = [AnonymousReadOnly, ReadOnly|OwnerPermissions]
         serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
+        nested_fields = ['skills', 'resources']
         container_path = "job-offers/"
         lookup_field = 'slug'
         rdf_type = 'hd:joboffer'
@@ -78,6 +81,7 @@ class Resource(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         serializer_fields = ["@id", "joboffers"]
+        nested_fields = ['joboffers']
         depth = 1
         rdf_type = 'hd:Resource'
 
@@ -93,6 +97,7 @@ class OwnedResource(Model):
         permission_classes = [OwnerPermissions]
         owner_field = 'user'
         serializer_fields = ['@id', 'description', 'user']
+        nested_fields = ['owned_resources']
         depth = 1
 
 
@@ -119,6 +124,7 @@ class OwnedResourceNestedOwnership(Model):
         permission_classes = [OwnerPermissions]
         owner_field = 'parent__user'
         serializer_fields = ['@id', 'description', 'parent']
+        nested_fields = ['owned_resources']
         depth = 1
 
 
@@ -183,6 +189,7 @@ class LDPDummy(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
+        nested_fields = ['anons']
 
 
 # model used in django-guardian permission tests (no permission to anyone except suuperusers)
@@ -251,6 +258,7 @@ class Invoice(Model):
         ordering = ['pk']
         depth = 2
         permission_classes = [AnonymousReadOnly,ReadAndCreate|OwnerPermissions]
+        nested_fields = ['batches']
 
 
 class Circle(Model):
@@ -345,6 +353,7 @@ class Project(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         rdf_type = 'hd:project'
+        nested_fields = ['members']
 
 
 class DateModel(Model):

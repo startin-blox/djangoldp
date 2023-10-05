@@ -28,12 +28,7 @@ def get_all_non_abstract_subclasses(cls):
         return not getattr(sc._meta, 'abstract', False)
 
     return set(c for c in cls.__subclasses__() if valid_subclass(c)).union(
-        [s for c in cls.__subclasses__() for s in get_all_non_abstract_subclasses(c) if valid_subclass(s)])
-
-
-def get_all_non_abstract_subclasses_dict(cls):
-    '''returns a dict of class name -> class for all subclasses of given cls parameter (recursively)'''
-    return {cls.__name__: cls for cls in get_all_non_abstract_subclasses(cls)}
+        [subclass for c in cls.__subclasses__() for subclass in get_all_non_abstract_subclasses(c) if valid_subclass(subclass)])
 
 urlpatterns = [
     path('groups/', LDPViewSet.urls(model=Group, fields=['@id', 'name', 'user_set']),),
@@ -66,22 +61,19 @@ for package in settings.DJANGOLDP_PACKAGES:
     except ModuleNotFoundError:
         pass
 
-# fetch a list of all models which subclass DjangoLDP Model
-model_classes = get_all_non_abstract_subclasses_dict(Model)
-
 # append urls for all DjangoLDP Model subclasses
-for class_name in model_classes:
-    model_class = model_classes[class_name]
+for model in get_all_non_abstract_subclasses(Model):
     # the path is the url for this model
-    model_path = __clean_path(model_class.get_container_path())
+    model_path = __clean_path(model.get_container_path())
     # urls_fct will be a method which generates urls for a ViewSet (defined in LDPViewSetGenerator)
-    urls_fct = getattr(model_class, 'view_set', LDPViewSet).urls
+    urls_fct = getattr(model, 'view_set', LDPViewSet).urls
     urlpatterns.append(path('' + model_path,
-        urls_fct(model=model_class,
-                 lookup_field=getattr(model_class._meta, 'lookup_field', 'pk'),
-                 permission_classes=getattr(model_class._meta, 'permission_classes', []),
-                 fields=getattr(model_class._meta, 'serializer_fields', []),
-                 nested_fields=model_class.nested_fields())))
+        urls_fct(model=model,
+                 lookup_field=getattr(model._meta, 'lookup_field', 'pk'),
+                 permission_classes=getattr(model._meta, 'permission_classes', []),
+                 fields=getattr(model._meta, 'serializer_fields', []),
+                 nested_fields=getattr(model._meta, 'nested_fields', [])
+                 )))
 
 # NOTE: this route will be ignored if a custom (subclass of Model) user model is used, or it is registered by a package
 # Django matches the first url it finds for a given path
