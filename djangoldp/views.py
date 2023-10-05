@@ -596,6 +596,8 @@ class LDPNestedViewSet(LDPViewSet):
     def get_queryset(self, *args, **kwargs):
         related = getattr(self.get_parent(), self.nested_field)
         if self.related_field.many_to_many or self.related_field.many_to_one or self.related_field.one_to_many:
+            if callable(related):
+                return related()
             return related.all()
         if self.related_field.one_to_one:
             return type(related).objects.filter(pk=related.pk)
