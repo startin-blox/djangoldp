@@ -59,4 +59,6 @@ class LDPModelTest(TestCase):
         JobOffer._meta.nested_fields_exclude = ['skills']
         nested_fields = JobOffer.nested_fields()
         expected_nested_fields = ['resources', 'recent_skills']
-        self.assertEqual(nested_fields, expected_nested_fields)
+        self.assertEqual(len(nested_fields), len(expected_nested_fields))
+        for expected in expected_nested_fields:
+            self.assertIn(expected, nested_fields)
