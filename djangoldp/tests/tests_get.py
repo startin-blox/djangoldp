@@ -104,6 +104,9 @@ class TestGET(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('some_skill', response.data)
         self.assertEqual(response.data['some_skill']['@id'], skill.urlid)
+        response = self.client.get('/job-offers/{}/recent_skills/'.format(job.slug), content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
 
     def test_get_nested(self):
         invoice = Invoice.objects.create(title="invoice")

@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
 from django.utils.datetime_safe import date
 
-from djangoldp.models import Model
+from djangoldp.models import Model, DynamicNestedField
 from djangoldp.permissions import ACLPermissions, AuthenticatedOnly, ReadOnly, \
     ReadAndCreate, AnonymousReadOnly, OwnerPermissions, InheritPermissions
 
@@ -52,9 +52,12 @@ class JobOffer(Model):
         ordering = ['pk']
         permission_classes = [AnonymousReadOnly, ReadOnly|OwnerPermissions]
         serializer_fields = ["@id", "title", "skills", "recent_skills", "resources", "slug", "some_skill", "urlid"]
+        nested_fields = ['resources', 'recent_skills']
         container_path = "job-offers/"
         lookup_field = 'slug'
         rdf_type = 'hd:joboffer'
+
+JobOffer.recent_skills.field = DynamicNestedField(Skill, 'recent_skills')
 
 
 class Conversation(models.Model):

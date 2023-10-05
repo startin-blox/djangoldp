@@ -361,7 +361,7 @@ class DynamicNestedField:
     Used to define a method as a nested_field.
     Usage:
         LDPUser.circles = lambda self: Circle.objects.filter(members__user=self)
-        LDPUser.circles.field = DynamicField(Circle, 'circles')
+        LDPUser.circles.field = DynamicNestedField(Circle, 'circles')
     '''
     related_query_name = None
     one_to_many = False
@@ -370,7 +370,7 @@ class DynamicNestedField:
     one_to_one = False
     def __init__(self, model, name) -> None:
         self.model = model
-        self.remote_field = type('Field', (object,), {'name': 'circles'})
+        self.remote_field = type('Field', (object,), {'name': name})
 
 @receiver([post_save])
 def auto_urlid(sender, instance, **kwargs):

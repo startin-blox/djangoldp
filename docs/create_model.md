@@ -211,6 +211,13 @@ In the following example, besides the urls `/members/` and `/members/<pk>/`, two
 <Model>._meta.nested_fields=["skills"]
 ```
 
+Methods can be used to create custom read-only fields, by adding the name of the method in the `serializer_fields`. The same can be done for nested fields, but the method must be decorated with a `DynamicNestedField`.
+
+```python
+LDPUser.circles = lambda self: Circle.objects.filter(members__user=self)
+LDPUser.circles.field = DynamicNestedField(Circle, 'circles')
+```
+
 ### Improving Performance
 
 On certain endpoints, you may find that you only need a subset of fields on a model, and serializing them all is expensive (e.g. if I only need the `name` and `id` of each group chat, then why serialize all of their members?). To optimise the fields serialized, you can pass a custom header in the request, `Accept-Model-Fields`, with a `list` value of desired fields e.g. `['@id', 'name']`
