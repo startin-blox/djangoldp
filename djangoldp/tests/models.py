@@ -230,7 +230,7 @@ class ReadAndCreatePost(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         permission_classes = [ReadAndCreate]
-        
+
 class ANDPermissionsDummy(Model):
     title = models.CharField(max_length=255)
     class Meta(Model.Meta):
@@ -295,7 +295,16 @@ class RestrictedResource(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         permission_classes = [InheritPermissions]
-        inherit_permissions = 'circle'
+        inherit_permissions = ['circle']
+
+class DoubleInheritModel(Model):
+    content = models.CharField(max_length=255, blank=True)
+    ro_ancestor = models.ForeignKey(ReadOnlyPost, on_delete=models.CASCADE, null=True, blank=True)
+    circle = models.ForeignKey(RestrictedCircle, on_delete=models.CASCADE, null=True, blank=True)
+    class Meta(Model.Meta):
+        ordering = ['pk']
+        permission_classes = [InheritPermissions]
+        inherit_permissions = ['circle', 'ro_ancestor']
 
 class Space(Model):
     name = models.CharField(max_length=255, blank=True)
