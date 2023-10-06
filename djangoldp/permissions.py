@@ -191,19 +191,19 @@ class InheritPermissions(LDPBasePermission):
 
     def get_parent_object(self, obj:object, field_name:str) -> object|None:
         '''gets the parent object'''
-        if obj:
-            return getattr(obj, field_name)
-        return None
+        return getattr(obj, field_name, None)
     
     @classmethod
     def clone_with_model(self, request:object, view:object, model:object) -> tuple:
         '''changes the model on the argument, so that they can be called on the parent model'''
-        request = copy(request._request)
-        request.model = model
-        view = copy(view)
-        view.queryset = None #to make sure the model is taken into account
-        view.model = model
-        return request, view
+        # For some reason if we copy the request itself, we go into an infinite loop, so take the native request instead
+        _request = copy(request._request)
+        _request.model = model
+        _request.data = request.data #because the data is not present on the native request
+        _view = copy(view)
+        _view.queryset = None #to make sure the model is taken into account
+        _view.model = model
+        return _request, _view
 
     @classmethod
     def generate_filter_backend(cls, parent:object, field_name:str) -> BaseFilterBackend:
@@ -243,6 +243,8 @@ class InheritPermissions(LDPBasePermission):
     
     def has_object_permission(self, request:object, view:object, obj:object) -> bool:
         '''Returns True if at least one inheriting link has permission'''
+        if not obj:
+            return super().has_object_permission(request, view, obj)
         for field in InheritPermissions.get_parent_fields(view.model):
             model = InheritPermissions.get_parent_model(view.model, field)
             parent_request, parent_view = InheritPermissions.clone_with_model(request, view, model)
