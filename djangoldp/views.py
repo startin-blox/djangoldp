@@ -393,6 +393,9 @@ class LDPViewSetGenerator(ModelViewSet):
         if kwargs.get('model_prefix'):
             model_name = '{}-{}'.format(kwargs['model_prefix'], model_name)
         detail_expr = cls.get_detail_expr(**kwargs)
+        # Gets permissions on the model if not explicitely passed to the view
+        if not 'permission_classes' in kwargs and hasattr(kwargs['model']._meta, 'permission_classes'):
+            kwargs['permission_classes'] = kwargs['model']._meta.permission_classes
 
         urls = [
             path('', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),

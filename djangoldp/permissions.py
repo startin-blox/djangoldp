@@ -1,5 +1,6 @@
 from copy import copy
 from django.conf import settings
+from django.http import Http404
 from rest_framework.permissions import BasePermission, DjangoObjectPermissions, OR, AND
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
@@ -8,20 +9,22 @@ from djangoldp.utils import is_anonymous_user, is_authenticated_user
 
 DEFAULT_DJANGOLDP_PERMISSIONS = {'view', 'add', 'change', 'delete', 'control'}
 
-def join_filter_backends(*permissions, model, union=False):
+def join_filter_backends(*permissions_or_filters:BaseFilterBackend|BasePermission, model:object, union:bool=False) -> BaseFilterBackend:
     '''Creates a new Filter backend by joining a list of existing backends.
     It chains the filterings or joins them, depending on the argument union'''
     backends = []
-    for permission in permissions:
-        if hasattr(permission, 'get_filter_backend'):
-            backends.append(permission.get_filter_backend(model))
+    for permission_or_filter in permissions_or_filters:
+        if hasattr(permission_or_filter, 'get_filter_backend'):
+            backends.append(permission_or_filter.get_filter_backend(model))
+        elif isinstance(permission_or_filter, type) and issubclass(permission_or_filter, BaseFilterBackend):
+            backends.append(permission_or_filter)
     class JointFilterBackend(BaseFilterBackend):
         def __init__(self) -> None:
             self.filters = []
             for backend in backends:
                 if backend:
                     self.filters.append(backend())
-        def filter_queryset(self, request, queryset, view):
+        def filter_queryset(self, request:object, queryset:object, view:object) -> object:
             if union:
                 result = queryset.none() #starts with empty for union
             else:
@@ -92,7 +95,7 @@ class LDPBasePermission(BasePermission):
         return request.method in self.get_allowed_methods()
     def has_object_permission(self, request, view, obj=None):
         '''checks if the access to the object is allowed,'''
-        return True
+        return self.has_permission(request, view)
     def get_permissions(self, user, model, obj=None):
         '''returns the permissions the user has on a given model or on a given object'''
         return self.permissions
@@ -160,9 +163,9 @@ class PublicPermission(LDPBasePermission):
     filter_backend = PublicFilterBackend
     permissions = {'view', 'add'}
     def has_object_permission(self, request, view, obj=None):
-        assert hasattr(request.model._meta, 'public_field'), \
-            f'Model {request.model} has PublicPermission applied without "public_field" defined'
-        public_field = request.model._meta.public_field
+        assert hasattr(view.model._meta, 'public_field'), \
+            f'Model {view.model} has PublicPermission applied without "public_field" defined'
+        public_field = view.model._meta.public_field
 
         if getattr(obj, public_field, False):
             return super().has_object_permission(request, view, obj)
@@ -172,38 +175,40 @@ class PublicPermission(LDPBasePermission):
 class InheritPermissions(LDPBasePermission):
     """Gets the permissions from a related objects"""
     @classmethod
-    def get_parent_model(cls, model):
+    def get_parent_fields(cls, model: object) -> list:
         '''checks that the model is adequately configured and returns the associated model'''
         assert hasattr(model._meta, 'inherit_permissions'), \
             f'Model {model} has InheritPermissions applied without "inherit_permissions" defined'
 
-        parent_field = model._meta.inherit_permissions
-        parent_model = model._meta.get_field(parent_field).related_model
+        return model._meta.inherit_permissions
+
+    @classmethod
+    def get_parent_model(cls, model:object, field_name:str) -> object:
+        parent_model = model._meta.get_field(field_name).related_model
         assert hasattr(parent_model._meta, 'permission_classes'), \
             f'Related model {parent_model} has no "permission_classes" defined'
         return parent_model
 
-    def get_parent_object(self, obj):
+    def get_parent_object(self, obj:object, field_name:str) -> object|None:
         '''gets the parent object'''
-        if obj:
-            return getattr(obj, obj._meta.inherit_permissions)
-        return None
+        return getattr(obj, field_name, None)
     
     @classmethod
-    def clone_with_model(self, request, view, model):
+    def clone_with_model(self, request:object, view:object, model:object) -> tuple:
         '''changes the model on the argument, so that they can be called on the parent model'''
-        request = copy(request._request)
-        request.model = model
-        view = copy(view)
-        view.queryset = None #to make sure the model is taken into account
-        view.model = model
-        return request, view
-    
+        # For some reason if we copy the request itself, we go into an infinite loop, so take the native request instead
+        _request = copy(request._request)
+        _request.model = model
+        _request.data = request.data #because the data is not present on the native request
+        _view = copy(view)
+        _view.queryset = None #to make sure the model is taken into account
+        _view.model = model
+        return _request, _view
+
     @classmethod
-    def get_filter_backend(cls, model):
+    def generate_filter_backend(cls, parent:object, field_name:str) -> BaseFilterBackend:
         '''returns a new Filter backend that applies all filters of the parent model'''
-        parent = cls.get_parent_model(model)
-        filter_arg = f'{model._meta.inherit_permissions}__in'
+        filter_arg = f'{field_name}__in'
         backends = {perm().get_filter_backend(parent) for perm in parent._meta.permission_classes}
 
         class InheritFilterBackend(BaseFilterBackend):
@@ -212,7 +217,7 @@ class InheritPermissions(LDPBasePermission):
                 for backend in backends:
                     if backend:
                         self.filters.append(backend())
-            def filter_queryset(self, request, queryset, view):
+            def filter_queryset(self, request:object, queryset:object, view:object) -> object:
                 request, view = InheritPermissions.clone_with_model(request, view, parent)
                 for filter in self.filters:
                     allowed_parents = filter.filter_queryset(request, parent.objects.all(), view)
@@ -220,19 +225,43 @@ class InheritPermissions(LDPBasePermission):
                 return queryset
 
         return InheritFilterBackend
+    
+    @classmethod
+    def get_filter_backend(cls, model:object) -> BaseFilterBackend:
+        '''Returns a union filter backend of all filter backends of parents'''
+        backends = [cls.generate_filter_backend(cls.get_parent_model(model, field), field) for field in cls.get_parent_fields(model)]
+        return join_filter_backends(*backends, model=model, union=True)
 
-    def has_permission(self, request, view):
-        model = InheritPermissions.get_parent_model(view.model)
-        request, view = InheritPermissions.clone_with_model(request, view, model)
-        return all([perm().has_permission(request, view) for perm in model._meta.permission_classes])
+    def has_permission(self, request:object, view:object) -> bool:
+        '''Returns True if at least one inheriting link has permission'''
+        for field in InheritPermissions.get_parent_fields(view.model):
+            model = InheritPermissions.get_parent_model(view.model, field)
+            request, view = InheritPermissions.clone_with_model(request, view, model)
+            if all([perm().has_permission(request, view) for perm in model._meta.permission_classes]):
+                return True
+        return False
     
-    def has_object_permissions(self, request, view, obj):
-        model = InheritPermissions.get_parent_model(view.model)
-        request, view = InheritPermissions.clone_with_model(request, view, model)
-        obj = self.get_parent_object(obj)
-        return all([perm().has_object_permissions(request, view, obj) for perm in model._meta.permission_classes])
+    def has_object_permission(self, request:object, view:object, obj:object) -> bool:
+        '''Returns True if at least one inheriting link has permission'''
+        if not obj:
+            return super().has_object_permission(request, view, obj)
+        for field in InheritPermissions.get_parent_fields(view.model):
+            model = InheritPermissions.get_parent_model(view.model, field)
+            parent_request, parent_view = InheritPermissions.clone_with_model(request, view, model)
+            parent_object = self.get_parent_object(obj, field)
+            try:
+                if all([perm().has_object_permission(parent_request, parent_view, parent_object) for perm in model._meta.permission_classes]):
+                    return True
+            except Http404:
+                #keep trying
+                pass
+        return False
     
-    def get_permissions(self, user, model, obj=None):
-        model = InheritPermissions.get_parent_model(model)
-        obj = self.get_parent_object(obj)
-        return set.intersection(*[perm().get_permissions(user, model, obj) for perm in model._meta.permission_classes])
+    def get_permissions(self, user:object, model:object, obj:object=None) -> set:
+        '''returns a union of all inheriting linked permissions'''
+        perms = set()
+        for field in InheritPermissions.get_parent_fields(model):
+            parent_model = InheritPermissions.get_parent_model(model, field)
+            obj = self.get_parent_object(obj, field)
+            perms.union(set.intersection(*[perm().get_permissions(user, parent_model, obj) for perm in parent_model._meta.permission_classes]))
+        return perms
