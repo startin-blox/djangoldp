@@ -236,8 +236,8 @@ class InheritPermissions(LDPBasePermission):
         '''Returns True if at least one inheriting link has permission'''
         for field in InheritPermissions.get_parent_fields(view.model):
             model = InheritPermissions.get_parent_model(view.model, field)
-            request, view = InheritPermissions.clone_with_model(request, view, model)
-            if all([perm().has_permission(request, view) for perm in model._meta.permission_classes]):
+            _request, _view = InheritPermissions.clone_with_model(request, view, model)
+            if all([perm().has_permission(_request, _view) for perm in model._meta.permission_classes]):
                 return True
         return False
     
