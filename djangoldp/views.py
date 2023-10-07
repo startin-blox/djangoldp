@@ -459,10 +459,17 @@ class LDPViewSet(LDPViewSetGenerator):
                 for perm_class in self.permission_classes if hasattr(perm_class(), 'get_filter_backend')})
         if None in self.filter_backends:
             self.filter_backends.remove(None)
-        self.serializer_class = self.build_serializer()
-        self.write_serializer_class = self.build_serializer('Write')
+    
+    def get_depth(self) -> int:
+        if hasattr(self, 'depth'):
+            return self.depth
+        if self.request.method != 'GET':
+            return 10
+        if 'HTTP_DEPTH' in self.request.META:
+            return int(self.request.META['HTTP_DEPTH'])
+        return getattr(self.model._meta, 'depth', 0)
 
-    def build_serializer(self, name_prefix='Read'):
+    def get_serializer_class(self):
         model_name = self.model._meta.object_name.lower()
         try:
             lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
@@ -471,8 +478,7 @@ class LDPViewSet(LDPViewSetGenerator):
         
         meta_args = {'model': self.model, 'extra_kwargs': {
                 '@id': {'lookup_field': lookup_field}},
-                # Ignore depth for Write serializer
-                'depth': 10 if name_prefix=='Write' else getattr(self, 'depth', getattr(self.model._meta, 'depth', 0)),
+                'depth': self.get_depth(),
                 'extra_fields': self.nested_fields}
 
         if self.fields:
@@ -485,9 +491,9 @@ class LDPViewSet(LDPViewSetGenerator):
         from djangoldp.serializers import LDPSerializer
 
         if self.serializer_class is None:
-            self.serializer_class = self.model.get_serializer_class() if issubclass(self.model, Model) else LDPSerializer
+            self.serializer_class = LDPSerializer
 
-        return type(self.serializer_class)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
+        return type(self.serializer_class)(self.model._meta.object_name.lower() + 'Serializer',
                                    (self.serializer_class,),
                                    {'Meta': meta_class})
 
@@ -500,7 +506,7 @@ class LDPViewSet(LDPViewSetGenerator):
         return True
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_write_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         if not self.is_safe_create(request.user, serializer.validated_data):
             return Response({'detail': 'You do not have permission to perform this action'},
@@ -515,7 +521,7 @@ class LDPViewSet(LDPViewSetGenerator):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_write_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -527,15 +533,6 @@ class LDPViewSet(LDPViewSetGenerator):
         response_serializer = self.get_serializer()
         data = response_serializer.to_representation(serializer.instance)
         return Response(data)
-
-    def get_write_serializer(self, *args, **kwargs):
-        """
-        Return the serializer instance that should be used for validating and
-        deserializing input, and for serializing output.
-        """
-        serializer_class = self.write_serializer_class
-        kwargs.setdefault('context', self.get_serializer_context())
-        return serializer_class(*args, **kwargs)
 
     def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, get_user_model()):
@@ -556,8 +553,7 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             queryset = super(LDPViewSet, self).get_queryset(*args, **kwargs)
         if self.prefetch_fields is None:
-            depth = getattr(self, 'depth', getattr(self.model._meta, 'depth', 0))
-            self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
+            self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), self.get_depth())
         return queryset.prefetch_related(*self.prefetch_fields)
 
     def dispatch(self, request, *args, **kwargs):

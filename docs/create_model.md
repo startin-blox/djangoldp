@@ -415,7 +415,7 @@ class Todo(Model):
 
 Only `deadline` will be serialized
 
-This is achieved when `LDPViewSet` sets the `exclude` property on the serializer in `build_serializer` method. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself
+This is achieved when `LDPViewSet` sets the `exclude` in the serializer constructor. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself.
 
 ### nested_fields_exclude
 
