@@ -367,6 +367,12 @@ Custom classes can be defined to handle specific permission checks. These class 
 * has_object_permission: called on object requests on the first access to the object to check whether the user has rights on the request object.
 * get_permissions: called on every single resource rendered to output the permissions of the user on that resource. This method should not access the database as it could severly affect performances.
 
+### Inner permission rendering
+
+For performance reasons, ACLs of resources inside a list are not rendered, which may require the client to request each single resource inside a list to get its ACLs. In some cases it's preferable to render these ACLs. This can be done using the setting `LDP_INCLUDE_INNER_PERMS`, setting its value to True.
+
+## Other model options
+
 ### view_set
 
 In case of custom viewset, you can use 
