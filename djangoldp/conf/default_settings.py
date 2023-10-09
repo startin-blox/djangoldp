@@ -13,6 +13,8 @@ DEFAULT_BACKOFF_FACTOR = 1
 DEFAULT_ACTIVITY_DELAY = 3
 DEFAULT_REQUEST_TIMEOUT = 10
 
+LDP_INCLUDE_INNER_PERMS = False
+
 ####################
 # CORE             #
 ####################

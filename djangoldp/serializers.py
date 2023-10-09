@@ -78,7 +78,7 @@ GLOBAL_SERIALIZER_CACHE = InMemoryCache()
 class RDFSerializerMixin:
     def add_permissions(self, data, user, model, obj=None):
         '''takes a set or list of permissions and returns them in the JSON-LD format'''
-        if self.parent: #Don't serialize permissions on nested objects
+        if self.parent and not settings.LDP_INCLUDE_INNER_PERMS: #Don't serialize permissions on nested objects
             return data
         permission_classes = getattr(model._meta, 'permission_classes', [])
         if not permission_classes:
