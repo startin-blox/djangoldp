@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from guardian.models import GroupObjectPermission
 from rest_framework.test import APIRequestFactory, APIClient, APITestCase
-from djangoldp.tests.models import AnonymousReadOnlyPost, AuthenticatedOnlyPost, ReadOnlyPost, \
+from djangoldp.tests.models import AnonymousReadOnlyPost, AuthenticatedOnlyPost, ReadOnlyPost, DoubleInheritModel, \
     ReadAndCreatePost, OwnedResource, RestrictedCircle, RestrictedResource, ANDPermissionsDummy, ORPermissionsDummy
 
 class TestPermissions(APITestCase):
@@ -112,7 +112,7 @@ class TestPermissions(APITestCase):
         self.assertEqual(set(perms.values_list('permission__codename', flat=True)),
                          {f'{perm}_{obj._meta.model_name}' for perm in required_perms})
     
-    def create_cirlces(self):
+    def create_circles(self):
         self.authenticate()
         self.user.user_permissions.add(Permission.objects.get(codename='view_restrictedcircle'))
         them = get_user_model().objects.create_user(username='them', email='them@user.com', password='itstheirsecret')
@@ -122,7 +122,7 @@ class TestPermissions(APITestCase):
         return mine, theirs, noones
 
     def test_role_permissions(self):
-        mine, theirs, noones = self.create_cirlces()
+        mine, theirs, noones = self.create_circles()
         self.assertIn(self.user, mine.members.user_set.all())
         self.assertIn(self.user, mine.admins.user_set.all())
         self.assertNotIn(self.user, theirs.members.user_set.all())
@@ -136,13 +136,28 @@ class TestPermissions(APITestCase):
         self.check_permissions(mine, mine.admins, RestrictedCircle._meta.permission_roles['admins']['perms'])
 
     def test_inherit_permissions(self):
-        mine, theirs, noones = self.create_cirlces()
+        mine, theirs, noones = self.create_circles()
         myresource = RestrictedResource.objects.create(content="mine", circle=mine)
-        RestrictedResource.objects.create(content="theirs", circle=theirs)
-        RestrictedResource.objects.create(content="noones", circle=noones)
+        their_resource = RestrictedResource.objects.create(content="theirs", circle=theirs)
+        noones_resource  = RestrictedResource.objects.create(content="noones", circle=noones)
 
         self.check_can_view('/restrictedresources/', [myresource.urlid])
         self.check_can_change(myresource.urlid)
+        self.check_can_change(their_resource.urlid, 404)
+        self.check_can_change(noones_resource.urlid, 404)
+
+
+    def test_inherit_several_permissions(self):
+        mine, theirs, noones = self.create_circles()
+        ro_resource = ReadOnlyPost.objects.create(content="read only")
+        myresource = DoubleInheritModel.objects.create(content="mine", circle=mine, ro_ancestor=None)
+        some = DoubleInheritModel.objects.create(content="some", circle=theirs, ro_ancestor=ro_resource)
+        other = DoubleInheritModel.objects.create(content="other", circle=noones, ro_ancestor=None)
+
+        self.check_can_view('/doubleinheritmodels/', [myresource.urlid, some.urlid])
+        self.check_can_change(myresource.urlid)
+        self.check_can_change(some.urlid, 403)
+        self.check_can_change(other.urlid, 404)
 
     
     def test_and_permissions(self):

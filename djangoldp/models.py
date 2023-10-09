@@ -33,7 +33,7 @@ class LDPModelManager(models.Manager):
         return queryset.filter(pk__in=internal_ids)
 
 class Model(models.Model):
-    urlid = LDPUrlField(blank=True, null=True, unique=True)
+    urlid = LDPUrlField(blank=True, null=True, unique=True, db_index=True)
     is_backlink = models.BooleanField(default=False, help_text='set automatically to indicate the Model is a backlink')
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
@@ -47,7 +47,7 @@ class Model(models.Model):
 
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
-    
+
     @classmethod
     def get_serializer_class(cls):
         from djangoldp.serializers import LDPSerializer

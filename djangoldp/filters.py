@@ -7,11 +7,13 @@ class OwnerFilterBackend(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         if request.user.is_superuser:
             return queryset
-        if getattr(view.model._meta, 'owner_field', None) is not None:
+        if request.user.is_anonymous:
+            return queryset.none()
+        if getattr(view.model._meta, 'owner_field', None):
             return queryset.filter(**{view.model._meta.owner_field: request.user})
-        if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
+        if getattr(view.model._meta, 'owner_urlid_field', None):
             return queryset.filter(**{view.model._meta.owner_urlid_field: request.user.urlid})
-        if getattr(view.model._meta, 'auto_author', None) is not None:
+        if getattr(view.model._meta, 'auto_author', None):
             return queryset.filter(**{view.model._meta.auto_author: request.user})
         return queryset
 

@@ -78,7 +78,7 @@ GLOBAL_SERIALIZER_CACHE = InMemoryCache()
 class RDFSerializerMixin:
     def add_permissions(self, data, user, model, obj=None):
         '''takes a set or list of permissions and returns them in the JSON-LD format'''
-        if self.parent: #Don't serialize permissions on nested objects
+        if self.parent and not settings.LDP_INCLUDE_INNER_PERMS: #Don't serialize permissions on nested objects
             return data
         permission_classes = getattr(model._meta, 'permission_classes', [])
         if not permission_classes:
@@ -439,7 +439,10 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                     model = type(instance)
                 else:
                     return instance
-                serializer_generator = LDPViewSet(model=model,
+                depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
+                fields = ["@id"] if depth==0 else getattr(model._meta, 'serializer_fields', [])
+
+                serializer_generator = LDPViewSet(model=model, fields=fields, depth=depth,
                                                     lookup_field=getattr(model._meta, 'lookup_field', 'pk'),
                                                     permission_classes=getattr(model._meta, 'permission_classes', []),
                                                     fields=getattr(model._meta, 'serializer_fields', []),

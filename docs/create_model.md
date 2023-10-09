@@ -322,7 +322,7 @@ DjangoLDP comes with a set of permission classes that you can use for standard b
  * LDDPermissions: Give access based on the permissions in the database. For container requests (list and create), based on model level permissions. For all others, based on object level permissions. This permission class is associated with a filter that only renders objects on which the user has access.
  * PublicPermission: Give access based on a public flag on the object. This class must be used in conjonction with the Meta option `public_field`. This permission class is associated with a filter that only render objects that have the public flag set.
  * OwnerPermissions: Give access based on the owner of the object. This class must be used in conjonction with the Meta option `owner_field` or `owner_urlid_field`. This permission class is associated with a filter that only render objects of which the user is owner.
- * InheritPermissions: Give access based on the permissions on a related model. This class must be used in conjonction with the Meta option `inherit_permission`, which value must be the name of the `ForeignKey` or `OneToOneField` pointing to the object bearing the permission classes. It also applies filter based on the related model.
+ * InheritPermissions: Give access based on the permissions on a related model. This class must be used in conjonction with the Meta option `inherit_permission`, which value must be a list of names of the `ForeignKey` or `OneToOneField` pointing to the objects bearing the permission classes. It also applies filter based on the related model. If several fields are given, at least one must give permission for the permission to be granted.
 
  Permission classes can be chained together in a list, or through the | and & operators. Chaining in a list is equivalent to using the & operator.
 
@@ -332,7 +332,7 @@ class MyModel(models.Model):
     related = models.ForeignKey(SomeOtherModel)
     class Meta:
         permission_classes = [InheritPermissions, AuthenticatedOnly&(ReadOnly|OwnerPermissions|ACLPermissions)]
-        inherit_permissions = 'related
+        inherit_permissions = ['related']
         owner_field = 'author_user'
 	auto_author_field = 'profile'
 ```
@@ -365,6 +365,12 @@ Custom classes can be defined to handle specific permission checks. These class 
 * has_permission: called at the very begining of the request to check whether the user has permissions to call the specific HTTP method.
 * has_object_permission: called on object requests on the first access to the object to check whether the user has rights on the request object.
 * get_permissions: called on every single resource rendered to output the permissions of the user on that resource. This method should not access the database as it could severly affect performances.
+
+### Inner permission rendering
+
+For performance reasons, ACLs of resources inside a list are not rendered, which may require the client to request each single resource inside a list to get its ACLs. In some cases it's preferable to render these ACLs. This can be done using the setting `LDP_INCLUDE_INNER_PERMS`, setting its value to True.
+
+## Other model options
 
 ### view_set
 
@@ -414,7 +420,7 @@ class Todo(Model):
 
 Only `deadline` will be serialized
 
-This is achieved when `LDPViewSet` sets the `exclude` property on the serializer in `build_serializer` method. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself
+This is achieved when `LDPViewSet` sets the `exclude` in the serializer constructor. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself.
 
 ### empty_containers
 
