@@ -49,11 +49,6 @@ class Model(models.Model):
         super(Model, self).__init__(*args, **kwargs)
     
     @classmethod
-    def get_serializer_class(cls):
-        from djangoldp.serializers import LDPSerializer
-        return LDPSerializer
-
-    @classmethod
     def nested_fields(cls):
         '''parses the relations on the model, and returns a list of nested field names'''
         nested_fields = set()
