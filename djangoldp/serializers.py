@@ -445,7 +445,6 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                 serializer_generator = LDPViewSet(model=model, fields=fields, depth=depth,
                                                     lookup_field=getattr(model._meta, 'lookup_field', 'pk'),
                                                     permission_classes=getattr(model._meta, 'permission_classes', []),
-                                                    fields=getattr(model._meta, 'serializer_fields', []),
                                                     nested_fields=getattr(model._meta, 'nested_fields', []))
                 parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
                 serializer_generator.depth = parent_depth

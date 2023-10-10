@@ -342,6 +342,21 @@ class Follower(Model):
     def __str__(self):
         return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)
 
+class DynamicNestedField:
+    '''
+    Used to define a method as a nested_field.
+    Usage:
+        LDPUser.circles = lambda self: Circle.objects.filter(members__user=self)
+        LDPUser.circles.field = DynamicNestedField(Circle, 'circles')
+    '''
+    related_query_name = None
+    one_to_many = False
+    many_to_many = True
+    many_to_one = False
+    one_to_one = False
+    def __init__(self, model, name) -> None:
+        self.model = model
+        self.remote_field = type('Field', (object,), {'name': name})
 
 @receiver([post_save])
 def auto_urlid(sender, instance, **kwargs):

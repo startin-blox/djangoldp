@@ -43,3 +43,22 @@ class LDPModelTest(TestCase):
         self.assertEqual(local_queryset.count(), 1)
         self.assertIn(local, local_queryset)
         self.assertNotIn(external, local_queryset)
+
+    def test_ldp_manager_nested_fields_auto(self):
+        nested_fields = JobOffer.nested_fields()
+        expected_nested_fields = ['skills', 'resources', 'recent_skills']
+        self.assertEqual(len(nested_fields), len(expected_nested_fields))
+        for expected in expected_nested_fields:
+            self.assertIn(expected, nested_fields)
+
+        nested_fields = NoSuperUsersAllowedModel.nested_fields()
+        expected_nested_fields = []
+        self.assertEqual(nested_fields, expected_nested_fields)
+
+    def test_ldp_manager_nested_fields_exclude(self):
+        JobOffer._meta.nested_fields_exclude = ['skills']
+        nested_fields = JobOffer.nested_fields()
+        expected_nested_fields = ['resources', 'recent_skills']
+        self.assertEqual(len(nested_fields), len(expected_nested_fields))
+        for expected in expected_nested_fields:
+            self.assertIn(expected, nested_fields)

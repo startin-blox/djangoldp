@@ -25,7 +25,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
-from djangoldp.models import LDPSource, Model, Follower
+from djangoldp.models import LDPSource, Model, Follower, DynamicNestedField
 from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
@@ -595,6 +595,8 @@ class LDPNestedViewSet(LDPViewSet):
     def get_queryset(self, *args, **kwargs):
         related = getattr(self.get_parent(), self.nested_field)
         if self.related_field.many_to_many or self.related_field.many_to_one or self.related_field.one_to_many:
+            if isinstance(self.related_field, DynamicNestedField):
+                return related()
             return related.all()
         if self.related_field.one_to_one:
             return type(related).objects.filter(pk=related.pk)
