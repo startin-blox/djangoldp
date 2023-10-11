@@ -149,7 +149,11 @@ class OwnerPermissions(LDPBasePermission):
         if request.user.is_superuser:
             return True
         if getattr(view.model._meta, 'owner_field', None):
-            return request.user == getattr(obj, view.model._meta.owner_field)
+            field = view.model._meta.get_field(view.model._meta.owner_field)
+            if field.many_to_many or field.one_to_many:
+                return request.user in getattr(obj, field.get_accessor_name()).all()
+            else:
+                return request.user == getattr(obj, view.model._meta.owner_field)
         if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
             return request.user.urlid == getattr(obj, view.model._meta.owner_urlid_field)
         return True
