@@ -17,13 +17,15 @@ from django.utils.decorators import classonlymethod
 from guardian.shortcuts import assign_perm
 from rest_framework.utils import model_meta
 from djangoldp.fields import LDPUrlField
-from djangoldp.permissions import DEFAULT_DJANGOLDP_PERMISSIONS, ReadOnly
+from djangoldp.permissions import DEFAULT_DJANGOLDP_PERMISSIONS, OwnerPermissions, InheritPermissions
 
 logger = logging.getLogger('djangoldp')
 
 Group._meta.serializer_fields = ['name', 'user_set']
 Group._meta.rdf_type = 'foaf:Group'
-Group._meta.permission_classes = [ReadOnly]
+Group._meta.permission_classes = [OwnerPermissions, InheritPermissions]
+Group._meta.owner_field = 'user'
+Group._meta.inherit_permissions = []
 
 class LDPModelManager(models.Manager):
     def local(self):
