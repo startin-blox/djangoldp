@@ -486,12 +486,13 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             meta_args['exclude'] = self.exclude or getattr(self.model._meta, 'serializer_fields_exclude', ())
         # create the Meta class to associate to LDPSerializer, using meta_args param
-        meta_class = type('Meta', (), meta_args)
 
         from djangoldp.serializers import LDPSerializer
-
         if self.serializer_class is None:
             self.serializer_class = LDPSerializer
+
+        parent_meta = (self.serializer_class.Meta,) if hasattr(self.serializer_class, 'Meta') else ()
+        meta_class = type('Meta', parent_meta, meta_args)
 
         return type(self.serializer_class)(self.model._meta.object_name.lower() + 'Serializer',
                                    (self.serializer_class,),
