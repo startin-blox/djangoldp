@@ -166,6 +166,28 @@ class OwnerPermissions(LDPBasePermission):
             return self.permissions
         return set()
 
+class OwnerCreatePermission(LDPBasePermission):
+    '''only accepts the creation of new resources if the owner of the created resource is the user of the request'''
+    def check_patch(self, first, second, user):
+        diff = first - second
+        return diff == set() or diff == {user.urlid}
+
+    def has_permission(self, request:object, view:object) -> bool:
+        if request.method != 'POST':
+            return super().has_permission(request, view)
+        if is_anonymous_user(request.user):
+            return False
+        owner = None
+        if getattr(view.model._meta, 'owner_field', None):
+            field = view.model._meta.get_field(view.model._meta.owner_field)
+            if field.many_to_many or field.one_to_many:
+                owner = request.data[field.get_accessor_name()]
+            else:
+                owner = request.data[view.model._meta.owner_field]
+        if getattr(view.model._meta, 'owner_urlid_field', None):
+            owner = request.data[view.model._meta.owner_urlid_field]
+        return not owner or owner['@id'] == request.user.urlid
+
 class PublicPermission(LDPBasePermission):
     """Gives read-only access to resources which have a public flag to True"""
     filter_backend = PublicFilterBackend

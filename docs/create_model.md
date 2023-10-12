@@ -325,10 +325,12 @@ DjangoLDP comes with a set of permission classes that you can use for standard b
  * AuthenticatedOnly: Refuse access to anonymous users
  * ReadOnly: Refuse access to any write request
  * ReadAndCreate: Refuse access to any request changing an existing resource
+ * CreateOnly: Refuse access to any request other than creation
  * AnonymousReadOnly: Refuse access to anonymous users with any write request
  * LDDPermissions: Give access based on the permissions in the database. For container requests (list and create), based on model level permissions. For all others, based on object level permissions. This permission class is associated with a filter that only renders objects on which the user has access.
  * PublicPermission: Give access based on a public flag on the object. This class must be used in conjonction with the Meta option `public_field`. This permission class is associated with a filter that only render objects that have the public flag set.
  * OwnerPermissions: Give access based on the owner of the object. This class must be used in conjonction with the Meta option `owner_field` or `owner_urlid_field`. This permission class is associated with a filter that only render objects of which the user is owner. When using a reverse ForeignKey or M2M field with no related_name specified, do not add the '_set' suffix in the `owner_field`.
+ * OwnerCreatePermission: Refuse the creation of resources which owner is different from the request user.
  * InheritPermissions: Give access based on the permissions on a related model. This class must be used in conjonction with the Meta option `inherit_permission`, which value must be a list of names of the `ForeignKey` or `OneToOneField` pointing to the objects bearing the permission classes. It also applies filter based on the related model. If several fields are given, at least one must give permission for the permission to be granted.
 
  Permission classes can be chained together in a list, or through the | and & operators. Chaining in a list is equivalent to using the & operator.
