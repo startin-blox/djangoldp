@@ -267,8 +267,8 @@ class Circle(Model):
     name = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING, null=True, blank=True)
-    members = models.ForeignKey(Group, related_name="circles", on_delete=models.SET_NULL, null=True, blank=True)
-    admins = models.ForeignKey(Group, related_name="admin_circles", on_delete=models.SET_NULL, null=True, blank=True)
+    members = models.OneToOneField(Group, related_name="circle", on_delete=models.SET_NULL, null=True, blank=True)
+    admins = models.OneToOneField(Group, related_name="admin_circle", on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta(Model.Meta):
         ordering = ['pk']
@@ -282,6 +282,8 @@ class Circle(Model):
         serializer_fields = ['@id', 'name', 'description', 'members', 'owner', 'space']
         rdf_type = 'hd:circle'
 
+Group._meta.inherit_permissions += ['circle','admin_circle']
+Group._meta.serializer_fields += ['circle', 'admin_circle']
 
 class RestrictedCircle(Model):
     name = models.CharField(max_length=255, blank=True)
