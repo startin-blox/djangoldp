@@ -383,7 +383,8 @@ def create_role_groups(sender, instance, created, **kwargs):
             if params.get('add_author'):
                 assert hasattr(instance._meta, 'auto_author'), "add_author requires to also define auto_author"
                 author = getattr(instance, instance._meta.auto_author)
-                group.user_set.add(author)
+                if author:
+                    group.user_set.add(author)
             for permission in params.get('perms', []):
                 assign_perm(f'{permission}_{instance._meta.model_name}', group, instance)
 
