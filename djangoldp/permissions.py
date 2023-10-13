@@ -221,7 +221,12 @@ class InheritPermissions(LDPBasePermission):
 
     def get_parent_object(self, obj:object, field_name:str) -> object|None:
         '''gets the parent object'''
-        return getattr(obj, field_name, None)
+        if obj is None:
+            return []
+        field = obj._meta.get_field(field_name)
+        if field.many_to_many or field.one_to_many:
+            return getattr(obj, field.get_accessor_name()).all()
+        return [getattr(obj, field_name, None)]
     
     @classmethod
     def clone_with_model(self, request:object, view:object, model:object) -> tuple:
@@ -278,13 +283,14 @@ class InheritPermissions(LDPBasePermission):
         for field in InheritPermissions.get_parent_fields(view.model):
             model = InheritPermissions.get_parent_model(view.model, field)
             parent_request, parent_view = InheritPermissions.clone_with_model(request, view, model)
-            parent_object = self.get_parent_object(obj, field)
-            try:
-                if all([perm().has_object_permission(parent_request, parent_view, parent_object) for perm in model._meta.permission_classes]):
-                    return True
-            except Http404:
-                #keep trying
-                pass
+            parent_objects = self.get_parent_object(obj, field)
+            for parent_object in parent_objects:
+                try:
+                    if all([perm().has_object_permission(parent_request, parent_view, parent_object) for perm in model._meta.permission_classes]):
+                        return True
+                except Http404:
+                    #keep trying
+                    pass
         return False
     
     def get_permissions(self, user:object, model:object, obj:object=None) -> set:
@@ -292,6 +298,8 @@ class InheritPermissions(LDPBasePermission):
         perms = set()
         for field in InheritPermissions.get_parent_fields(model):
             parent_model = InheritPermissions.get_parent_model(model, field)
-            obj = self.get_parent_object(obj, field)
-            perms.union(set.intersection(*[perm().get_permissions(user, parent_model, obj) for perm in parent_model._meta.permission_classes]))
+            parent_objects = self.get_parent_object(obj, field)
+            for parent_object in parent_objects:
+                perms.union(set.intersection(*[perm().get_permissions(user, parent_model, parent_object) 
+                                               for perm in parent_model._meta.permission_classes]))
         return perms
