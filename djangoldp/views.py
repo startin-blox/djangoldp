@@ -427,12 +427,13 @@ class LDPViewSet(LDPViewSetGenerator):
             self.filter_backends.remove(None)
     
     def get_depth(self) -> int:
+        if getattr(self, 'force_depth', None):
+            #TODO: this exception on depth for writing should be handled by the serializer itself
+            return self.force_depth
+        if hasattr(self, 'request') and 'HTTP_DEPTH' in self.request.META:
+            return int(self.request.META['HTTP_DEPTH'])
         if hasattr(self, 'depth'):
             return self.depth
-        if self.request.method != 'GET':
-            return 10
-        if 'HTTP_DEPTH' in self.request.META:
-            return int(self.request.META['HTTP_DEPTH'])
         return getattr(self.model._meta, 'depth', 0)
 
     def get_serializer_class(self):
@@ -473,7 +474,9 @@ class LDPViewSet(LDPViewSetGenerator):
         return True
 
     def create(self, request, *args, **kwargs):
+        self.force_depth = 10
         serializer = self.get_serializer(data=request.data)
+        self.force_depth = None
         serializer.is_valid(raise_exception=True)
         if not self.is_safe_create(request.user, serializer.validated_data):
             return Response({'detail': 'You do not have permission to perform this action'},
@@ -488,7 +491,9 @@ class LDPViewSet(LDPViewSetGenerator):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        self.force_depth = 10
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        self.force_depth = None
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
