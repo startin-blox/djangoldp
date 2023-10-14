@@ -8,6 +8,8 @@ from djangoldp.filters import OwnerFilterBackend, NoFilterBackend, PublicFilterB
 from djangoldp.utils import is_anonymous_user, is_authenticated_user
 
 DEFAULT_DJANGOLDP_PERMISSIONS = {'view', 'add', 'change', 'delete', 'control'}
+DEFAULT_RESOURCE_PERMISSIONS = {'view', 'change', 'delete', 'control'}
+DEFAULT_CONTAINER_PERMISSIONS = {'view', 'add'}
 
 def join_filter_backends(*permissions_or_filters:BaseFilterBackend|BasePermission, model:object, union:bool=False) -> BaseFilterBackend:
     '''Creates a new Filter backend by joining a list of existing backends.
@@ -98,7 +100,7 @@ class LDPBasePermission(BasePermission):
         return self.has_permission(request, view)
     def get_permissions(self, user, model, obj=None):
         '''returns the permissions the user has on a given model or on a given object'''
-        return self.permissions
+        return self.permissions.intersection(DEFAULT_RESOURCE_PERMISSIONS if obj else DEFAULT_CONTAINER_PERMISSIONS)
 
 class AnonymousReadOnly(LDPBasePermission):
     """Anonymous users can only view, no check for others"""
@@ -149,20 +151,23 @@ class ACLPermissions(DjangoObjectPermissions, LDPBasePermission):
 class OwnerPermissions(LDPBasePermission):
     """Gives all permissions to the owner of the object"""
     filter_backend = OwnerFilterBackend
-    def has_object_permission(self, request, view, obj):
-        if request.user.is_superuser:
+    def check_permission(self, user, model, obj):
+        if user.is_superuser:
             return True
-        if getattr(view.model._meta, 'owner_field', None):
-            field = view.model._meta.get_field(view.model._meta.owner_field)
+        if getattr(model._meta, 'owner_field', None):
+            field = model._meta.get_field(model._meta.owner_field)
             if field.many_to_many or field.one_to_many:
-                return request.user in getattr(obj, field.get_accessor_name()).all()
+                return user in getattr(obj, field.get_accessor_name()).all()
             else:
-                return request.user == getattr(obj, view.model._meta.owner_field)
-        if getattr(view.model._meta, 'owner_urlid_field', None) is not None:
-            return request.user.urlid == getattr(obj, view.model._meta.owner_urlid_field)
+                return user == getattr(obj, model._meta.owner_field)
+        if getattr(model._meta, 'owner_urlid_field', None) is not None:
+            return user.urlid == getattr(obj, model._meta.owner_urlid_field)
         return True
-    def get_permissions(self, request, view, obj=None):
-        if not obj or self.has_object_permission(request, view, obj):
+
+    def has_object_permission(self, request, view, obj=None):
+        return self.check_permission(request.user, view.model, obj)
+    def get_permissions(self, user, model, obj=None):
+        if not obj or self.check_permission(user, model, obj):
             return self.permissions
         return set()
 
@@ -207,8 +212,8 @@ class InheritPermissions(LDPBasePermission):
     @classmethod
     def get_parent_fields(cls, model: object) -> list:
         '''checks that the model is adequately configured and returns the associated model'''
-        assert hasattr(model._meta, 'inherit_permissions'), \
-            f'Model {model} has InheritPermissions applied without "inherit_permissions" defined'
+        assert hasattr(model._meta, 'inherit_permissions') and isinstance(model._meta.inherit_permissions, list), \
+            f'Model {model} has InheritPermissions applied without "inherit_permissions" defined as a list'
 
         return model._meta.inherit_permissions
 
@@ -219,14 +224,15 @@ class InheritPermissions(LDPBasePermission):
             f'Related model {parent_model} has no "permission_classes" defined'
         return parent_model
 
-    def get_parent_object(self, obj:object, field_name:str) -> object|None:
+    def get_parent_objects(self, obj:object, field_name:str) -> list:
         '''gets the parent object'''
         if obj is None:
             return []
         field = obj._meta.get_field(field_name)
         if field.many_to_many or field.one_to_many:
             return getattr(obj, field.get_accessor_name()).all()
-        return [getattr(obj, field_name, None)]
+        parent = getattr(obj, field_name, None)
+        return [parent] if parent else []
     
     @classmethod
     def clone_with_model(self, request:object, view:object, model:object) -> tuple:
@@ -235,6 +241,7 @@ class InheritPermissions(LDPBasePermission):
         _request = copy(request._request)
         _request.model = model
         _request.data = request.data #because the data is not present on the native request
+        _request._request = _request #so that it can be nested
         _view = copy(view)
         _view.queryset = None #to make sure the model is taken into account
         _view.model = model
@@ -283,8 +290,7 @@ class InheritPermissions(LDPBasePermission):
         for field in InheritPermissions.get_parent_fields(view.model):
             model = InheritPermissions.get_parent_model(view.model, field)
             parent_request, parent_view = InheritPermissions.clone_with_model(request, view, model)
-            parent_objects = self.get_parent_object(obj, field)
-            for parent_object in parent_objects:
+            for parent_object in self.get_parent_objects(obj, field):
                 try:
                     if all([perm().has_object_permission(parent_request, parent_view, parent_object) for perm in model._meta.permission_classes]):
                         return True
@@ -298,8 +304,7 @@ class InheritPermissions(LDPBasePermission):
         perms = set()
         for field in InheritPermissions.get_parent_fields(model):
             parent_model = InheritPermissions.get_parent_model(model, field)
-            parent_objects = self.get_parent_object(obj, field)
-            for parent_object in parent_objects:
-                perms.union(set.intersection(*[perm().get_permissions(user, parent_model, parent_object) 
+            for parent_object in self.get_parent_objects(obj, field):
+                perms = perms.union(set.intersection(*[perm().get_permissions(user, parent_model, parent_object) 
                                                for perm in parent_model._meta.permission_classes]))
         return perms

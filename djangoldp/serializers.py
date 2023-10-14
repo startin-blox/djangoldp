@@ -84,7 +84,7 @@ class RDFSerializerMixin:
         if not permission_classes:
             return data
         # The permissions must be given by all permission classes to be granted
-        permissions = set.intersection(*[permission().get_permissions(user, model) for permission in permission_classes])
+        permissions = set.intersection(*[permission().get_permissions(user, model, obj) for permission in permission_classes])
         # Don't grant delete permissions on containers
         if not obj and 'delete' in permissions:
             permissions.remove('delete')
