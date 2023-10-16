@@ -465,6 +465,10 @@ class LDPViewSet(LDPViewSetGenerator):
                                    (self.serializer_class,),
                                    {'Meta': meta_class})
 
+    # The chaining of filter through | may lead to duplicates and distinct should only be applied in the end.
+    def filter_queryset(self, queryset):
+        return super().filter_queryset(queryset).distinct()
+
     def create(self, request, *args, **kwargs):
         self.force_depth = 10
         serializer = self.get_serializer(data=request.data)

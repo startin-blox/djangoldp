@@ -11,15 +11,14 @@ class TestPermissions(APITestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
 
-    # def tearDown(self):
-    #     Post._meta.permission_classes = None
     def authenticate(self):
         self.user = get_user_model().objects.create_user(username='random', email='random@user.com', password='Imrandom')
         self.client = APIClient(enforce_csrf_checks=True)
         self.client.force_authenticate(user=self.user)
 
-    def check_can_add(self, url, status_code=201, field='content'):
-        data = { f"http://happy-dev.fr/owl/#{field}": "new post" }
+    def check_can_add(self, url, status_code=201, field='content', extra_content={}):
+        data = extra_content
+        extra_content[f"http://happy-dev.fr/owl/#{field}"] = "new post"
         response = self.client.post(url, data=json.dumps(data), content_type='application/ld+json')
         self.assertEqual(response.status_code, status_code)
         if status_code == 201:
@@ -146,7 +145,6 @@ class TestPermissions(APITestCase):
         self.check_can_change(their_resource.urlid, 404)
         self.check_can_change(noones_resource.urlid, 404)
 
-
     def test_inherit_several_permissions(self):
         mine, theirs, noones = self.create_circles()
         ro_resource = ReadOnlyPost.objects.create(content="read only")
@@ -158,6 +156,14 @@ class TestPermissions(APITestCase):
         self.check_can_change(myresource.urlid)
         self.check_can_change(some.urlid, 403)
         self.check_can_change(other.urlid, 404)
+
+    def test_inherit_permissions_none(self):
+        id = self.check_can_add('/doubleinheritmodels/')
+        resource = DoubleInheritModel.objects.get(urlid=id)
+        self.check_can_view('/doubleinheritmodels/', [resource.urlid])
+
+        circle = RestrictedCircle.objects.create()
+        id = self.check_can_add('/doubleinheritmodels/', 404, extra_content={'http://happy-dev.fr/owl/#circle': {'@id': circle.urlid}})
 
     
     def test_and_permissions(self):

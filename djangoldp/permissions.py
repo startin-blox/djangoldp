@@ -265,39 +265,54 @@ class InheritPermissions(LDPBasePermission):
                     allowed_parents = filter.filter_queryset(request, parent.objects.all(), view)
                     queryset = queryset.filter(**{filter_arg: allowed_parents})
                 return queryset
-
         return InheritFilterBackend
     
     @classmethod
+    def generate_filter_backend_for_none(cls, fields) -> BaseFilterBackend:
+        '''returns a new Filter backend that checks that none of the parent fields are set'''
+        class InheritNoneFilterBackend(BaseFilterBackend):
+            def filter_queryset(self, request:object, queryset:object, view:object) -> object:
+                return queryset.filter(**{field: None for field in fields})
+        return InheritNoneFilterBackend
+
+    @classmethod
     def get_filter_backend(cls, model:object) -> BaseFilterBackend:
         '''Returns a union filter backend of all filter backends of parents'''
-        backends = [cls.generate_filter_backend(cls.get_parent_model(model, field), field) for field in cls.get_parent_fields(model)]
-        return join_filter_backends(*backends, model=model, union=True)
+        fields = cls.get_parent_fields(model)
+        backends = [cls.generate_filter_backend(cls.get_parent_model(model, field), field) for field in fields]
+        backend_none = cls.generate_filter_backend_for_none(fields)
+        return join_filter_backends(*backends, backend_none, model=model, union=True)
 
     def has_permission(self, request:object, view:object) -> bool:
-        '''Returns True if at least one inheriting link has permission'''
-        for field in InheritPermissions.get_parent_fields(view.model):
-            model = InheritPermissions.get_parent_model(view.model, field)
-            _request, _view = InheritPermissions.clone_with_model(request, view, model)
-            if all([perm().has_permission(_request, _view) for perm in model._meta.permission_classes]):
-                return True
-        return False
+        '''Returns True unless we're trying to create a resource with a link to a parent we're not allowed to change'''
+        if request.method == 'POST':
+            for field in InheritPermissions.get_parent_fields(view.model):
+                if field in request.data:
+                    model = InheritPermissions.get_parent_model(view.model, field)
+                    parent = model.objects.get(urlid=request.data[field]['@id'])
+                    _request, _view = InheritPermissions.clone_with_model(request, view, model)
+                    if not all([perm().has_object_permission(_request, _view, parent) for perm in model._meta.permission_classes]):
+                        return False
+        return True
     
     def has_object_permission(self, request:object, view:object, obj:object) -> bool:
-        '''Returns True if at least one inheriting link has permission'''
+        '''Returns True if at least one inheriting object has permission'''
         if not obj:
             return super().has_object_permission(request, view, obj)
+        parents = []
         for field in InheritPermissions.get_parent_fields(view.model):
             model = InheritPermissions.get_parent_model(view.model, field)
             parent_request, parent_view = InheritPermissions.clone_with_model(request, view, model)
             for parent_object in self.get_parent_objects(obj, field):
+                parents.append(parent_object)
                 try:
                     if all([perm().has_object_permission(parent_request, parent_view, parent_object) for perm in model._meta.permission_classes]):
                         return True
                 except Http404:
                     #keep trying
                     pass
-        return False
+        # return False if there were parent resources but none accepted
+        return False if parents else True
     
     def get_permissions(self, user:object, model:object, obj:object=None) -> set:
         '''returns a union of all inheriting linked permissions'''
