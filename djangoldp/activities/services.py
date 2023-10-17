@@ -430,9 +430,9 @@ class ActivityQueueService:
         Auxiliary function saves a record of parameterised activity
         :param model_represenation: the model class which should be used to store the activity. Defaults to djangol.Activity, must be a subclass
         '''
-        payload = bytes(json.dumps(activity), "utf-8")
+        payload = json.dumps(activity)
         if response_body is not None:
-            response_body = bytes(json.dumps(response_body), "utf-8")
+            response_body = json.dumps(response_body)
         if local_id is None:
             local_id = settings.SITE_URL + "/outbox/"
         if type is not None:

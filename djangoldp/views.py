@@ -84,10 +84,8 @@ class InboxView(APIView):
         '''
         receiver for inbox messages. See https://www.w3.org/TR/ldn/
         '''
-        payload = request.body.decode("utf-8")
-
         try:
-            activity = json.loads(payload, object_hook=as_activitystream)
+            activity = json.loads(request.body, object_hook=as_activitystream)
             activity.validate()
         except ActivityStreamDecodeError:
             return Response('Activity type unsupported', status=status.HTTP_405_METHOD_NOT_ALLOWED)

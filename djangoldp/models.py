@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ObjectDoesNotExist, ValidationError, FieldDoesNotExist
 from django.db import models
-from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
 from django.dispatch import receiver
@@ -41,7 +40,6 @@ class Model(models.Model):
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
     objects = LDPModelManager()
-    nested = LDPModelManager()
 
     class Meta:
         default_permissions = DEFAULT_DJANGOLDP_PERMISSIONS
@@ -50,11 +48,6 @@ class Model(models.Model):
 
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
-
-    @classmethod
-    def get_serializer_class(cls):
-        from djangoldp.serializers import LDPSerializer
-        return LDPSerializer
 
     @classmethod
     def get_container_path(cls):
@@ -161,8 +154,8 @@ class Model(models.Model):
         :param path: a URL path to check
         :return: the container model and resolved id in a tuple
         '''
-        if settings.BASE_URL in path:
-            path = path[len(settings.BASE_URL):]
+        if path.startswith(settings.BASE_URL):
+            path = path.replace(settings.BASE_URL, '')
         container = cls.resolve_container(path)
         try:
             resolve_id = cls.resolve_id(path)
@@ -230,18 +223,6 @@ class Model(models.Model):
                 return subcls
 
         return None
-
-    @classonlymethod
-    #TODO: deprecate
-    def get_meta(cls, model_class, meta_name, default=None):
-        '''returns the models Meta class'''
-        if hasattr(model_class, 'Meta'):
-            meta = getattr(model_class.Meta, meta_name, default)
-        elif hasattr(model_class, '_meta'):
-            meta = default
-        else:
-            return default
-        return getattr(model_class._meta, meta_name, meta)
     
     @classmethod
     def is_owner(cls, model, user, obj):
@@ -298,32 +279,25 @@ class Activity(Model):
     '''Models an ActivityStreams Activity'''
     local_id = LDPUrlField(help_text='/inbox or /outbox url (local - this server)')  # /inbox or /outbox full url
     external_id = LDPUrlField(null=True, help_text='the /inbox or /outbox url (from the sender or receiver)')
-    payload = BinaryField()
+    payload = models.TextField()
     response_location = LDPUrlField(null=True, blank=True, help_text='Location saved activity can be found')
     response_code = models.CharField(null=True, blank=True, help_text='Response code sent by receiver', max_length=8)
-    response_body = BinaryField(null=True)
+    response_body = models.TextField(null=True)
     type = models.CharField(null=True, blank=True, help_text='the ActivityStreams type of the Activity',
                             max_length=64)
     is_finished = models.BooleanField(default=True)
-    created_at = DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     success = models.BooleanField(default=False, help_text='set to True when an Activity is successfully delivered')
 
     class Meta(Model.Meta):
         container_path = "activities"
         rdf_type = 'as:Activity'
 
-    def _bytes_to_json(self, obj):
-        if hasattr(obj, 'tobytes'):
-            obj = obj.tobytes()
-        if obj is None or obj == b'':
-            return {}
-        return json.loads(obj)
-
     def to_activitystream(self):
-        return self._bytes_to_json(self.payload)
+        return json.loads(self.payload)
 
     def response_to_json(self):
-        return self._bytes_to_json(self.response_body)
+        return self.to_activitystream()
 
 
 # temporary database-side storage used for scheduled tasks in the ActivityQueue
