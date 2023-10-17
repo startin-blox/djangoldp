@@ -527,9 +527,6 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             def to_internal_value(self, data):
                 if data == '':
                     return ''
-                # workaround for Hubl app - 293
-                if 'username' in data and not self.url_field_name in data:
-                    data[self.url_field_name] = './'
                 if self.url_field_name in data:
                     if not isinstance(data, Mapping):
                         message = self.error_messages['invalid'].format(
@@ -544,7 +541,6 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
                     # validate fields passed in the data
                     fields = list(filter(lambda x: x.field_name in data, self._writable_fields))
-
                     for field in fields:
                         validate_method = getattr(self, 'validate_' + field.field_name, None)
                         primitive_value = field.get_value(data)
@@ -840,22 +836,19 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
             field_model = manager.model
-            slug_field = Model.slug_field(manager.model)
+            slug_field = Model.slug_field(field_model)
             try:
-                item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
+                item_pk_to_keep = [obj_dict[slug_field] for obj_dict in data if slug_field in obj_dict]
             except TypeError:
-                item_pk_to_keep = list(
-                    map(lambda e: getattr(e, slug_field), filter(lambda x: hasattr(x, slug_field), data)))
+                item_pk_to_keep = [getattr(obj, slug_field) for obj in data if hasattr(obj, slug_field)]
 
-            if getattr(manager, 'through', None) is None:
-                for item in list(manager.all()):
-                    if not str(getattr(item, slug_field)) in item_pk_to_keep:
-                        item.delete()
-            else:
+            if hasattr(manager, 'through'):
                 manager.clear()
+            else:
+                manager.exclude(pk__in=item_pk_to_keep).delete()
 
             for item in data:
-                if not isinstance(item, dict):
+                if isinstance(item, Model):
                     item.save()
                     saved_item = item
                 elif slug_field in item:
@@ -863,7 +856,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                     saved_item = self.get_or_create(field_model, item, kwargs)
                 elif 'urlid' in item:
                     # has urlid and is a local resource
-                    if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(item['urlid']).netloc:
+                    if not Model.is_external(item['urlid']):
                         model, old_obj = Model.resolve(item['urlid'])
                         if old_obj is not None:
                             saved_item = self.update(instance=old_obj, validated_data=item)
@@ -883,7 +876,8 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                         pass
                     saved_item = self.internal_create(validated_data=item, model=manager.model)
 
-                if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
+                if hasattr(manager, 'through') and manager.through._meta.auto_created:
+                    #First remove to avoid duplicates
                     manager.remove(saved_item)
                     manager.add(saved_item)
 
