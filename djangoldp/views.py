@@ -507,9 +507,6 @@ class LDPViewSet(LDPViewSetGenerator):
                 kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
         return serializer.save(**kwargs)
 
-    def perform_update(self, serializer):
-        return serializer.save()
-
     def get_queryset(self, *args, **kwargs):
         if self.model:
             queryset = self.model.objects.all()
@@ -552,7 +549,7 @@ class LDPNestedViewSet(LDPViewSet):
         return get_object_or_404(self.parent_model, **{self.parent_lookup_field: self.kwargs[self.parent_lookup_field]})
 
     def perform_create(self, serializer, **kwargs):
-        kwargs[self.nested_related_name] = self.get_parent()
+        kwargs[self.related_field.name] = self.get_parent()
         super().perform_create(serializer, **kwargs)
 
     def get_queryset(self, *args, **kwargs):
