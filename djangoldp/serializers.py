@@ -376,6 +376,10 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
+    # The default serializer repr ends in infinite loop. Overloading it prevents that.
+    def __repr__(self):
+        return self.__class__.name
+
     @cached_property
     def fields(self):
         """
