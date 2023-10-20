@@ -331,9 +331,15 @@ class DynamicNestedField:
     many_to_many = True
     many_to_one = False
     one_to_one = False
-    def __init__(self, model, name) -> None:
+    read_only = True
+    name = ''
+    def __init__(self, model:models.Model|None, remote_name:str, name:str='', remote:object|None=None) -> None:
         self.model = model
-        self.remote_field = type('Field', (object,), {'name': name})
+        self.name = name
+        if remote:
+            self.remote_field = remote
+        else:
+            self.remote_field = DynamicNestedField(None, '', remote_name, self)
 
 @receiver([post_save])
 def auto_urlid(sender, instance, **kwargs):

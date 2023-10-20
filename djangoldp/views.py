@@ -368,38 +368,34 @@ class LDPViewSetGenerator(ModelViewSet):
         ]
 
         # append nested fields to the urls list
-        for field in kwargs.get('nested_fields') or cls.nested_fields:
-            # the nested property may have a custom viewset defined
+        for field_name in kwargs.get('nested_fields') or cls.nested_fields:
             try:
-                related_field = kwargs['model']._meta.get_field(field)
-                nested_model = related_field.related_model
+                nested_field = kwargs['model']._meta.get_field(field_name)
+                nested_model = nested_field.related_model
+                field_name_to_parent = nested_field.remote_field.name
             except FieldDoesNotExist:
-                related_field = getattr(kwargs['model'], field).field
-                nested_model = related_field.model
-
-            if related_field.related_query_name:
-                nested_related_name = related_field.related_query_name()
-            else:
-                nested_related_name = related_field.remote_field.name
+                nested_model = getattr(kwargs['model'], field_name).field.model
+                nested_field = getattr(kwargs['model'], field_name).field.remote_field
+                field_name_to_parent = getattr(kwargs['model'], field_name).field.name
 
             # urls should be called from _nested_ view set, which may need a custom view set mixed in
             view_set = getattr(nested_model._meta, 'view_set', None)
             nested_view_set = cls.build_nested_view_set(view_set)
 
-            urls.append(re_path('^' + detail_expr + field + '/',
+            urls.append(re_path('^' + detail_expr + field_name + '/',
                     nested_view_set.urls(
                     model=nested_model,
                     model_prefix=kwargs['model']._meta.object_name.lower(), # prefix with parent name
                     lookup_field=getattr(nested_model._meta, 'lookup_field', 'pk'),
-                    exclude=(nested_related_name,) if related_field.one_to_many else (),
+                    exclude=(field_name_to_parent,) if nested_field.one_to_many else (),
                     permission_classes=getattr(nested_model._meta, 'permission_classes', []),
-                    nested_field=field,
+                    nested_field_name=field_name,
                     fields=getattr(nested_model._meta, 'serializer_fields', []),
                     nested_fields=[],
                     parent_model=kwargs['model'],
                     parent_lookup_field=cls.get_lookup_arg(**kwargs),
-                    related_field=related_field,
-                    nested_related_name=nested_related_name)))
+                    nested_field=nested_field,
+                    field_name_to_parent=field_name_to_parent)))
 
         return include(urls)
 
@@ -541,24 +537,24 @@ class LDPNestedViewSet(LDPViewSet):
     """
     parent_model = None
     parent_lookup_field = None
-    related_field = None
     nested_field = None
-    nested_related_name = None
+    nested_field_name = None
+    field_name_to_parent = None
 
     def get_parent(self):
         return get_object_or_404(self.parent_model, **{self.parent_lookup_field: self.kwargs[self.parent_lookup_field]})
 
     def perform_create(self, serializer, **kwargs):
-        kwargs[self.related_field.name] = self.get_parent()
+        kwargs[self.field_name_to_parent] = self.get_parent()
         super().perform_create(serializer, **kwargs)
 
     def get_queryset(self, *args, **kwargs):
-        related = getattr(self.get_parent(), self.nested_field)
-        if self.related_field.many_to_many or self.related_field.many_to_one or self.related_field.one_to_many:
-            if isinstance(self.related_field, DynamicNestedField):
+        related = getattr(self.get_parent(), self.nested_field_name)
+        if self.nested_field.many_to_many or self.nested_field.one_to_many:
+            if isinstance(self.nested_field, DynamicNestedField):
                 return related()
             return related.all()
-        if self.related_field.one_to_one:
+        if self.nested_field.one_to_one or self.nested_field.many_to_one:
             return type(related).objects.filter(pk=related.pk)
 
 
