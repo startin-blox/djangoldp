@@ -63,7 +63,7 @@ class Model(models.Model):
 
     @classonlymethod
     def absolute_url(cls, instance_or_model):
-        if isinstance(instance_or_model, ModelBase) or instance_or_model.urlid is None or instance_or_model.urlid == '':
+        if isinstance(instance_or_model, ModelBase) or not instance_or_model.urlid:
             return '{}{}'.format(settings.SITE_URL, Model.resource(instance_or_model))
         else:
             return instance_or_model.urlid
@@ -205,13 +205,6 @@ class Model(models.Model):
         return Model.get_or_create(model, urlid, **kwargs)
 
     @classonlymethod
-    def get_model_rdf_type(cls, model):
-        if model is get_user_model():
-            return "foaf:user"
-        else:
-            return getattr(model._meta, "rdf_type", None)
-
-    @classonlymethod
     def get_subclass_with_rdf_type(cls, type):
         #TODO: deprecate
         '''returns Model subclass with Meta.rdf_type matching parameterised type, or None'''
@@ -223,26 +216,6 @@ class Model(models.Model):
                 return subcls
 
         return None
-    
-    @classmethod
-    def is_owner(cls, model, user, obj):
-        '''returns True if I given user is the owner of given object instance, otherwise False'''
-        owner_field = getattr(model._meta, 'owner_field', None)
-        owner_urlid_field = getattr(model._meta, 'owner_urlid_field', None)
-
-        assert not(owner_field and owner_urlid_field), "you can not set both owner_field and owner_urlid_field"
-        owner_field = owner_field or owner_urlid_field
-        if not owner_field:
-            return False
-
-        try:
-            # owner fields might be nested (e.g. "collection__author")
-            for field in owner_field.split("__"):
-                obj = getattr(obj, field)
-        except AttributeError:
-            raise FieldDoesNotExist(f"the owner_field setting {owner_field} contains field(s) which do not exist on model {model.__name__}")
-        
-        return user==obj or getattr(user, 'urlid', None)==obj or user.id==obj
 
     @classmethod
     def is_external(cls, value):
@@ -348,7 +321,7 @@ def auto_urlid(sender, instance, **kwargs):
         if getattr(instance, Model.slug_field(instance), None) is None:
             setattr(instance, Model.slug_field(instance), instance.pk)
             changed = True
-        if (instance.urlid is None or instance.urlid == '' or 'None' in instance.urlid):
+        if (not instance.urlid or 'None' in instance.urlid):
             instance.urlid = instance.get_absolute_url()
             changed = True
         if changed:
