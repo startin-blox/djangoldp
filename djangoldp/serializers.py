@@ -609,6 +609,18 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
         return serializer
 
+    def to_internal_value(self, data):
+        #TODO: This hack is needed because external users don't pass validation.
+        # Objects require all fields to be optional to be created as external, and username is required.
+        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and Model.is_external(data['@id'])
+        if is_user_and_external:
+            data['username'] = 'external'
+        ret = super().to_internal_value(data)
+        if is_user_and_external:
+            ret['urlid'] = data['@id']
+            ret.pop('username')
+        return ret
+
     def get_value(self, dictionary):
         '''overrides get_value to handle @graph key'''
         try:

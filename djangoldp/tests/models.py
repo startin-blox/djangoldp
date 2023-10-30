@@ -153,7 +153,7 @@ class UserProfile(Model):
         permission_classes = [AuthenticatedOnly,ReadOnly|OwnerPermissions]
         owner_field = 'user'
         lookup_field = 'slug'
-        serializer_fields = ['@id', 'description', 'settings', 'user', 'post_set']
+        serializer_fields = ['@id', 'description', 'settings', 'user']
         depth = 1
 
 
@@ -209,7 +209,7 @@ class PermissionlessDummy(Model):
 
 class Post(Model):
     content = models.CharField(max_length=255)
-    author = models.ForeignKey(UserProfile, blank=True, null=True, on_delete=models.SET_NULL)
+    author = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post",
                                   on_delete=models.SET_NULL)
 

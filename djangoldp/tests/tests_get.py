@@ -36,11 +36,11 @@ class TestGET(APITestCase):
         user = get_user_model().objects.create_user(username='john', email='jlennon@beatles.com',
                                                     password='glass onion')
         UserProfile.objects.create(user=user)
-        post = Post.objects.create(content="content", author=user.userprofile)
+        post = Post.objects.create(content="content", author=user)
         response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertEquals(response.data['content'], "content")
-        self.assertEqual(response.data['author']['@id'], user.userprofile.urlid)
+        self.assertEqual(response.data['author']['@id'], user.urlid)
 
     def test_get_container(self):
         Post.objects.create(content="content")

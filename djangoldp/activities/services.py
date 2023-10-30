@@ -693,7 +693,7 @@ def check_delete_for_backlinks(sender, instance, **kwargs):
             for target in targets:
                 ActivityPubService.send_delete_activity(BACKLINKS_ACTOR, {
                     "@id": instance.urlid,
-                    "@type": getattr(model._meta, "rdf_type", None)
+                    "@type": getattr(instance._meta, "rdf_type", None)
                 }, target)
 
     # remove any Followers on this resource
