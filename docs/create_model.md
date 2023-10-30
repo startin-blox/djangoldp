@@ -298,20 +298,6 @@ class MyModel(models.Model):
 
 Now when an instance of `MyModel` is saved, its `author_user` property will be set to the authenticated user. 
 
-### auto_author_field
-
-Set this property to make the value of the `auto_author` field a property on the authenticated use.
-
-```python
-class MyModel(models.Model):
-    author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
-    class Meta:
-        auto_author = 'author_user'
-	auto_author_field = 'profile'
-```
-
-Now when an instance of `MyModel` is saved, its `author_user` property will be set to the **profile** of the authenticated user.
-
 ## permissions
 
 Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information.
@@ -343,7 +329,6 @@ class MyModel(models.Model):
         permission_classes = [InheritPermissions, AuthenticatedOnly&(ReadOnly|OwnerPermissions|ACLPermissions)]
         inherit_permissions = ['related']
         owner_field = 'author_user'
-	auto_author_field = 'profile'
 ```
 
 ### Role based permissions

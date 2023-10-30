@@ -495,12 +495,7 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, get_user_model()):
-            # auto_author_field may be set (a field on user which should be made author - e.g. profile)
-            auto_author_field = getattr(self.model._meta, 'auto_author_field', None)
-            if auto_author_field is not None:
-                kwargs[self.model._meta.auto_author] = getattr(self.request.user, auto_author_field, None)
-            else:
-                kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
+            kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
         return serializer.save(**kwargs)
 
     def get_queryset(self, *args, **kwargs):

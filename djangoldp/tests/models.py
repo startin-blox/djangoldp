@@ -216,7 +216,6 @@ class Post(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         auto_author = 'author'
-        auto_author_field = 'userprofile'
         rdf_type = 'hd:post'
 
 class AnonymousReadOnlyPost(Model):
