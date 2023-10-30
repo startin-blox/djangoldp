@@ -261,19 +261,20 @@ class LDListMixin(RDFSerializerMixin):
 
             return obj
 
+class IdentityFieldMixin:
+    def to_internal_value(self, data):
+        '''Gives the @id as a representation if present'''
+        try:
+            return super().to_internal_value(data[self.parent.url_field_name])
+        except (KeyError, TypeError):
+            return super().to_internal_value(data)
 
-class ContainerSerializer(LDListMixin, ListSerializer):
+class ContainerSerializer(LDListMixin, ListSerializer, IdentityFieldMixin):
     id = ''
 
     @property
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
-
-    def to_internal_value(self, data):
-        try:
-            return super().to_internal_value(data[self.parent.url_field_name])
-        except (KeyError, TypeError):
-            return super().to_internal_value(data)
 
 
 class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
@@ -281,7 +282,7 @@ class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
     url_field_name = "@id"
 
 
-class JsonLdField(HyperlinkedRelatedField):
+class JsonLdField(HyperlinkedRelatedField, IdentityFieldMixin):
     def __init__(self, view_name=None, **kwargs):
         super().__init__(view_name, **kwargs)
         self.get_lookup_args()
@@ -300,7 +301,6 @@ class JsonLdField(HyperlinkedRelatedField):
         except MultiValueDictKeyError:
             pass
 
-
 class JsonLdRelatedField(JsonLdField, RDFSerializerMixin):
     def use_pk_only_optimization(self):
         return False
@@ -316,12 +316,6 @@ class JsonLdRelatedField(JsonLdField, RDFSerializerMixin):
             return self.serialize_rdf_fields(value, data, include_context=include_context)
         except ImproperlyConfigured:
             return value.pk
-
-    def to_internal_value(self, data):
-        try:
-            return super().to_internal_value(data[self.parent.url_field_name])
-        except (KeyError, TypeError):
-            return super().to_internal_value(data)
 
     @classmethod
     def many_init(cls, *args, **kwargs):
@@ -342,13 +336,6 @@ class JsonLdIdentityField(JsonLdField):
     def use_pk_only_optimization(self):
         return False
 
-    def to_internal_value(self, data):
-        '''tells serializer how to write identity field'''
-        try:
-            return super().to_internal_value(data[self.parent.url_field_name])
-        except KeyError:
-            return super().to_internal_value(data)
-
     def to_representation(self, value: Any) -> Any:
         '''returns hyperlink representation of identity field'''
         try:
@@ -357,7 +344,7 @@ class JsonLdIdentityField(JsonLdField):
                 return Hyperlink(value, value)
             # expecting a user instance. Compute the webid and return this in hyperlink format
             else:
-                return Hyperlink(value.webid(), value)
+                return Hyperlink(value.urlid, value)
         except AttributeError:
             return super().to_representation(value)
 
@@ -621,16 +608,6 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             serializer.with_cache = child_serializer.with_cache
 
         return serializer
-
-    def to_internal_value(self, data):
-        is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and Model.is_external(data['@id'])
-        if is_user_and_external:
-            data['username'] = 'external'
-        ret = super().to_internal_value(data)
-        if is_user_and_external:
-            ret['urlid'] = data['@id']
-            ret.pop('username')
-        return ret
 
     def get_value(self, dictionary):
         '''overrides get_value to handle @graph key'''
