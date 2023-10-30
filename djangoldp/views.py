@@ -519,7 +519,7 @@ class LDPViewSet(LDPViewSetGenerator):
 
         if is_authenticated_user(request.user):
             try:
-                response['User'] = request.user.webid()
+                response['User'] = request.user.urlid
             except AttributeError:
                 pass
         return response
@@ -568,7 +568,7 @@ class LDPAPIView(APIView):
 
         if is_authenticated_user(request.user):
             try:
-                response['User'] = request.user.webid()
+                response['User'] = request.user.urlid
             except AttributeError:
                 pass
         return response
