@@ -234,6 +234,7 @@ class Model(models.Model):
         except:
             return False
 
+models.Model.urlid = property(lambda self: '{}{}'.format(settings.SITE_URL, Model.resource(self)))
 
 class LDPSource(Model):
     federation = models.CharField(max_length=255)
