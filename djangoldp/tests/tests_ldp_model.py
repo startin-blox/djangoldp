@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from djangoldp.models import Model
-from djangoldp.tests.models import Dummy, LDPDummy, Circle, CircleMember
+from djangoldp.tests.models import Dummy, LDPDummy, NoSuperUsersAllowedModel, JobOffer
 
 
 class LDPModelTest(TestCase):
@@ -43,20 +43,3 @@ class LDPModelTest(TestCase):
         self.assertEqual(local_queryset.count(), 1)
         self.assertIn(local, local_queryset)
         self.assertNotIn(external, local_queryset)
-
-    def test_ldp_manager_nested_fields_auto(self):
-        nested_fields = Circle.objects.nested_fields()
-        expected_nested_fields = ['team', 'members']
-        self.assertEqual(len(nested_fields), len(expected_nested_fields))
-        for expected in expected_nested_fields:
-            self.assertIn(expected, nested_fields)
-
-        nested_fields = CircleMember.objects.nested_fields()
-        expected_nested_fields = []
-        self.assertEqual(nested_fields, expected_nested_fields)
-
-    def test_ldp_manager_nested_fields_exclude(self):
-        Circle._meta.nested_fields_exclude = ['team']
-        nested_fields = Circle.objects.nested_fields()
-        expected_nested_fields = ['members']
-        self.assertEqual(nested_fields, expected_nested_fields)

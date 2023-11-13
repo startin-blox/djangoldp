@@ -430,9 +430,9 @@ class ActivityQueueService:
         Auxiliary function saves a record of parameterised activity
         :param model_represenation: the model class which should be used to store the activity. Defaults to djangol.Activity, must be a subclass
         '''
-        payload = bytes(json.dumps(activity), "utf-8")
+        payload = json.dumps(activity)
         if response_body is not None:
-            response_body = bytes(json.dumps(response_body), "utf-8")
+            response_body = json.dumps(response_body)
         if local_id is None:
             local_id = settings.SITE_URL + "/outbox/"
         if type is not None:
@@ -458,7 +458,7 @@ class ActivityPubService(object):
             return
 
         obj = {
-            "@type": Model.get_model_rdf_type(model),
+            "@type": getattr(model._meta, "rdf_type", None),
             "@id": instance.urlid
         }
         if obj['@type'] is None:
@@ -470,10 +470,13 @@ class ActivityPubService(object):
                 value = getattr(instance, field_name, None)
                 if value is None:
                     continue
-
+                
+                if not hasattr(value, 'urlid'):
+                    continue
+                
                 sub_object = {
                     "@id": value.urlid,
-                    "@type": Model.get_model_rdf_type(type(value))
+                    "@type": getattr(value._meta, "rdf_type", None)
                 }
 
                 if sub_object['@type'] is None:
@@ -592,7 +595,7 @@ class ActivityPubService(object):
         info = model_meta.get_field_info(sender)
 
         # bounds checking
-        if not hasattr(instance, 'urlid') or Model.get_model_rdf_type(sender) is None:
+        if not hasattr(instance, 'urlid') or getattr(sender._meta, "rdf_type", None) is None:
             return set()
 
         # check each foreign key for a distant resource
@@ -601,7 +604,7 @@ class ActivityPubService(object):
             if not relation_info.to_many:
                 value = getattr(instance, field_name, None)
                 if value is not None and Model.is_external(value):
-                    target_type = Model.get_model_rdf_type(type(value))
+                    target_type = getattr(value._meta, "rdf_type", None)
 
                     if target_type is None:
                         continue
@@ -690,7 +693,7 @@ def check_delete_for_backlinks(sender, instance, **kwargs):
             for target in targets:
                 ActivityPubService.send_delete_activity(BACKLINKS_ACTOR, {
                     "@id": instance.urlid,
-                    "@type": Model.get_model_rdf_type(sender)
+                    "@type": getattr(instance._meta, "rdf_type", None)
                 }, target)
 
     # remove any Followers on this resource
@@ -726,8 +729,8 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
         # we can only send backlinks on pre_clear because on post_clear the objects are gone
         if action != "pre_clear" and pk_set is None:
             return
-        member_rdf_type = Model.get_model_rdf_type(member_model)
-        container_rdf_type = Model.get_model_rdf_type(type(instance))
+        member_rdf_type = getattr(member_model._meta, "rdf_type", None)
+        container_rdf_type = getattr(instance._meta, "rdf_type", None)
 
         if member_rdf_type is None:
             return

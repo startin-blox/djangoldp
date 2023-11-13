@@ -2,6 +2,7 @@ import uuid
 import json
 from collections import OrderedDict
 from collections.abc import Mapping, Iterable
+from copy import copy
 from typing import Any
 from urllib import parse
 
@@ -19,9 +20,8 @@ from django.utils.functional import cached_property
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
-from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, MANY_RELATION_KWARGS, Hyperlink
-from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, \
-    LIST_SERIALIZER_KWARGS
+from rest_framework.relations import HyperlinkedRelatedField, ManyRelatedField, Hyperlink, MANY_RELATION_KWARGS
+from rest_framework.serializers import HyperlinkedModelSerializer, ListSerializer, ModelSerializer, LIST_SERIALIZER_KWARGS
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -29,18 +29,12 @@ from rest_framework.utils.serializer_helpers import ReturnDict, BindingDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
-from djangoldp.permissions import LDPPermissions
 
 
 # defaults for various DjangoLDP settings (see documentation)
-SERIALIZE_EXCLUDE_PERMISSIONS_DEFAULT = ['inherit']
-SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT = ['delete']
-SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT = []
 MAX_RECORDS_SERIALIZER_CACHE = getattr(settings, 'MAX_RECORDS_SERIALIZER_CACHE', 10000)
 
-
 class InMemoryCache:
-
     def __init__(self):
         self.cache = {
         }
@@ -79,58 +73,46 @@ class InMemoryCache:
                 self.cache[cache_key].pop(container_urlid, None)
         else:
             self.cache.pop(cache_key, None)
-
-
 GLOBAL_SERIALIZER_CACHE = InMemoryCache()
 
+class RDFSerializerMixin:
+    def add_permissions(self, data, user, model, obj=None):
+        '''takes a set or list of permissions and returns them in the JSON-LD format'''
+        if self.parent and not settings.LDP_INCLUDE_INNER_PERMS: #Don't serialize permissions on nested objects
+            return data
+        permission_classes = getattr(model._meta, 'permission_classes', [])
+        if not permission_classes:
+            return data
+        # The permissions must be given by all permission classes to be granted
+        permissions = set.intersection(*[permission().get_permissions(user, model, obj) for permission in permission_classes])
+        # Don't grant delete permissions on containers
+        if not obj and 'delete' in permissions:
+            permissions.remove('delete')
+        data['permissions'] = [{'mode': {'@type': name}} for name in permissions]
+        return data
+    
+    def serialize_rdf_fields(self, obj, data, include_context=False):
+        '''adds the @type and the @context to the data'''
+        rdf_type = getattr(obj._meta, 'rdf_type', None)
+        rdf_context = getattr(obj._meta, 'rdf_context', None)
+        if rdf_type:
+            data['@type'] = rdf_type
+        if include_context and rdf_context:
+            data['@context'] = rdf_context
+        return data
 
-def _serialize_permissions(permissions, exclude_perms):
-    '''takes a set or list of permissions and returns them in the JSON-LD format'''
-    exclude_perms = set(exclude_perms).union(
-        getattr(settings, 'SERIALIZE_EXCLUDE_PERMISSIONS', SERIALIZE_EXCLUDE_PERMISSIONS_DEFAULT))
+    def serialize_container(self, data, id, user, model, obj=None):
+        '''turns a list into a container representation'''
+        return self.add_permissions({'@id': id, '@type': 'ldp:Container', 'ldp:contains': data}, user, model, obj)
 
-    return [{'mode': {'@type': name}} for name in permissions if name not in exclude_perms]
-
-
-def _serialize_container_permissions(permissions):
-    exclude = getattr(settings, 'SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS',
-                      SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT)
-    return _serialize_permissions(permissions, exclude)
-
-
-def _serialize_object_permissions(permissions):
-    exclude = getattr(settings, 'SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS',
-                      SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT)
-    return _serialize_permissions(permissions, exclude)
-
-
-def _ldp_container_representation(id, container_permissions=None, value=None):
-    '''Utility function builds a LDP-format dictionary for passed container data'''
-    represented_object = {'@id': id}
-    if value is not None:
-        represented_object.update({'@type': 'ldp:Container', 'ldp:contains': value})
-    if container_permissions is not None:
-        represented_object.update({'permissions': container_permissions})
-    return represented_object
-
-
-def _serialize_rdf_fields(obj, data, include_context=False):
-    rdf_type = Model.get_meta(obj, 'rdf_type', None)
-    rdf_context = Model.get_meta(obj, 'rdf_context', None)
-    if rdf_type is not None:
-        data['@type'] = rdf_type
-    if include_context and rdf_context is not None:
-        data['@context'] = rdf_context
-
-    return data
-
-
-class LDListMixin:
+class LDListMixin(RDFSerializerMixin):
     '''A Mixin for serializing containers into JSONLD format'''
     child_attr = 'child'
-
     with_cache = getattr(settings, 'SERIALIZER_CACHE', True)
 
+    def get_child(self):
+        return getattr(self, self.child_attr)
+    
     # converts primitive data representation to the representation used within our application
     def to_internal_value(self, data):
         try:
@@ -146,7 +128,46 @@ class LDListMixin:
         if isinstance(data, str) and data.startswith("http"):
             data = [{'@id': data}]
 
-        return [getattr(self, self.child_attr).to_internal_value(item) for item in data]
+        return [self.get_child().to_internal_value(item) for item in data]
+    
+    def filter_queryset(self, queryset, child_model):
+        '''Applies the permission of the child model to the child queryset'''
+        view = copy(self.context['view'])
+        view.model = child_model
+        filter_backends = list({perm_class().get_filter_backend(child_model) for perm_class in 
+                getattr(child_model._meta, 'permission_classes', []) if hasattr(perm_class(), 'get_filter_backend')})
+        for backend in filter_backends:
+            if backend:
+                queryset = backend().filter_queryset(self.context['request'], queryset, view)
+        return queryset
+    
+    def compute_id(self, value):
+        '''generates the @id of the container'''
+        if isinstance(value, Iterable) or isinstance(value, QuerySet):
+            return f"{settings.BASE_URL}{self.context['request'].path}"
+        else: #For M2M
+            return f"{settings.BASE_URL}{Model.resource_id(value.instance)}{self.field_name}"
+    
+    def check_cache(self, value, id, model, cache_vary):
+        '''Auxiliary function to avoid code duplication - checks cache and returns from it if it has entry'''
+        parent_meta = getattr(self.get_child(), 'Meta', getattr(self.parent, 'Meta', None))
+        depth = max(getattr(parent_meta, "depth", 0), 0) if parent_meta else 1
+        
+        if depth:
+            # if the depth is greater than 0, we don't hit the cache, because a nested container might be outdated
+            # this Mixin may not have access to the depth of the parent serializer, e.g. if it's a ManyRelatedField
+            # in these cases we assume the depth is 0 and so we hit the cache
+            return None
+        cache_key = getattr(model._meta, 'label', None)
+
+        if self.with_cache and GLOBAL_SERIALIZER_CACHE.has(cache_key, id, cache_vary):
+            cache_value = GLOBAL_SERIALIZER_CACHE.get(cache_key, id, cache_vary)
+            # this check is to handle the situation where the cache has been invalidated by something we don't check
+            # namely if my permissions are upgraded then I may have access to view more objects
+            cache_under_value = cache_value['ldp:contains'] if 'ldp:contains' in cache_value else cache_value
+            if not hasattr(cache_under_value, '__len__') or not hasattr(value, '__len__') or (len(cache_under_value) == len(value)):
+                return cache_value
+        return False
 
     def to_representation(self, value):
         '''
@@ -156,85 +177,35 @@ class LDListMixin:
          - Can Add if add permission on contained object's type
          - Can view the container is view permission on container model : container obj are filtered by view permission
         '''
-        def check_cache(model):
-            '''Auxiliary function to avoid code duplication - checks cache and returns from it if it has entry'''
-            cache_key = Model.get_meta(model, 'label')
-            if self.with_cache and GLOBAL_SERIALIZER_CACHE.has(cache_key, self.id, cache_vary):
-                cache_value = GLOBAL_SERIALIZER_CACHE.get(cache_key, self.id, cache_vary)
-                # this check is to handle the situation where the cache has been invalidated by something we don't check
-                # namely if my permissions are upgraded then I may have access to view more objects
-                cache_under_value = cache_value['ldp:contains'] if 'ldp:contains' in cache_value else cache_value
-                if not hasattr(cache_under_value, '__len__') or not hasattr(value, '__len__') \
-                    or (len(cache_under_value) == len(value)):
-                    return cache_value
-            return False
-
-        # if this field is listed as an "empty_container" it means that it should only be serialized with @id
-        if getattr(self, 'parent', None) is not None and getattr(self, 'field_name', None) is not None:
-            empty_containers = getattr(self.parent.Meta.model._meta, 'empty_containers', None)
-
-            if empty_containers is not None and self.field_name in empty_containers:
-                return _ldp_container_representation(self.id)
-
         try:
-            child_model = getattr(self, self.child_attr).Meta.model
+            child_model = self.get_child().Meta.model
         except AttributeError:
             child_model = value.model
+        user = self.context['request'].user
+        id = self.compute_id(value)
+        
+        is_container = True
+        if getattr(self, 'parent', None): #If we're in a nested container
+            if isinstance(value, QuerySet) and getattr(self, 'parent', None):
+                value = self.filter_queryset(value, child_model)
 
-        parent_model = None
+            if getattr(self, 'field_name', None) is not None:
+                if self.field_name in getattr(self.parent.Meta.model._meta, 'empty_containers', []):
+                    return {'@id': id}
+                if not self.field_name in getattr(self.parent.Meta.model._meta, 'nested_fields', []):
+                    is_container = False
 
-        # if the depth is greater than 0, we don't hit the cache, because a nested container might be outdated
-        # this Mixin may not have access to the depth of the parent serializer, e.g. if it's a ManyRelatedField
-        # in these cases we assume the depth is 0 and so we hit the cache
-        parent_meta = getattr(getattr(self, self.child_attr), 'Meta', getattr(self.parent, 'Meta', None))
-        depth = max(getattr(parent_meta, "depth", 0), 0) if parent_meta else 1
+        cache_vary = str(user)
+        cache_result = self.check_cache(value, id, child_model, cache_vary)
+        if cache_result:
+            return cache_result
+        
+        data = super().to_representation(value)
+        if is_container:
+            data = self.serialize_container(data, id, user, child_model)
 
-        cache_vary = str(self.context['request'].user)
-
-        if not isinstance(value, Iterable) and not isinstance(value, QuerySet):
-            if not self.id.startswith('http'):
-                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-
-            cache_result = check_cache(child_model) if depth == 0 else False
-            if cache_result:
-                return cache_result
-
-            setattr(self.context['request'], "parent_id", self.id)
-            container_permissions = _serialize_container_permissions(
-                Model.get_container_permissions(child_model, self.context['request'], self.context['view']))
-
-        else:
-            parent_model = self.context['request'].parent_model if self.context['request'].parent_model is not None else child_model
-
-            if not self.id.startswith('http'):
-                self.id = '{}{}{}'.format(settings.BASE_URL, Model.resource(parent_model), self.id)
-
-            cache_result = check_cache(child_model) if depth == 0 else False
-            if cache_result:
-                return cache_result
-
-            # optimize: filter the queryset automatically based on child model permissions classes (filter_backends)
-            if isinstance(value, QuerySet) and hasattr(child_model, 'get_queryset'):
-                value = child_model.get_queryset(self.context['request'], self.context['view'], queryset=value,
-                                                 model=child_model)
-
-            container_permissions = Model.get_container_permissions(child_model, self.context['request'], self.context['view'])
-            container_permissions = _serialize_container_permissions(container_permissions.union(
-                Model.get_container_permissions(parent_model, self.context['request'], self.context['view'])))
-
-        GLOBAL_SERIALIZER_CACHE.set(Model.get_meta(child_model, 'label'), self.id, cache_vary,
-                                    _ldp_container_representation(self.id,
-                                                                  container_permissions=container_permissions,
-                                                                  value=super().to_representation(value)))
-
-        return GLOBAL_SERIALIZER_CACHE.get(Model.get_meta(child_model, 'label'), self.id, cache_vary)
-
-    def get_attribute(self, instance):
-        parent_id_field = self.parent.fields[self.parent.url_field_name]
-        context = self.parent.context
-        parent_id = parent_id_field.get_url(instance, parent_id_field.view_name, context['request'], context['format'])
-        self.id = parent_id + self.field_name + "/"
-        return super().get_attribute(instance)
+        GLOBAL_SERIALIZER_CACHE.set(getattr(child_model._meta, 'label'), id, cache_vary, data)
+        return GLOBAL_SERIALIZER_CACHE.get(getattr(child_model._meta, 'label'), id, cache_vary)
 
     def get_value(self, dictionary):
         try:
@@ -290,19 +261,20 @@ class LDListMixin:
 
             return obj
 
+class IdentityFieldMixin:
+    def to_internal_value(self, data):
+        '''Gives the @id as a representation if present'''
+        try:
+            return super().to_internal_value(data[self.parent.url_field_name])
+        except (KeyError, TypeError):
+            return super().to_internal_value(data)
 
-class ContainerSerializer(LDListMixin, ListSerializer):
+class ContainerSerializer(LDListMixin, ListSerializer, IdentityFieldMixin):
     id = ''
 
     @property
     def data(self):
         return ReturnDict(super(ListSerializer, self).data, serializer=self)
-
-    def to_internal_value(self, data):
-        try:
-            return super().to_internal_value(data[self.parent.url_field_name])
-        except (KeyError, TypeError):
-            return super().to_internal_value(data)
 
 
 class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
@@ -310,7 +282,7 @@ class ManyJsonLdRelatedField(LDListMixin, ManyRelatedField):
     url_field_name = "@id"
 
 
-class JsonLdField(HyperlinkedRelatedField):
+class JsonLdField(HyperlinkedRelatedField, IdentityFieldMixin):
     def __init__(self, view_name=None, **kwargs):
         super().__init__(view_name, **kwargs)
         self.get_lookup_args()
@@ -329,8 +301,7 @@ class JsonLdField(HyperlinkedRelatedField):
         except MultiValueDictKeyError:
             pass
 
-
-class JsonLdRelatedField(JsonLdField):
+class JsonLdRelatedField(JsonLdField, RDFSerializerMixin):
     def use_pk_only_optimization(self):
         return False
 
@@ -342,15 +313,9 @@ class JsonLdRelatedField(JsonLdField):
             else:
                 include_context = True
                 data = {'@id': super().to_representation(value)}
-            return _serialize_rdf_fields(value, data, include_context=include_context)
+            return self.serialize_rdf_fields(value, data, include_context=include_context)
         except ImproperlyConfigured:
             return value.pk
-
-    def to_internal_value(self, data):
-        try:
-            return super().to_internal_value(data[self.parent.url_field_name])
-        except (KeyError, TypeError):
-            return super().to_internal_value(data)
 
     @classmethod
     def many_init(cls, *args, **kwargs):
@@ -371,13 +336,6 @@ class JsonLdIdentityField(JsonLdField):
     def use_pk_only_optimization(self):
         return False
 
-    def to_internal_value(self, data):
-        '''tells serializer how to write identity field'''
-        try:
-            return super().to_internal_value(data[self.parent.url_field_name])
-        except KeyError:
-            return super().to_internal_value(data)
-
     def to_representation(self, value: Any) -> Any:
         '''returns hyperlink representation of identity field'''
         try:
@@ -386,7 +344,7 @@ class JsonLdIdentityField(JsonLdField):
                 return Hyperlink(value, value)
             # expecting a user instance. Compute the webid and return this in hyperlink format
             else:
-                return Hyperlink(value.webid(), value)
+                return Hyperlink(value.urlid, value)
         except AttributeError:
             return super().to_representation(value)
 
@@ -399,17 +357,15 @@ class JsonLdIdentityField(JsonLdField):
             return super().get_attribute(instance)
 
 
-class LDPSerializer(HyperlinkedModelSerializer):
+class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
     url_field_name = "@id"
     serializer_related_field = JsonLdRelatedField
     serializer_url_field = JsonLdIdentityField
     ModelSerializer.serializer_field_mapping[LDPUrlField] = IdURLField
 
-    def __init__(self, *args, **kwargs):
-        # for performance reasons, we don't serialize permissions on a resource if we're in a larger container
-        self.in_container = kwargs.pop('in_container', False)
-        super().__init__(*args, **kwargs)
-
+    # The default serializer repr ends in infinite loop. Overloading it prevents that.
+    def __repr__(self):
+        return self.__class__.name
 
     @cached_property
     def fields(self):
@@ -446,7 +402,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         # external Models should only be returned with rdf values
         if Model.is_external(obj):
             data = {'@id': obj.urlid}
-            return _serialize_rdf_fields(obj, data)
+            return self.serialize_rdf_fields(obj, data)
 
         data = super().to_representation(obj)
 
@@ -460,57 +416,37 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
 
-        data = _serialize_rdf_fields(obj, data, include_context=True)
-        if hasattr(obj, 'get_model_class'):
-            model_class = obj.get_model_class()
-        else:
-            model_class = type(obj)
-        if not self.in_container:
-            data['permissions'] = _serialize_object_permissions(
-                Model.get_permissions(model_class, self.context['request'], self.context['view'], obj))
-
+        data = self.serialize_rdf_fields(obj, data, include_context=True)
+        data = self.add_permissions(data, self.context['request'].user, self.context['view'].model, obj=obj)
         return data
 
     def build_property_field(self, field_name, model_class):
         class JSonLDPropertyField(ReadOnlyField):
             def to_representation(self, instance):
                 from djangoldp.views import LDPViewSet
-
-                if isinstance(instance, QuerySet) or isinstance(instance, Model):
-                    try:
-                        model_class = instance.model
-                    except:
-                        model_class = instance.__class__
-                    serializer_generator = LDPViewSet(model=model_class,
-                                                      lookup_field=Model.get_meta(model_class, 'lookup_field', 'pk'),
-                                                      permission_classes=Model.get_meta(model_class,
-                                                                                        'permission_classes',
-                                                                                        [LDPPermissions]),
-                                                      fields=Model.get_meta(model_class, 'serializer_fields', []),
-                                                      nested_fields=model_class.nested.nested_fields())
-                    parent_depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
-                    serializer_generator.depth = parent_depth
-                    serializer = serializer_generator.build_read_serializer()(context=self.parent.context)
-                    if parent_depth == 0:
-                        serializer.Meta.fields = ["@id"]
-
-                    if isinstance(instance, QuerySet):
-                        data = list(instance)
-                        id = '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source)
-                        permissions = _serialize_container_permissions(Model.get_permissions(self.parent.Meta.model,
-                                                                                    self.parent.context['request'],
-                                                                                    self.parent.context['view']))
-                        data = [serializer.to_representation(item) if item is not None else None for item in data]
-                        return _ldp_container_representation(id, container_permissions=permissions, value=data)
-                    else:
-                        return serializer.to_representation(instance)
+                if isinstance(instance, QuerySet):
+                    model = instance.model
+                elif isinstance(instance, Model):
+                    model = type(instance)
                 else:
                     return instance
+                depth = max(getattr(self.parent.Meta, "depth", 0) - 1, 0)
+                fields = ["@id"] if depth==0 else getattr(model._meta, 'serializer_fields', [])
 
-        field_class = JSonLDPropertyField
-        field_kwargs = {}
+                serializer_generator = LDPViewSet(model=model, fields=fields, depth=depth,
+                                                    lookup_field=getattr(model._meta, 'lookup_field', 'pk'),
+                                                    permission_classes=getattr(model._meta, 'permission_classes', []),
+                                                    nested_fields=getattr(model._meta, 'nested_fields', []))
+                serializer = serializer_generator.get_serializer_class()(context=self.parent.context)
 
-        return field_class, field_kwargs
+                if isinstance(instance, QuerySet):
+                    id = '{}{}{}/'.format(settings.SITE_URL, '{}{}/', self.source)
+                    children = [serializer.to_representation(item) for item in instance]
+                    return self.parent.serialize_container(children, id, self.parent.context['request'].user, model)
+                else:
+                    return serializer.to_representation(instance)
+
+        return JSonLDPropertyField, {}
 
     def handle_value_object(self, value):
         '''
@@ -570,9 +506,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
         return type(field_class.__name__ + 'Valued', (JSonLDStandardField, field_class), {}), field_kwargs
 
     def build_nested_field(self, field_name, relation_info, nested_depth):
-
         class NestedLDPSerializer(self.__class__):
-
             class Meta:
                 model = relation_info.related_model
                 depth = nested_depth - 1
@@ -584,9 +518,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
             def to_internal_value(self, data):
                 if data == '':
                     return ''
-                # workaround for Hubl app - 293
-                if 'username' in data and not self.url_field_name in data:
-                    data[self.url_field_name] = './'
                 if self.url_field_name in data:
                     if not isinstance(data, Mapping):
                         message = self.error_messages['invalid'].format(
@@ -601,7 +532,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
 
                     # validate fields passed in the data
                     fields = list(filter(lambda x: x.field_name in data, self._writable_fields))
-
                     for field in fields:
                         validate_method = getattr(self, 'validate_' + field.field_name, None)
                         primitive_value = field.get_value(data)
@@ -659,9 +589,6 @@ class LDPSerializer(HyperlinkedModelSerializer):
     @classmethod
     def many_init(cls, *args, **kwargs):
         allow_empty = kwargs.pop('allow_empty', None)
-        # we pass in_container to tell the child that they're in a container
-        #  then in the child we optimize the permissions serialization based on this
-        kwargs['in_container'] = True
         child_serializer = cls(*args, **kwargs)
         list_kwargs = {
             'child': child_serializer,
@@ -680,13 +607,11 @@ class LDPSerializer(HyperlinkedModelSerializer):
         if hasattr(child_serializer, 'with_cache'):
             serializer.with_cache = child_serializer.with_cache
 
-        if 'context' in kwargs and getattr(kwargs['context']['view'], 'nested_field', None) is not None:
-            serializer.id = '{}{}/'.format(serializer.id, kwargs['context']['view'].nested_field)
-        elif 'context' in kwargs:
-            serializer.id = '{}{}'.format(settings.BASE_URL, kwargs['context']['view'].request.path)
         return serializer
 
     def to_internal_value(self, data):
+        #TODO: This hack is needed because external users don't pass validation.
+        # Objects require all fields to be optional to be created as external, and username is required.
         is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and Model.is_external(data['@id'])
         if is_user_and_external:
             data['username'] = 'external'
@@ -904,22 +829,19 @@ class LDPSerializer(HyperlinkedModelSerializer):
         for (field_name, data) in nested_fields:
             manager = getattr(instance, field_name)
             field_model = manager.model
-            slug_field = Model.slug_field(manager.model)
+            slug_field = Model.slug_field(field_model)
             try:
-                item_pk_to_keep = list(map(lambda e: e[slug_field], filter(lambda x: slug_field in x, data)))
+                item_pk_to_keep = [obj_dict[slug_field] for obj_dict in data if slug_field in obj_dict]
             except TypeError:
-                item_pk_to_keep = list(
-                    map(lambda e: getattr(e, slug_field), filter(lambda x: hasattr(x, slug_field), data)))
+                item_pk_to_keep = [getattr(obj, slug_field) for obj in data if hasattr(obj, slug_field)]
 
-            if getattr(manager, 'through', None) is None:
-                for item in list(manager.all()):
-                    if not str(getattr(item, slug_field)) in item_pk_to_keep:
-                        item.delete()
-            else:
+            if hasattr(manager, 'through'):
                 manager.clear()
+            else:
+                manager.exclude(pk__in=item_pk_to_keep).delete()
 
             for item in data:
-                if not isinstance(item, dict):
+                if isinstance(item, Model):
                     item.save()
                     saved_item = item
                 elif slug_field in item:
@@ -927,7 +849,7 @@ class LDPSerializer(HyperlinkedModelSerializer):
                     saved_item = self.get_or_create(field_model, item, kwargs)
                 elif 'urlid' in item:
                     # has urlid and is a local resource
-                    if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(item['urlid']).netloc:
+                    if not Model.is_external(item['urlid']):
                         model, old_obj = Model.resolve(item['urlid'])
                         if old_obj is not None:
                             saved_item = self.update(instance=old_obj, validated_data=item)
@@ -947,7 +869,8 @@ class LDPSerializer(HyperlinkedModelSerializer):
                         pass
                     saved_item = self.internal_create(validated_data=item, model=manager.model)
 
-                if getattr(manager, 'through', None) is not None and manager.through._meta.auto_created:
+                if hasattr(manager, 'through') and manager.through._meta.auto_created:
+                    #First remove to avoid duplicates
                     manager.remove(saved_item)
                     manager.add(saved_item)
 

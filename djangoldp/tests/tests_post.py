@@ -152,24 +152,6 @@ class PostTestCase(TestCase):
                          "http://happy-dev.fr/invoices/{}/".format(invoice.pk))
         self.assertEqual(response.data['title'], "new batch")
 
-    def test_nested_container_ter(self):
-        circle = Circle.objects.create()
-        body = {
-            'user' : {
-                "username" : "hubl-workaround-493"
-            },
-            # 'circle' : {},
-            '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
-            }
-        }
-
-        response = self.client.post('/circles/{}/members/'.format(circle.pk),
-                                    data=json.dumps(body),
-                                    content_type='application/ld+json')
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['circle']['@id'], circle.urlid)
-
     def test_nested_container_federated(self):
         resource = Resource.objects.create()
         body = {

@@ -19,7 +19,7 @@ def get_prefetch_fields(model, serializer, depth, prepend_string=''):
     # get a list of all fields which would be serialized on this model
     # TODO: dynamically generating serializer fields is necessary to retrieve many-to-many fields at depth > 0,
     #  but the _all_ default has issues detecting reverse many-to-many fields
-    # meta_args = {'model': model, 'depth': 0, 'fields': Model.get_meta(model, 'serializer_fields', '__all__')}
+    # meta_args = {'model': model, 'depth': 0, 'fields': getattr(model._meta, 'serializer_fields', '__all__')}
     # meta_class = type('Meta', (), meta_args)
     # serializer = (type(LDPSerializer)('TestSerializer', (LDPSerializer,), {'Meta': meta_class}))()
     serializer_fields = set([f for f in serializer.get_fields()])

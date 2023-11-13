@@ -33,15 +33,3 @@ class AllowRequestedCORSMiddleware:
         response["Access-Control-Allow-Credentials"] = 'true'
 
         return response
-
-class PrefetchParentModel:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        try:
-            parent_model = Model.resolve_parent(request.path)
-        except:
-            parent_model = None
-        request.parent_model = parent_model
-        return self.get_response(request)

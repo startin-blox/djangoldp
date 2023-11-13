@@ -7,7 +7,6 @@ from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 from statistics import mean, variance
 import cProfile, io, pstats
 
-from djangoldp.permissions import LDPPermissions
 from djangoldp.tests.models import Post, JobOffer, Skill, Project, User
 
 
@@ -18,15 +17,12 @@ class TestPerformanceGET(APITestCase):
     test_volume = 100
     result_line = []
     withAuth = True
-    withPermsCache = True
     fixtures = ['test.json']
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         print("Init", end='', flush=True)
-
-        LDPPermissions.with_cache = cls.withPermsCache
 
         step = cls.test_volume / 10
         cls.factory = APIRequestFactory()

@@ -1,27 +1,31 @@
 import json
 import logging
 import uuid
-import copy
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ObjectDoesNotExist, ValidationError, FieldDoesNotExist
 from django.db import models
-from django.db.models import BinaryField, DateTimeField
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
 from django.dispatch import receiver
 from django.urls import get_resolver
-from urllib import parse
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
+from guardian.shortcuts import assign_perm
 from rest_framework.utils import model_meta
-
 from djangoldp.fields import LDPUrlField
-from djangoldp.permissions import LDPPermissions, select_container_permissions, DEFAULT_DJANGOLDP_PERMISSIONS
+from djangoldp.permissions import DEFAULT_DJANGOLDP_PERMISSIONS, OwnerPermissions, InheritPermissions, ReadOnly
 
 logger = logging.getLogger('djangoldp')
 
+Group._meta.serializer_fields = ['name', 'user_set']
+Group._meta.rdf_type = 'foaf:Group'
+Group._meta.rdf_context = {'user_set': 'foaf:member'}
+Group._meta.permission_classes = [(OwnerPermissions&ReadOnly)|InheritPermissions]
+Group._meta.owner_field = 'user'
+Group._meta.inherit_permissions = []
 
 class LDPModelManager(models.Manager):
     def local(self):
@@ -30,74 +34,20 @@ class LDPModelManager(models.Manager):
         internal_ids = [x.pk for x in queryset if not Model.is_external(x)]
         return queryset.filter(pk__in=internal_ids)
 
-    def nested_fields(self):
-        '''parses the relations on the model, and returns a list of nested field names'''
-        nested_fields = set()
-        # include all many-to-many relations
-        for field_name, relation_info in model_meta.get_field_info(self.model).relations.items():
-            if relation_info.to_many:
-                if field_name is not None:
-                    nested_fields.add(field_name)
-        # include all nested fields explicitly included on the model
-        nested_fields.update(set(getattr(self.model._meta, 'nested_fields', set())))
-        # exclude anything marked explicitly to be excluded
-        nested_fields = nested_fields.difference(set(getattr(self.model._meta, 'nested_fields_exclude', set())))
-        return list(nested_fields)
-
-    def fields(self):
-        return self.nested_fields()
-
-
 class Model(models.Model):
-    urlid = LDPUrlField(blank=True, null=True, unique=True)
+    urlid = LDPUrlField(blank=True, null=True, unique=True, db_index=True)
     is_backlink = models.BooleanField(default=False, help_text='set automatically to indicate the Model is a backlink')
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
     objects = LDPModelManager()
-    nested = LDPModelManager()
+
+    class Meta:
+        default_permissions = DEFAULT_DJANGOLDP_PERMISSIONS
+        abstract = True
+        depth = 0
 
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
-
-    @classmethod
-    def filter_backends(cls):
-        '''constructs a list of filter_backends configured on the permissions classes applied to this model'''
-        filtered_classes = [p for p in getattr(cls._meta, 'permission_classes', [LDPPermissions]) if
-                            hasattr(p, 'filter_backends') and p.filter_backends is not None]
-        filter_backends = list()
-        for p in filtered_classes:
-            filter_backends = list(set(filter_backends).union(set(p.filter_backends)))
-        return filter_backends
-
-    @classmethod
-    def get_queryset(cls, request, view, queryset=None, model=None):
-        '''
-        when serializing as a child of another resource (my model has a many-to-one relationship with some parent),
-        get_queryset is used to obtain the resources which should be displayed. This allows us to exclude those objects
-        which I do not have permission to view in an automatically generated serializer
-        '''
-        if queryset is None:
-            queryset = cls.objects.all()
-        # this is a hack - sorry! https://git.startinblox.com/djangoldp-packages/djangoldp/issues/301/
-        if model is not None:
-            view.model = model
-        for backend in list(cls.filter_backends()):
-            queryset = backend().filter_queryset(request, queryset, view)
-        return queryset
-
-    @classmethod
-    def get_view_set(cls):
-        '''returns the view_set defined in the model Meta or the LDPViewSet class'''
-        view_set = getattr(cls._meta, 'view_set', getattr(cls.Meta, 'view_set', None))
-        if view_set is None:
-            from djangoldp.views import LDPViewSet
-            view_set = LDPViewSet
-        return view_set
-    
-    @classmethod
-    def get_serializer_class(cls):
-        from djangoldp.serializers import LDPSerializer
-        return LDPSerializer
 
     @classmethod
     def get_container_path(cls):
@@ -113,7 +63,7 @@ class Model(models.Model):
 
     @classonlymethod
     def absolute_url(cls, instance_or_model):
-        if isinstance(instance_or_model, ModelBase) or instance_or_model.urlid is None or instance_or_model.urlid == '':
+        if isinstance(instance_or_model, ModelBase) or not instance_or_model.urlid:
             return '{}{}'.format(settings.SITE_URL, Model.resource(instance_or_model))
         else:
             return instance_or_model.urlid
@@ -168,11 +118,6 @@ class Model(models.Model):
 
         return path
 
-    class Meta:
-        default_permissions = DEFAULT_DJANGOLDP_PERMISSIONS
-        abstract = True
-        depth = 0
-
     @classonlymethod
     def resolve_id(cls, id):
         '''
@@ -192,7 +137,7 @@ class Model(models.Model):
     @classonlymethod
     def resolve_parent(cls, path):
         split = path.strip('/').split('/')
-        parent_path = "/".join(split[0:len(split) - 1])
+        parent_path = "/".join(split[:-1])
         return Model.resolve_id(parent_path)
 
     @classonlymethod
@@ -209,8 +154,8 @@ class Model(models.Model):
         :param path: a URL path to check
         :return: the container model and resolved id in a tuple
         '''
-        if settings.BASE_URL in path:
-            path = path[len(settings.BASE_URL):]
+        if path.startswith(settings.BASE_URL):
+            path = path.replace(settings.BASE_URL, '')
         container = cls.resolve_container(path)
         try:
             resolve_id = cls.resolve_id(path)
@@ -260,13 +205,6 @@ class Model(models.Model):
         return Model.get_or_create(model, urlid, **kwargs)
 
     @classonlymethod
-    def get_model_rdf_type(cls, model):
-        if model is get_user_model():
-            return "foaf:user"
-        else:
-            return getattr(model._meta, "rdf_type", None)
-
-    @classonlymethod
     def get_subclass_with_rdf_type(cls, type):
         #TODO: deprecate
         '''returns Model subclass with Meta.rdf_type matching parameterised type, or None'''
@@ -278,113 +216,6 @@ class Model(models.Model):
                 return subcls
 
         return None
-
-    @classonlymethod
-    #TODO: deprecate
-    def get_meta(cls, model_class, meta_name, default=None):
-        '''returns the models Meta class'''
-        if hasattr(model_class, 'Meta'):
-            meta = getattr(model_class.Meta, meta_name, default)
-        elif hasattr(model_class, '_meta'):
-            meta = default
-        else:
-            return default
-        return getattr(model_class._meta, meta_name, meta)
-
-    @classmethod
-    def get_model_class(cls):
-        return cls
-    
-    @classonlymethod
-    def _get_permissions_setting(cls, model, perm_name, inherit_perms=None):
-        '''Auxiliary function returns the configured permissions given to parameterised setting, or default'''
-        # gets the model-configured setting or default if it exists
-        if not model:
-            model = cls
-        perms = getattr(model._meta, perm_name, None)
-        if perms is None:
-            # If no specific permission is set on the Model, take the ones on all Permission classes
-            perms = []
-            #TODO: there should be a default meta param, instead of passing the default here?
-            for permission_class in getattr(model._meta, 'permission_classes', [LDPPermissions]):
-                perms = perms + getattr(permission_class, perm_name, [])
-
-        if inherit_perms is not None and 'inherit' in perms:
-            perms += set(inherit_perms) - set(perms)
-        
-        return perms
-    
-    @classonlymethod
-    def get_permission_settings(cls, model=None):
-        '''returns a tuple of (Auth, Anon, Owner) settings for a given model'''
-        # takes a model so that it can be called on Django native models
-        if not model:
-            model = cls
-        anonymous_perms = cls._get_permissions_setting(model, 'anonymous_perms')
-        authenticated_perms = cls._get_permissions_setting(model, 'authenticated_perms', anonymous_perms)
-        owner_perms = cls._get_permissions_setting(model, 'owner_perms', authenticated_perms)
-        superuser_perms = cls._get_permissions_setting(model, 'superuser_perms', owner_perms)
-
-        return anonymous_perms, authenticated_perms, owner_perms, superuser_perms
-    
-    #TODO review architecture of permissions
-    @classonlymethod
-    def get_container_permissions(cls, model, request, view, obj=None):
-        '''outputs the permissions given by all permissions_classes on the model on the model-level'''
-        anonymous_perms, authenticated_perms, owner_perms, superuser_perms = cls.get_permission_settings(model)
-        return select_container_permissions(request, obj, model, anonymous_perms, authenticated_perms, owner_perms, superuser_perms)
-
-    @classonlymethod
-    def get_object_permissions(cls, model, request, view, obj):
-        '''outputs the permissions given by all permissions_classes on the model on the object-level'''
-        perms = set()
-        for permission_class in getattr(model._meta, 'permission_classes', [LDPPermissions]):
-            if hasattr(permission_class, 'get_object_permissions'):
-                perms = perms.union(permission_class().get_object_permissions(request, view, obj))
-        return perms
-
-    @classonlymethod
-    def get_permissions(cls, model, request, view, obj=None):
-        '''outputs the permissions given by all permissions_classes on the model on both the model and the object level'''
-        perms = Model.get_container_permissions(model, request, view, obj)
-        if obj is not None:
-            perms = perms.union(Model.get_object_permissions(model, request, view, obj))
-        return perms
-
-    @classmethod
-    def is_owner(cls, model, user, obj):
-        '''returns True if I given user is the owner of given object instance, otherwise False'''
-        owner_field = getattr(model._meta, 'owner_field', None)
-        owner_urlid_field = getattr(model._meta, 'owner_urlid_field', None)
-
-        if owner_field is not None and owner_urlid_field is not None:
-            raise AttributeError("you can not set both owner_field and owner_urlid_field")
-        if owner_field is None:
-            if owner_urlid_field is None:
-                return False
-            else:
-                # use the one that is set, the check with urlid is done at the end
-                owner_field = owner_urlid_field
-
-        try:
-            # owner fields might be nested (e.g. "collection__author")
-            owner_field_nesting = owner_field.split("__")
-            if len(owner_field_nesting) > 1:
-                obj_copy = obj
-
-                for level in owner_field_nesting:
-                    owner_value = getattr(obj_copy, level)
-                    obj_copy = owner_value
-
-            # or they might not be (e.g. "author")
-            else:
-                owner_value = getattr(obj, owner_field)
-        except AttributeError:
-            raise FieldDoesNotExist(f"the owner_field setting {owner_field} contains field(s) which do not exist on model {model.__name__}")
-        
-        return (owner_value == user
-                or (hasattr(user, 'urlid') and owner_value == user.urlid)
-                or owner_value == user.id)
 
     @classmethod
     def is_external(cls, value):
@@ -403,6 +234,8 @@ class Model(models.Model):
         except:
             return False
 
+#TODO: this breaks the serializer, which probably assumes that traditional models don't have a urlid.
+# models.Model.urlid = property(lambda self: '{}{}'.format(settings.SITE_URL, Model.resource(self)))
 
 class LDPSource(Model):
     federation = models.CharField(max_length=255)
@@ -421,32 +254,25 @@ class Activity(Model):
     '''Models an ActivityStreams Activity'''
     local_id = LDPUrlField(help_text='/inbox or /outbox url (local - this server)')  # /inbox or /outbox full url
     external_id = LDPUrlField(null=True, help_text='the /inbox or /outbox url (from the sender or receiver)')
-    payload = BinaryField()
+    payload = models.TextField()
     response_location = LDPUrlField(null=True, blank=True, help_text='Location saved activity can be found')
     response_code = models.CharField(null=True, blank=True, help_text='Response code sent by receiver', max_length=8)
-    response_body = BinaryField(null=True)
+    response_body = models.TextField(null=True)
     type = models.CharField(null=True, blank=True, help_text='the ActivityStreams type of the Activity',
                             max_length=64)
     is_finished = models.BooleanField(default=True)
-    created_at = DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     success = models.BooleanField(default=False, help_text='set to True when an Activity is successfully delivered')
 
     class Meta(Model.Meta):
         container_path = "activities"
         rdf_type = 'as:Activity'
 
-    def _bytes_to_json(self, obj):
-        if hasattr(obj, 'tobytes'):
-            obj = obj.tobytes()
-        if obj is None or obj == b'':
-            return {}
-        return json.loads(obj)
-
     def to_activitystream(self):
-        return self._bytes_to_json(self.payload)
+        return json.loads(self.payload)
 
     def response_to_json(self):
-        return self._bytes_to_json(self.response_body)
+        return self.to_activitystream()
 
 
 # temporary database-side storage used for scheduled tasks in the ActivityQueue
@@ -468,34 +294,55 @@ class Follower(Model):
     def __str__(self):
         return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)
 
+class DynamicNestedField:
+    '''
+    Used to define a method as a nested_field.
+    Usage:
+        LDPUser.circles = lambda self: Circle.objects.filter(members__user=self)
+        LDPUser.circles.field = DynamicNestedField(Circle, 'circles')
+    '''
+    related_query_name = None
+    one_to_many = False
+    many_to_many = True
+    many_to_one = False
+    one_to_one = False
+    read_only = True
+    name = ''
+    def __init__(self, model:models.Model|None, remote_name:str, name:str='', remote:object|None=None) -> None:
+        self.model = model
+        self.name = name
+        if remote:
+            self.remote_field = remote
+        else:
+            self.remote_field = DynamicNestedField(None, '', remote_name, self)
 
 @receiver([post_save])
 def auto_urlid(sender, instance, **kwargs):
     if isinstance(instance, Model):
+        changed = False
         if getattr(instance, Model.slug_field(instance), None) is None:
             setattr(instance, Model.slug_field(instance), instance.pk)
-            instance.save()
-        if (instance.urlid is None or instance.urlid == '' or 'None' in instance.urlid):
+            changed = True
+        if (not instance.urlid or 'None' in instance.urlid):
             instance.urlid = instance.get_absolute_url()
+            changed = True
+        if changed:
             instance.save()
 
-
-#if not hasattr(get_user_model(), 'webid'):
-#    def webid(self):
-#        # an external user should have urlid set
-#        webid = getattr(self, 'urlid', None)
-#        if webid is not None and urlparse(settings.BASE_URL).netloc != urlparse(webid).netloc:
-#            webid = self.urlid`
-#        # local user use user-detail URL with primary key
-#        else:
-#            base_url = settings.BASE_URL
-#            if base_url.endswith('/'):
-#                base_url = base_url[:len(base_url) - 1]
-#            webid = '{0}{1}'.format(base_url, reverse_lazy('user-detail', kwargs={'pk': self.pk}))
-#        return webid
-#
-#
-#    get_user_model().webid = webid
+@receiver(post_save)
+def create_role_groups(sender, instance, created, **kwargs):
+    if created:
+        for name, params in getattr(instance._meta, 'permission_roles', {}).items():
+            group = Group.objects.create(name=f'LDP_{instance._meta.model_name}_{name}_{instance.id}')
+            setattr(instance, name, group)
+            instance.save()
+            if params.get('add_author'):
+                assert hasattr(instance._meta, 'auto_author'), "add_author requires to also define auto_author"
+                author = getattr(instance, instance._meta.auto_author)
+                if author:
+                    group.user_set.add(author)
+            for permission in params.get('perms', []):
+                assign_perm(f'{permission}_{instance._meta.model_name}', group, instance)
 
 
 def invalidate_cache_if_has_entry(entry):
@@ -504,16 +351,13 @@ def invalidate_cache_if_has_entry(entry):
     if GLOBAL_SERIALIZER_CACHE.has(entry):
         GLOBAL_SERIALIZER_CACHE.invalidate(entry)
 
-
 def invalidate_model_cache_if_has_entry(model):
     entry = getattr(model._meta, 'label', None)
     invalidate_cache_if_has_entry(entry)
 
-
 @receiver([pre_save, pre_delete])
 def invalidate_caches(sender, instance, **kwargs):
     invalidate_model_cache_if_has_entry(sender)
-
 
 @receiver([m2m_changed])
 def invalidate_caches_m2m(sender, instance, action, *args, **kwargs):

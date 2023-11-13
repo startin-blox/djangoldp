@@ -183,10 +183,6 @@ Todo.objects.local() # { Local Todo } only
 
 For Views, we also define a FilterBackend to achieve the same purpose. See the section on ViewSets for this purpose
 
-#### nested_fields()
-
-returns a list of all nested field names for the model, built of a union of the model class' `nested_fields` setting, the to-many relations on the model, excluding all fields detailed by `nested_fields_exclude`
-
 ## LDPViewSet
 
 DjangoLDP automatically generates ViewSets for your models, and registers these at urls, according to the settings configured in the model Meta (see below for options)
@@ -205,10 +201,20 @@ LDPViewSet.urls(model=User, lookup_field='username')
 
 list of ForeignKey, ManyToManyField, OneToOneField and their reverse relations. When a field is listed in this parameter, a container will be created inside each single element of the container.
 
-In the following example, besides the urls `/members/` and `/members/<pk>/`, two other will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/`
+In the following example, besides the urls `/members/` and `/members/<pk>/`, two others will be added to serve a container of the skills of the member: `/members/<pk>/skills/` and `/members/<pk>/skills/<pk>/`.
+
+ForeignKey, ManyToManyField, OneToOneField that are not listed in the `nested_fields` option will be rendered as a flat list and will not have their own container endpoint.
 
 ```python
-<Model>._meta.nested_fields=["skills"]
+Meta:
+    nested_fields=["skills"]
+```
+
+Methods can be used to create custom read-only fields, by adding the name of the method in the `serializer_fields`. The same can be done for nested fields, but the method must be decorated with a `DynamicNestedField`.
+
+```python
+LDPUser.circles = lambda self: Circle.objects.filter(members__user=self)
+LDPUser.circles.field = DynamicNestedField(Circle, 'circles')
 ```
 
 ### Improving Performance
@@ -292,79 +298,73 @@ class MyModel(models.Model):
 
 Now when an instance of `MyModel` is saved, its `author_user` property will be set to the authenticated user. 
 
-### auto_author_field
+## permissions
 
-Set this property to make the value of the `auto_author` field a property on the authenticated use.
+Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information.
+
+By default, no permission class is applied on your model, which means there will be no permission check. In other words, anyone will be able to run any kind of request, read and write, even without being authenticated. Superusers always have all permissions on all resources.
+
+### Default Permission classes
+
+DjangoLDP comes with a set of permission classes that you can use for standard behaviour.
+
+ * AuthenticatedOnly: Refuse access to anonymous users
+ * ReadOnly: Refuse access to any write request
+ * ReadAndCreate: Refuse access to any request changing an existing resource
+ * CreateOnly: Refuse access to any request other than creation
+ * AnonymousReadOnly: Refuse access to anonymous users with any write request
+ * LDDPermissions: Give access based on the permissions in the database. For container requests (list and create), based on model level permissions. For all others, based on object level permissions. This permission class is associated with a filter that only renders objects on which the user has access.
+ * PublicPermission: Give access based on a public flag on the object. This class must be used in conjonction with the Meta option `public_field`. This permission class is associated with a filter that only render objects that have the public flag set.
+ * OwnerPermissions: Give access based on the owner of the object. This class must be used in conjonction with the Meta option `owner_field` or `owner_urlid_field`. This permission class is associated with a filter that only render objects of which the user is owner. When using a reverse ForeignKey or M2M field with no related_name specified, do not add the '_set' suffix in the `owner_field`.
+ * OwnerCreatePermission: Refuse the creation of resources which owner is different from the request user.
+ * InheritPermissions: Give access based on the permissions on a related model. This class must be used in conjonction with the Meta option `inherit_permission`, which value must be a list of names of the `ForeignKey` or `OneToOneField` pointing to the objects bearing the permission classes. It also applies filter based on the related model. If several fields are given, at least one must give permission for the permission to be granted.
+
+ Permission classes can be chained together in a list, or through the | and & operators. Chaining in a list is equivalent to using the & operator.
 
 ```python
 class MyModel(models.Model):
     author_user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    related = models.ForeignKey(SomeOtherModel)
     class Meta:
-        auto_author = 'author_user'
-	auto_author_field = 'profile'
+        permission_classes = [InheritPermissions, AuthenticatedOnly&(ReadOnly|OwnerPermissions|ACLPermissions)]
+        inherit_permissions = ['related']
+        owner_field = 'author_user'
 ```
 
-Now when an instance of `MyModel` is saved, its `author_user` property will be set to the **profile** of the authenticated user.
+### Role based permissions
 
-## permissions
-
-Django-Guardian is used by default to support object-level permissions. Custom permissions can be added to your model using this attribute. See the [Django-Guardian documentation](https://django-guardian.readthedocs.io/en/stable/userguide/assign.html) for more information
-
-### Serializing Permissions
-
-* `SERIALIZE_EXCLUDE_PERMISSIONS`. Permissions which should always be excluded from serialization defaults to `['inherit']`
-* `SERIALIZE_EXCLUDE_CONTAINER_PERMISSIONS_DEFAULT`. Excluded also when serializing containers `['delete']`
-* `SERIALIZE_EXCLUDE_OBJECT_PERMISSIONS_DEFAULT`. Excluded also when serializing objects `[]`
-
-## permissions_classes
-
-This allows you to add permissions for anonymous, logged in user, author ... in the url:
-By default `LDPPermissions` is used.
-Specific permissin classes can be developed to fit special needs.
-
-## anonymous_perms, user_perms, owner_perms, superuser_perms
-
-Those allow you to set permissions from your model's meta.
-
-You can give the following permission to them:
-
-* `view`
-* `add`
-* `change`
-* `control`
-* `delete`
-* `inherit`
-
-With inherit, Users can herit from Anons. Also Owners can herit from Users.
-
-Eg. with this model Anons can view, Auths can add & Owners can edit & delete.
-
-Note that `owner_perms` need a `owner_field` or a `owner_urlid_field` meta that point the field with owner user.
+Permissions can also be defind through roles defined in the Meta option `permission_roles`. When set, DjangoLDP will automatically create groups and assigne permissions on these groups when the object is created. The author can also be added automatically using the option `add_author`. The permission class `ACLPermissions` must be applied in order for the data base permission to be taken into account.
 
 ```python
-from djangoldp.models import Model
+class Circle(Model):
+    name = models.CharField(max_length=255, blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="owned_circles", on_delete=models.DO_NOTHING, null=True, blank=True)
+    members = models.ForeignKey(Group, related_name="circles", on_delete=models.SET_NULL, null=True, blank=True)
+    admins = models.ForeignKey(Group, related_name="admin_circles", on_delete=models.SET_NULL, null=True, blank=True)
 
-class Todo(Model):
-    name = models.CharField(max_length=255)
-    deadline = models.DateTimeField()
-    user = models.ForeignKey(settings.AUTH_USER_MODEL)
-
-    class Meta:
-        anonymous_perms = ['view']
-        authenticated_perms = ['inherit', 'add'] # inherits from anonymous
-        owner_perms = ['inherit', 'change', 'control', 'delete'] # inherits from authenticated
-        superuser_perms = ['inherit'] # inherits from owner
-        owner_field = 'user' # can be nested, e.g. user__parent
+    class Meta(Model.Meta):
+        auto_author = 'owner'
+        permission_classes = [ACLPermissions]
+        permission_roles = {
+            'members': {'perms': ['view'], 'add_author': True},
+            'admins': {'perms': ['view', 'change', 'control'], 'add_author': True},
+        }
 ```
 
-You can also use owner_urlid_field to point to a field that holds the urlid of the owner instead of a foreignkey to a User object.
+### Custom permission classes
 
-Important note:
-If you need to give permissions to owner's object, don't forget to add auto_author in model's meta
+Custom classes can be defined to handle specific permission checks. These class must inherit `djangoldp.permissions.LDPBasePermission` and can override the following method:
 
-Superuser's are by default configured to have all of the default DjangoLDP permissions
-* you can restrict their permissions globally by setting `DEFAULT_SUPERUSER_PERMS = []` in your server settings
-* you can change it on a per-model basis as described here. Please note that if you use a custom permissions class you will need to give superusers this permission explicitly, or use the `SuperUsersPermission` class on the model which will grant superusers all permissions
+* get_filter_backend: returns a Filter class to be applied on the queryset before rendering. You can also define `filter_backend` as a field of the class directly.
+* has_permission: called at the very begining of the request to check whether the user has permissions to call the specific HTTP method.
+* has_object_permission: called on object requests on the first access to the object to check whether the user has rights on the request object.
+* get_permissions: called on every single resource rendered to output the permissions of the user on that resource. This method should not access the database as it could severly affect performances.
+
+### Inner permission rendering
+
+For performance reasons, ACLs of resources inside a list are not rendered, which may require the client to request each single resource inside a list to get its ACLs. In some cases it's preferable to render these ACLs. This can be done using the setting `LDP_INCLUDE_INNER_PERMS`, setting its value to True.
+
+## Other model options
 
 ### view_set
 
@@ -381,10 +381,6 @@ class Todo(Model):
         view_set =  TodoViewSet
 
 ```
-
-### container_path
-
-See 3.1. Configure container path (optional)
 
 ### serializer_fields
 
@@ -418,21 +414,7 @@ class Todo(Model):
 
 Only `deadline` will be serialized
 
-This is achieved when `LDPViewSet` sets the `exclude` property on the serializer in `build_serializer` method. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself
-
-### nested_fields -- DEPRECIATED
-
-Set on a model to auto-generate viewsets and containers for nested relations (e.g. `/circles/<pk>/members/`)
-
-Depreciated in DjangoLDP 0.8.0, as all to-many fields are included as nested fields by default
-
-### nested_fields_exclude
-
-```python
-<Model>._meta.nested_fields_exclude=["skills"]
-```
-
-Will exclude the field `skills` from the model's nested fields, and prevent a container `/model/<pk>/skills/` from being generated
+This is achieved when `LDPViewSet` sets the `exclude` in the serializer constructor. Note that if you use a custom viewset which does not extend LDPSerializer then you will need to set this property yourself.
 
 ### empty_containers
 
@@ -465,21 +447,11 @@ REST_FRAMEWORK = {
 }
 ```
 
-## Sources
-
-To enable sources auto creation for all models, change `djangoldp` by `djangoldp.apps.DjangoldpConfig`, on `INSTALLED_APPS`
-
-```python
-INSTALLED_APPS = [
-    'djangoldp.apps.DjangoldpConfig',
-]
-```
-
 ## 301 on domain mismatch
 
-To enable 301 redirection on domain mismatch, add `djangoldp.middleware.AllowOnlySiteUrl` on `MIDDLEWARE`
+To enable 301 redirection on domain mismatch, add `djangoldp.middleware.AllowOnlySiteUrl` in `MIDDLEWARE`
 
-This ensure that your clients will use `SITE_URL` and avoid mismatch betwen url & the id of a resource/container
+This ensures that your clients will use `SITE_URL` and avoid mismatch betwen url & the id of a resource/container
 
 ```python
 MIDDLEWARE = [
@@ -487,4 +459,4 @@ MIDDLEWARE = [
 ]
 ```
 
-Notice tht it'll redirect only HTTP 200 Code.
+Notice that it will return only HTTP 200 Code.

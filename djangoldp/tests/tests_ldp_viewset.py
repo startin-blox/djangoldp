@@ -9,10 +9,8 @@ from djangoldp.related import get_prefetch_fields
 
 class LDPViewSet(APITestCase):
 
-    user_serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set',
-                              'circle_set', 'projects']
-    user_expected_fields = {'userprofile', 'conversation_set', 'circle_set', 'projects', 'circle_set__owner',
-                            'conversation_set__author_user', 'conversation_set__peer_user', 'circle_set__space'}
+    user_serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile', 'conversation_set', 'projects']
+    user_expected_fields = {'userprofile', 'conversation_set', 'projects', 'conversation_set__author_user', 'conversation_set__peer_user'}
     project_serializer_fields = ['@id', 'description', 'members']
     project_expected_fields = {'members', 'members__userprofile'}
 
@@ -40,8 +38,8 @@ class LDPViewSet(APITestCase):
     def test_get_prefetch_fields_circle(self):
         model = Circle
         depth = 0
-        serializer_fields = ['@id', 'name', 'description', 'owner', 'members', 'team']
-        expected_fields = {'owner', 'members', 'team', 'members__user', 'members__circle', 'team__userprofile', 'space'}
+        serializer_fields = ['@id', 'name', 'description', 'owner', 'members']
+        expected_fields = {'owner', 'members', 'admins', 'space'}
         serializer = self._get_serializer(model, depth, serializer_fields)
         result = get_prefetch_fields(model, serializer, depth)
         self.assertEqual(expected_fields, result)

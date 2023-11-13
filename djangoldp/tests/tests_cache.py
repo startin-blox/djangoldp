@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, APIClient
 from rest_framework.utils import json
 
-from djangoldp.tests.models import Conversation, Project, Circle, CircleMember, User
+from djangoldp.tests.models import Conversation, Project, Circle
 
 
 class TestCache(TestCase):
@@ -222,16 +222,15 @@ class TestCache(TestCase):
         circle = Circle.objects.create(description='Test')
         response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['members']['ldp:contains']), 0)
+        self.assertEqual(len(response.data['members']['user_set']), 0)
 
-        CircleMember.objects.create(user=self.user, circle=circle)
+        circle.members.user_set.add(self.user)
         response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['members']['ldp:contains']), 1)
+        self.assertEqual(len(response.data['members']['user_set']), 1)
         # assert the depth is applied
-        self.assertIn('user', response.data['members']['ldp:contains'][0])
-        self.assertIn('first_name', response.data['members']['ldp:contains'][0]['user'])
-        self.assertEqual(response.data['members']['ldp:contains'][0]['user']['first_name'], self.user.first_name)
+        self.assertIn('first_name', response.data['members']['user_set'][0])
+        self.assertEqual(response.data['members']['user_set'][0]['first_name'], self.user.first_name)
 
         # make a change to the _user_
         self.user.first_name = "Alan"
@@ -240,10 +239,9 @@ class TestCache(TestCase):
         # assert that the use under the circles members has been updated
         response = self.client.get('/circles/{}/'.format(circle.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['members']['ldp:contains']), 1)
-        self.assertIn('user', response.data['members']['ldp:contains'][0])
-        self.assertIn('first_name', response.data['members']['ldp:contains'][0]['user'])
-        self.assertEqual(response.data['members']['ldp:contains'][0]['user']['first_name'], self.user.first_name)
+        self.assertEqual(len(response.data['members']['user_set']), 1)
+        self.assertIn('first_name', response.data['members']['user_set'][0])
+        self.assertEqual(response.data['members']['user_set'][0]['first_name'], self.user.first_name)
 
     # test the cache behaviour when empty_containers is an active setting
     @override_settings(SERIALIZER_CACHE=True)
@@ -251,22 +249,23 @@ class TestCache(TestCase):
         setattr(Circle._meta, 'depth', 1)
         setattr(Circle._meta, 'empty_containers', ['members'])
 
-        circle = Circle.objects.create(name='test', description='test')
-        CircleMember.objects.create(user=self.user, circle=circle)
+        circle = Circle.objects.create(name='test', description='test', owner=self.user)
+        circle.members.user_set.add(self.user)
 
         # make one call on the parent
         response = self.client.get('/circles/', content_type='application/ld+json')
-        self.assertEqual(response.data['@type'], 'ldp:Container')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('ldp:contains', response.data)
+        self.assertEqual(len(response.data['ldp:contains']), 1)
         self.assertIn('members', response.data['ldp:contains'][0])
         self.assertIn('@id', response.data['ldp:contains'][0]['members'])
-        self.assertNotIn('@type', response.data['ldp:contains'][0]['members'])
-        self.assertNotIn('permissions', response.data['ldp:contains'][0]['members'])
-        self.assertNotIn('ldp:contains', response.data['ldp:contains'][0]['members'])
+        self.assertIn('user_set', response.data['ldp:contains'][0]['members'])
+        self.assertEqual(len(response.data['ldp:contains'][0]['members']['user_set']), 1)
+        self.assertIn('@id', response.data['ldp:contains'][0]['members']['user_set'][0])
+        self.assertEqual(response.data['ldp:contains'][0]['members']['user_set'][0]['@type'], 'foaf:user')
 
         # and a second on the child
-        response = self.client.get('/circles/1/members/', content_type='application/ld+json')
-        self.assertEqual(response.data['@type'], 'ldp:Container')
+        response = self.client.get(response.data['ldp:contains'][0]['members']['@id'], content_type='application/ld+json')
+        self.assertEqual(response.status_code, 200)
         self.assertIn('@id', response.data)
-        self.assertIn('ldp:contains', response.data)
-        self.assertIn('permissions', response.data)
-        self.assertIn('circle', response.data['ldp:contains'][0])
+        self.assertEqual(len(response.data['user_set']), 1)

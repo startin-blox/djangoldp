@@ -1,6 +1,5 @@
 import json
 import validators
-from collections import OrderedDict
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -25,8 +24,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
-from djangoldp.models import LDPSource, Model, Follower
-from djangoldp.permissions import LDPPermissions
+from djangoldp.models import LDPSource, Model, Follower, DynamicNestedField
 from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
@@ -36,36 +34,6 @@ import logging
 
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
-
-
-def reorder_ordered_dict(odico):
-    keys_order = ['@context', '@type', '@id']
-    keys_order.reverse()
-
-    for key in keys_order:
-        if key in odico.keys():
-            odico.move_to_end(key, False)
-
-    return odico
-
-def reorder_data(data):
-    ''' 
-    Reordering data before converting in JSONLDRenderer 
-    Parsing all nested dict and converting in OrderedDict
-    '''
-    if isinstance(data, OrderedDict):
-        data = reorder_ordered_dict(data)
-
-        for key in data:
-            if isinstance(data[key], dict):
-                data[key] = OrderedDict(data[key])
-            reorder_data(data[key])
-
-    elif isinstance(data, list):
-        for item in data:
-            reorder_data(item)
-
-    return data
 
 
 # renders into JSONLD format by applying context to the data
@@ -82,9 +50,6 @@ class JSONLDRenderer(JSONRenderer):
                 data["@context"] = [settings.LDP_RDF_CONTEXT, context]
             else:
                 data["@context"] = settings.LDP_RDF_CONTEXT
-
-        data_ordered = reorder_data(data)
-
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
 
@@ -119,10 +84,8 @@ class InboxView(APIView):
         '''
         receiver for inbox messages. See https://www.w3.org/TR/ldn/
         '''
-        payload = request.body.decode("utf-8")
-
         try:
-            activity = json.loads(payload, object_hook=as_activitystream)
+            activity = json.loads(request.body, object_hook=as_activitystream)
             activity.validate()
         except ActivityStreamDecodeError:
             return Response('Activity type unsupported', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -226,7 +189,7 @@ class InboxView(APIView):
 
         # this will be raised when the object was local, but it didn't exist
         except ObjectDoesNotExist:
-            raise Http404(Model.get_meta(object_model, 'label', 'Unknown Model') + ' ' + str(obj['@id']) + ' does not exist')
+            raise Http404(getattr(object_model._meta, 'label', 'Unknown Model') + ' ' + str(obj['@id']) + ' does not exist')
 
     # TODO: a fallback here? Saving the backlink as Object or similar
     def _get_subclass_with_rdf_type_or_404(self, rdf_type):
@@ -368,7 +331,7 @@ class LDPViewSetGenerator(ModelViewSet):
     @classonlymethod
     def get_lookup_arg(cls, **kwargs):
         return kwargs.get('lookup_url_kwarg') or cls.lookup_url_kwarg or kwargs.get('lookup_field') or \
-               Model.get_meta(kwargs['model'], 'lookup_field', 'pk') or cls.lookup_field
+               getattr(kwargs['model']._meta, 'lookup_field', 'pk') or cls.lookup_field
 
     @classonlymethod
     def get_detail_expr(cls, lookup_field=None, **kwargs):
@@ -383,9 +346,7 @@ class LDPViewSetGenerator(ModelViewSet):
         if view_set is not None:
             class LDPNestedCustomViewSet(LDPNestedViewSet, view_set):
                 pass
-
             return LDPNestedCustomViewSet
-
         return LDPNestedViewSet
 
     @classonlymethod
@@ -396,6 +357,9 @@ class LDPViewSetGenerator(ModelViewSet):
         if kwargs.get('model_prefix'):
             model_name = '{}-{}'.format(kwargs['model_prefix'], model_name)
         detail_expr = cls.get_detail_expr(**kwargs)
+        # Gets permissions on the model if not explicitely passed to the view
+        if not 'permission_classes' in kwargs and hasattr(kwargs['model']._meta, 'permission_classes'):
+            kwargs['permission_classes'] = kwargs['model']._meta.permission_classes
 
         urls = [
             path('', cls.as_view(cls.list_actions, **kwargs), name='{}-list'.format(model_name)),
@@ -404,41 +368,34 @@ class LDPViewSetGenerator(ModelViewSet):
         ]
 
         # append nested fields to the urls list
-        for field in kwargs.get('nested_fields') or cls.nested_fields:
-            # the nested property may have a custom viewset defined
+        for field_name in kwargs.get('nested_fields') or cls.nested_fields:
             try:
-                related_field = kwargs['model']._meta.get_field(field)
-                nested_model = related_field.related_model
+                nested_field = kwargs['model']._meta.get_field(field_name)
+                nested_model = nested_field.related_model
+                field_name_to_parent = nested_field.remote_field.name
             except FieldDoesNotExist:
-                related_field = getattr(kwargs['model'], field).field
-                nested_model = related_field.model
-
-            if related_field.related_query_name:
-                nested_related_name = related_field.related_query_name()
-            else:
-                nested_related_name = related_field.remote_field.name
+                nested_model = getattr(kwargs['model'], field_name).field.model
+                nested_field = getattr(kwargs['model'], field_name).field.remote_field
+                field_name_to_parent = getattr(kwargs['model'], field_name).field.name
 
             # urls should be called from _nested_ view set, which may need a custom view set mixed in
-            view_set = None
-            if hasattr(nested_model, 'get_view_set'):
-                view_set = nested_model.get_view_set()
+            view_set = getattr(nested_model._meta, 'view_set', None)
             nested_view_set = cls.build_nested_view_set(view_set)
 
-            urls.append(re_path('^' + detail_expr + field + '/',
-                                nested_view_set.urls(
-                                    model=nested_model,
-                                    model_prefix=kwargs['model']._meta.object_name.lower(), # prefix with parent name
-                                    lookup_field=Model.get_meta(nested_model, 'lookup_field', 'pk'),
-                                    lookup_url_kwarg=kwargs['model']._meta.object_name.lower() + '_id',
-                                    exclude=(nested_related_name,) if related_field.one_to_many else (),
-                                    permission_classes=Model.get_meta(nested_model, 'permission_classes', [LDPPermissions]),
-                                    nested_field=field,
-                                    fields=Model.get_meta(nested_model, 'serializer_fields', []),
-                                    nested_fields=[],
-                                    parent_model=kwargs['model'],
-                                    parent_lookup_field=cls.get_lookup_arg(**kwargs),
-                                    related_field=related_field,
-                                    nested_related_name=nested_related_name)))
+            urls.append(re_path('^' + detail_expr + field_name + '/',
+                    nested_view_set.urls(
+                    model=nested_model,
+                    model_prefix=kwargs['model']._meta.object_name.lower(), # prefix with parent name
+                    lookup_field=getattr(nested_model._meta, 'lookup_field', 'pk'),
+                    exclude=(field_name_to_parent,) if nested_field.one_to_many else (),
+                    permission_classes=getattr(nested_model._meta, 'permission_classes', []),
+                    nested_field_name=field_name,
+                    fields=getattr(nested_model._meta, 'serializer_fields', []),
+                    nested_fields=[],
+                    parent_model=kwargs['model'],
+                    parent_lookup_field=cls.get_lookup_arg(**kwargs),
+                    nested_field=nested_field,
+                    field_name_to_parent=field_name_to_parent)))
 
         return include(urls)
 
@@ -451,7 +408,6 @@ class LDPViewSet(LDPViewSetGenerator):
     renderer_classes = (JSONLDRenderer,)
     parser_classes = (JSONLDParser,)
     authentication_classes = (NoCSRFAuthentication,)
-
     filter_backends = [SearchByQueryParamFilterBackend, LocalObjectOnContainerPathBackend]
     prefetch_fields = None
 
@@ -459,101 +415,59 @@ class LDPViewSet(LDPViewSetGenerator):
         super().__init__(**kwargs)
         # attach filter backends based on permissions classes, to reduce the queryset based on these permissions
         # https://www.django-rest-framework.org/api-guide/filtering/#generic-filtering
-        if self.permission_classes:
-            filtered_classes = [p for p in self.permission_classes if hasattr(p, 'filter_backends') and p.filter_backends is not None]
-            for p in filtered_classes:
-                self.filter_backends = list(set(self.filter_backends).union(set(p.filter_backends)))
+        self.filter_backends = type(self).filter_backends + list({perm_class().get_filter_backend(self.model)
+                for perm_class in self.permission_classes if hasattr(perm_class(), 'get_filter_backend')})
+        if None in self.filter_backends:
+            self.filter_backends.remove(None)
+    
+    def get_depth(self) -> int:
+        if getattr(self, 'force_depth', None):
+            #TODO: this exception on depth for writing should be handled by the serializer itself
+            return self.force_depth
+        if hasattr(self, 'request') and 'HTTP_DEPTH' in self.request.META:
+            return int(self.request.META['HTTP_DEPTH'])
+        if hasattr(self, 'depth'):
+            return self.depth
+        return getattr(self.model._meta, 'depth', 0)
 
-        # Workaround: Push the costly filter activation as a setting
-        if getattr(settings, "DISABLE_LOCAL_OBJECT_FILTER", False):
-            if(LocalObjectOnContainerPathBackend in self.filter_backends):
-                self.filter_backends.remove(LocalObjectOnContainerPathBackend)
-
-        self.serializer_class = self.build_read_serializer()
-        self.write_serializer_class = self.build_write_serializer()
-
-    def build_read_serializer(self):
+    def get_serializer_class(self):
         model_name = self.model._meta.object_name.lower()
         try:
             lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
         except:
             lookup_field = 'urlid'
-            pass
         
         meta_args = {'model': self.model, 'extra_kwargs': {
-            '@id': {'lookup_field': lookup_field}},
-                     'depth': getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0)),
-                     # 'depth': getattr(self, 'depth', 4),
-                     'extra_fields': self.nested_fields}
+                '@id': {'lookup_field': lookup_field}},
+                'depth': self.get_depth(),
+                'extra_fields': self.nested_fields}
 
         if self.fields:
             meta_args['fields'] = self.fields
         else:
-            meta_args['exclude'] = Model.get_meta(self.model, 'serializer_fields_exclude') or ()
-
-        return self.build_serializer(meta_args, 'Read')
-
-    def build_write_serializer(self):
-        model_name = self.model._meta.object_name.lower()
-
-        try:
-            lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
-        except:
-            lookup_field = 'urlid'
-            pass
-        
-        meta_args = {'model': self.model, 'extra_kwargs': {
-            '@id': {'lookup_field': lookup_field}},
-                     'depth': 10,
-                     'extra_fields': self.nested_fields}
-
-        if self.fields:
-            meta_args['fields'] = self.fields
-        else:
-            meta_args['exclude'] = self.exclude or Model.get_meta(self.model, 'serializer_fields_exclude') or ()
-
-        return self.build_serializer(meta_args, 'Write')
-
-    def build_serializer(self, meta_args, name_prefix):
+            meta_args['exclude'] = self.exclude or getattr(self.model._meta, 'serializer_fields_exclude', ())
         # create the Meta class to associate to LDPSerializer, using meta_args param
-        meta_class = type('Meta', (), meta_args)
 
         from djangoldp.serializers import LDPSerializer
-
         if self.serializer_class is None:
-            self.serializer_class = self.model.get_serializer_class() if issubclass(self.model, Model) else LDPSerializer
+            self.serializer_class = LDPSerializer
 
-        return type(self.serializer_class)(self.model._meta.object_name.lower() + name_prefix + 'Serializer',
+        parent_meta = (self.serializer_class.Meta,) if hasattr(self.serializer_class, 'Meta') else ()
+        meta_class = type('Meta', parent_meta, meta_args)
+
+        return type(self.serializer_class)(self.model._meta.object_name.lower() + 'Serializer',
                                    (self.serializer_class,),
                                    {'Meta': meta_class})
 
-    def is_safe_create(self, user, validated_data, *args, **kwargs):
-        '''
-        A function which is checked before the create operation to confirm the validated data is safe to add
-        returns True by default
-        :return: True if the operation should be permitted, False to return a 403 response
-        '''
-        return True
-
-    def check_model_permissions(self, request):
-        """
-        Check if the request should be permitted when the model-level permissions matter (generally just for creating an object)
-        Raises an appropriate exception if the request is not permitted.
-        """
-        for permission in self.get_permissions():
-            if hasattr(permission, 'has_container_permission') and not permission.has_container_permission(request, self):
-                self.permission_denied(
-                    request,
-                    message=getattr(permission, 'message', None)
-                )
+    # The chaining of filter through | may lead to duplicates and distinct should only be applied in the end.
+    def filter_queryset(self, queryset):
+        return super().filter_queryset(queryset).distinct()
 
     def create(self, request, *args, **kwargs):
-        self.check_model_permissions(request)
-        serializer = self.get_write_serializer(data=request.data)
+        self.force_depth = 10
+        serializer = self.get_serializer(data=request.data)
+        self.force_depth = None
         serializer.is_valid(raise_exception=True)
-        if not self.is_safe_create(request.user, serializer.validated_data):
-            return Response({'detail': 'You do not have permission to perform this action'},
-                            status=status.HTTP_403_FORBIDDEN)
 
         self.perform_create(serializer)
         response_serializer = self.get_serializer()
@@ -564,7 +478,9 @@ class LDPViewSet(LDPViewSetGenerator):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_write_serializer(instance, data=request.data, partial=partial)
+        self.force_depth = 10
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        self.force_depth = None
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
@@ -577,45 +493,10 @@ class LDPViewSet(LDPViewSetGenerator):
         data = response_serializer.to_representation(serializer.instance)
         return Response(data)
 
-    def get_write_serializer(self, *args, **kwargs):
-        """
-        Return the serializer instance that should be used for validating and
-        deserializing input, and for serializing output.
-        """
-        serializer_class = self.get_write_serializer_class()
-        kwargs.setdefault('context', self.get_serializer_context())
-        return serializer_class(*args, **kwargs)
-
-    def get_write_serializer_class(self):
-        """
-        Return the class to use for the serializer.
-        Defaults to using `self.write_serializer_class`.
-
-        You may want to override this if you need to provide different
-        serializations depending on the incoming request.
-
-        (Eg. admins get full serialization, others get basic serialization)
-        """
-        assert self.write_serializer_class is not None, (
-                "'%s' should either include a `write_serializer_class` attribute, "
-                "or override the `get_write_serializer_class()` method."
-                % self.__class__.__name__
-        )
-
-        return self.write_serializer_class
-
     def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, get_user_model()):
-            # auto_author_field may be set (a field on user which should be made author - e.g. profile)
-            auto_author_field = getattr(self.model._meta, 'auto_author_field', None)
-            if auto_author_field is not None:
-                kwargs[self.model._meta.auto_author] = getattr(self.request.user, auto_author_field, None)
-            else:
-                kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
+            kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
         return serializer.save(**kwargs)
-
-    def perform_update(self, serializer):
-        return serializer.save()
 
     def get_queryset(self, *args, **kwargs):
         if self.model:
@@ -623,8 +504,7 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             queryset = super(LDPViewSet, self).get_queryset(*args, **kwargs)
         if self.prefetch_fields is None:
-            depth = getattr(self, 'depth', Model.get_meta(self.model, 'depth', 0))
-            self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), depth)
+            self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), self.get_depth())
         return queryset.prefetch_related(*self.prefetch_fields)
 
     def dispatch(self, request, *args, **kwargs):
@@ -639,7 +519,7 @@ class LDPViewSet(LDPViewSetGenerator):
 
         if is_authenticated_user(request.user):
             try:
-                response['User'] = request.user.webid()
+                response['User'] = request.user.urlid
             except AttributeError:
                 pass
         return response
@@ -652,22 +532,25 @@ class LDPNestedViewSet(LDPViewSet):
     """
     parent_model = None
     parent_lookup_field = None
-    related_field = None
     nested_field = None
-    nested_related_name = None
+    nested_field_name = None
+    field_name_to_parent = None
 
     def get_parent(self):
         return get_object_or_404(self.parent_model, **{self.parent_lookup_field: self.kwargs[self.parent_lookup_field]})
 
     def perform_create(self, serializer, **kwargs):
-        kwargs[self.nested_related_name] = self.get_parent()
+        kwargs[self.field_name_to_parent] = self.get_parent()
         super().perform_create(serializer, **kwargs)
 
     def get_queryset(self, *args, **kwargs):
-        if self.related_field.many_to_many or self.related_field.many_to_one or self.related_field.one_to_many:
-            return getattr(self.get_parent(), self.nested_field).all()
-        if self.related_field.one_to_one:
-            return [getattr(self.get_parent(), self.nested_field)]
+        related = getattr(self.get_parent(), self.nested_field_name)
+        if self.nested_field.many_to_many or self.nested_field.one_to_many:
+            if isinstance(self.nested_field, DynamicNestedField):
+                return related()
+            return related.all()
+        if self.nested_field.one_to_one or self.nested_field.many_to_one:
+            return type(related).objects.filter(pk=related.pk)
 
 
 class LDPAPIView(APIView):
@@ -685,7 +568,7 @@ class LDPAPIView(APIView):
 
         if is_authenticated_user(request.user):
             try:
-                response['User'] = request.user.webid()
+                response['User'] = request.user.urlid
             except AttributeError:
                 pass
         return response
@@ -694,7 +577,6 @@ class LDPAPIView(APIView):
 class LDPSourceViewSet(LDPViewSet):
     model = LDPSource
     federation = None
-    filter_backends = []
 
     def get_queryset(self, *args, **kwargs):
         return super().get_queryset(*args, **kwargs).filter(federation=self.kwargs['federation'])
