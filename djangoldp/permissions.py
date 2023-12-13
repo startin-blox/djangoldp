@@ -161,7 +161,7 @@ class OwnerPermissions(LDPBasePermission):
             else:
                 return user == getattr(obj, model._meta.owner_field)
         if getattr(model._meta, 'owner_urlid_field', None) is not None:
-            return user.urlid == getattr(obj, model._meta.owner_urlid_field)
+            return is_authenticated_user(user) and user.urlid == getattr(obj, model._meta.owner_urlid_field)
         return True
 
     def has_object_permission(self, request, view, obj=None):
