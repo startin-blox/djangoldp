@@ -417,7 +417,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
 
         data = self.serialize_rdf_fields(obj, data, include_context=True)
-        data = self.add_permissions(data, self.context['request'].user, self.context['view'].model, obj=obj)
+        data = self.add_permissions(data, self.context['request'].user, type(obj), obj=obj)
         return data
 
     def build_property_field(self, field_name, model_class):
