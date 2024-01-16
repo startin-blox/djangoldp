@@ -13,7 +13,7 @@ server:
     default:
       ENGINE: django.db.backends.sqlite3
       NAME: db.sqlite3
-  LDP_RDF_CONTEXT: https://cdn.happy-dev.fr/owl/hdcontext.jsonld
+  LDP_RDF_CONTEXT: https://cdn.startinblox.com/owl/context.jsonld
   ROOT_URLCONF: server.urls
   STATIC_ROOT: static
   MEDIA_ROOT: media

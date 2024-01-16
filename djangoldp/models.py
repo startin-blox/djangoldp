@@ -22,7 +22,7 @@ logger = logging.getLogger('djangoldp')
 
 Group._meta.serializer_fields = ['name', 'user_set']
 Group._meta.rdf_type = 'foaf:Group'
-Group._meta.rdf_context = {'user_set': 'foaf:member'}
+# Group._meta.rdf_context = {'user_set': 'foaf:member'}
 Group._meta.permission_classes = [(OwnerPermissions&ReadOnly)|InheritPermissions]
 Group._meta.owner_field = 'user'
 Group._meta.inherit_permissions = []
