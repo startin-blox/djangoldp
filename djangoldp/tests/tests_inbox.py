@@ -18,7 +18,7 @@ class TestsInbox(APITestCase):
         res = {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
-                {"hd": "http://happy-dev.fr/owl/#"}
+                {"hd": "https://cdn.startinblox.com/owl#"}
             ],
             "summary": "Something happened",
             "type": type,
@@ -405,7 +405,7 @@ class TestsInbox(APITestCase):
         payload = {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
-                {"hd": "http://happy-dev.fr/owl/#"}
+                {"hd": "https://cdn.startinblox.com/owl#"}
             ],
             "summary": "Test was added to Test Circle",
             "type": "Add",

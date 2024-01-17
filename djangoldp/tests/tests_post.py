@@ -20,14 +20,14 @@ class PostTestCase(TestCase):
         post = {
             '@graph': [
                 {
-                    'http://happy-dev.fr/owl/#title': "title",
-                    'http://happy-dev.fr/owl/#invoice': {
+                    'https://cdn.startinblox.com/owl#title': "title",
+                    'https://cdn.startinblox.com/owl#invoice': {
                         '@id': "_.123"
                     }
                 },
                 {
                     '@id': "_.123",
-                    'http://happy-dev.fr/owl/#title': "title 2"
+                    'https://cdn.startinblox.com/owl#title': "title 2"
                 }
             ]
         }
@@ -43,8 +43,8 @@ class PostTestCase(TestCase):
         post = {
             '@graph': [
                 {
-                    'http://happy-dev.fr/owl/#title': "title",
-                    'http://happy-dev.fr/owl/#invoice': {
+                    'https://cdn.startinblox.com/owl#title': "title",
+                    'https://cdn.startinblox.com/owl#invoice': {
                         '@id': "http://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)
                     }
                 }
@@ -61,7 +61,7 @@ class PostTestCase(TestCase):
             body = [
                 {
                     '@id': "./",
-                    'http://happy-dev.fr/owl/#content': "post update",
+                    'https://cdn.startinblox.com/owl#content': "post update",
                 }
             ]
             response = self.client.post('/posts/', data=json.dumps(body),
@@ -73,8 +73,8 @@ class PostTestCase(TestCase):
         body = [
             {
                 '@id': "./",
-                'http://happy-dev.fr/owl/#content': "post update",
-                'http://happy-dev.fr/owl/#peer_user': ""
+                'https://cdn.startinblox.com/owl#content': "post update",
+                'https://cdn.startinblox.com/owl#peer_user': ""
             }
         ]
         response = self.client.post('/posts/', data=json.dumps(body),
@@ -88,17 +88,17 @@ class PostTestCase(TestCase):
         body = [
             {
                 '@id': "_:b216",
-                'http://happy-dev.fr/owl/#description': "user update",
-                'http://happy-dev.fr/owl/#ddummy': {
+                'https://cdn.startinblox.com/owl#description': "user update",
+                'https://cdn.startinblox.com/owl#ddummy': {
                     "@id": "http://happy-dev.fr{}{}/".format(Model.container_id(dummy), dummy.id)
                 }
             },
             {
                 '@id': './',
-                "http://happy-dev.fr/owl/#first_name": "Alexandre",
-                "http://happy-dev.fr/owl/#last_name": "Bourlier",
-                "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b216"}
+                "https://cdn.startinblox.com/owl#first_name": "Alexandre",
+                "https://cdn.startinblox.com/owl#last_name": "Bourlier",
+                "https://cdn.startinblox.com/owl#username": "alex",
+                'https://cdn.startinblox.com/owl#userprofile': {'@id': "_:b216"}
             }
         ]
         response = self.client.post('/users/', data=json.dumps(body),
@@ -116,7 +116,7 @@ class PostTestCase(TestCase):
                 }
             ],
             '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
+                "@vocab": "https://cdn.startinblox.com/owl#",
             }
         }
         response = self.client.post('/posts/', data=json.dumps(body),
@@ -126,8 +126,8 @@ class PostTestCase(TestCase):
     def test_nested_container(self):
         resource = Resource.objects.create()
         body = {
-            'http://happy-dev.fr/owl/#title': "new job",
-            'http://happy-dev.fr/owl/#slug': "job1",
+            'https://cdn.startinblox.com/owl#title': "new job",
+            'https://cdn.startinblox.com/owl#slug': "job1",
         }
 
         response = self.client.post('/resources/{}/joboffers/'.format(resource.pk),
@@ -141,7 +141,7 @@ class PostTestCase(TestCase):
     def test_nested_container_bis(self):
         invoice = Invoice.objects.create()
         body = {
-            'http://happy-dev.fr/owl/#title': "new batch",
+            'https://cdn.startinblox.com/owl#title': "new batch",
         }
 
         response = self.client.post('/invoices/{}/batches/'.format(invoice.pk),
@@ -155,7 +155,7 @@ class PostTestCase(TestCase):
     def test_nested_container_federated(self):
         resource = Resource.objects.create()
         body = {
-            'http://happy-dev.fr/owl/#@id': "http://external.job/job/1",
+            'https://cdn.startinblox.com/owl#@id': "http://external.job/job/1",
         }
 
         response = self.client.post('/resources/{}/joboffers/'.format(resource.pk),
@@ -173,7 +173,7 @@ class PostTestCase(TestCase):
             'content': "post update",
             'peer_user': "",
             '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
+                "@vocab": "https://cdn.startinblox.com/owl#",
             }
         }
 
@@ -187,7 +187,7 @@ class PostTestCase(TestCase):
             'content': "post update",
             'peer_user': "",
             '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
+                "@vocab": "https://cdn.startinblox.com/owl#",
             }
         }
 
@@ -203,7 +203,7 @@ class PostTestCase(TestCase):
             'content': "post update",
             'peer_user': {'none': None},
             '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
+                "@vocab": "https://cdn.startinblox.com/owl#",
             }
         }
 
@@ -214,7 +214,7 @@ class PostTestCase(TestCase):
     def test_nested_container_user_federated(self):
         project = Project.objects.create()
         body = {
-            'http://happy-dev.fr/owl/#@id': "http://external.user/user/1/",
+            'https://cdn.startinblox.com/owl#@id': "http://external.user/user/1/",
         }
 
         response = self.client.post('/projects/{}/members/'.format(project.pk),
@@ -229,7 +229,7 @@ class PostTestCase(TestCase):
     #  https://www.w3.org/TR/json-ld/#value-objects
     def test_post_field_with_value_object(self):
         post = {
-            'http://happy-dev.fr/owl/#title': {
+            'https://cdn.startinblox.com/owl#title': {
                 '@value': "title",
                 '@language': "en"
             }
@@ -242,7 +242,7 @@ class PostTestCase(TestCase):
     def test_save_field_with_invalid_value_object(self):
         invoice = Invoice.objects.create(title="title 3")
         post = {
-            'http://happy-dev.fr/owl/#invoice': {
+            'https://cdn.startinblox.com/owl#invoice': {
                 '@value': {'title': 'title',
                            '@id': "http://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)}
             }
@@ -256,7 +256,7 @@ class PostTestCase(TestCase):
     def test_save_field_with_object_value_object(self):
         invoice = Invoice.objects.create(title="title 3")
         post = {
-            'http://happy-dev.fr/owl/#invoice': {
+            'https://cdn.startinblox.com/owl#invoice': {
                 '@value': {'title': 'title', '@id': "http://happy-dev.fr{}{}/".format(Model.container_id(invoice), invoice.id)},
                 '@type': '@json'
             }
@@ -273,7 +273,7 @@ class PostTestCase(TestCase):
         self.assertEqual(Space.objects.count(), 0)
 
         body = {
-            '@context': {'@vocab': "http://happy-dev.fr/owl/#" },
+            '@context': {'@vocab': "https://cdn.startinblox.com/owl#" },
             'space': {'name': "Etablissement"}
         }
 

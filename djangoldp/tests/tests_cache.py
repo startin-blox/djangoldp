@@ -28,14 +28,14 @@ class TestCache(TestCase):
         post = {
             '@graph': [
                 {
-                    'http://happy-dev.fr/owl/#title': "title",
-                    'http://happy-dev.fr/owl/#invoice': {
+                    'https://cdn.startinblox.com/owl#title': "title",
+                    'https://cdn.startinblox.com/owl#invoice': {
                         '@id': "_.123"
                     }
                 },
                 {
                     '@id': "_.123",
-                    'http://happy-dev.fr/owl/#title': "title 2"
+                    'https://cdn.startinblox.com/owl#title': "title 2"
                 }
             ]
         }
@@ -56,8 +56,8 @@ class TestCache(TestCase):
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
-                'http://happy-dev.fr/owl/#description': "conversation update",
-                'http://happy-dev.fr/owl/#peer_user': {
+                'https://cdn.startinblox.com/owl#description': "conversation update",
+                'https://cdn.startinblox.com/owl#peer_user': {
                     '@id': self.user.urlid,
                 }
             }
@@ -82,8 +82,8 @@ class TestCache(TestCase):
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
-                'http://happy-dev.fr/owl/#description': "conversation update",
-                'http://happy-dev.fr/owl/#peer_user': {
+                'https://cdn.startinblox.com/owl#description': "conversation update",
+                'https://cdn.startinblox.com/owl#peer_user': {
                     '@id': external_user.urlid,
                 }
             }

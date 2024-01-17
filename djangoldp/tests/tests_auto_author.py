@@ -18,7 +18,7 @@ class TestAutoAuthor(APITestCase):
 
     def test_save_with_anonymous_user(self):
         post = {
-            '@graph': [{'http://happy-dev.fr/owl/#content': "post content"}]}
+            '@graph': [{'https://cdn.startinblox.com/owl#content': "post content"}]}
 
         response = self.client.post('/posts/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
