@@ -6,7 +6,7 @@ from django.conf.global_settings import *
 # LDP              #
 ####################
 
-LDP_RDF_CONTEXT = 'https://cdn.happy-dev.fr/owl/hdcontext.jsonld'
+LDP_RDF_CONTEXT = 'https://cdn.startinblox.com/owl/context.jsonld'
 
 MAX_ACTIVITY_RESCHEDULES = 3
 DEFAULT_BACKOFF_FACTOR = 1
