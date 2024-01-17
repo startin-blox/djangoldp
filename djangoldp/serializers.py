@@ -143,11 +143,16 @@ class LDListMixin(RDFSerializerMixin):
     
     def compute_id(self, value):
         '''generates the @id of the container'''
-        if isinstance(value, Iterable) or isinstance(value, QuerySet):
+        if not hasattr(self, 'parent_instance'):
+            #This is a container
             return f"{settings.BASE_URL}{self.context['request'].path}"
-        else: #For M2M
-            return f"{settings.BASE_URL}{Model.resource_id(value.instance)}{self.field_name}"
+        return f"{settings.BASE_URL}{Model.resource_id(self.parent_instance)}{self.field_name}"
     
+    def get_attribute(self, instance):
+        # save the parent object for nested field url
+        self.parent_instance = instance
+        return super().get_attribute(instance)
+
     def check_cache(self, value, id, model, cache_vary):
         '''Auxiliary function to avoid code duplication - checks cache and returns from it if it has entry'''
         parent_meta = getattr(self.get_child(), 'Meta', getattr(self.parent, 'Meta', None))
@@ -365,7 +370,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
     # The default serializer repr ends in infinite loop. Overloading it prevents that.
     def __repr__(self):
-        return self.__class__.name
+        return self.__class__.__name__
 
     @cached_property
     def fields(self):
