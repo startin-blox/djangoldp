@@ -408,7 +408,7 @@ class Update(TestCase):
                 'description': "user update"
             },
             '@context': {
-                "@vocab": "https://cdn.startinblox.com/owl/#",
+                "@vocab": "https://cdn.startinblox.com/owl#",
             }
         }
 
