@@ -53,7 +53,7 @@ class Update(TestCase):
         skill = Skill.objects.create(title='original', obligatoire='original', slug='skill1')
         body = [{
             '@id': '{}/skills/{}/'.format(settings.BASE_URL, skill.slug),
-            'http://happy-dev.fr/owl/#title': "new", 'http://happy-dev.fr/owl/#obligatoire': "new"}]
+            'https://cdn.startinblox.com/owl#title': "new", 'https://cdn.startinblox.com/owl#obligatoire': "new"}]
         response = self.client.put('/skills/{}/'.format(skill.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
@@ -65,7 +65,7 @@ class Update(TestCase):
         skill = Skill.objects.create(title='original', obligatoire='original', slug='skill1')
         body = {
             '@id': '{}/skills/{}'.format(settings.BASE_URL, skill.slug),
-            'http://happy-dev.fr/owl/#title': 'new'
+            'https://cdn.startinblox.com/owl#title': 'new'
         }
         response = self.client.patch('/skills/{}/'.format(skill.slug), data=json.dumps(body),
                                      content_type='application/ld+json')
@@ -79,14 +79,14 @@ class Update(TestCase):
         body = [
             {
                 '@id': "/userprofiles/{}/".format(profile.pk),
-                'http://happy-dev.fr/owl/#description': "user update"
+                'https://cdn.startinblox.com/owl#description': "user update"
             },
             {
                 '@id': '/users/{}/'.format(user.pk),
-                "http://happy-dev.fr/owl/#first_name": "Alexandre",
-                "http://happy-dev.fr/owl/#last_name": "Bourlier",
-                "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#userprofile': {'@id': "/userprofiles/{}/".format(profile.pk)}
+                "https://cdn.startinblox.com/owl#first_name": "Alexandre",
+                "https://cdn.startinblox.com/owl#last_name": "Bourlier",
+                "https://cdn.startinblox.com/owl#username": "alex",
+                'https://cdn.startinblox.com/owl#userprofile': {'@id': "/userprofiles/{}/".format(profile.pk)}
             }
         ]
         response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
@@ -118,14 +118,14 @@ class Update(TestCase):
         body = [
             {
                 '@id': "_:b975",
-                'http://happy-dev.fr/owl/#description': "conversation description"
+                'https://cdn.startinblox.com/owl#description': "conversation description"
             },
             {
                 '@id': '/users/{}/'.format(user.pk),
-                "http://happy-dev.fr/owl/#first_name": "Alexandre",
-                "http://happy-dev.fr/owl/#last_name": "Bourlier",
-                "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#conversation_set': {'@id': "_:b975"}
+                "https://cdn.startinblox.com/owl#first_name": "Alexandre",
+                "https://cdn.startinblox.com/owl#last_name": "Bourlier",
+                "https://cdn.startinblox.com/owl#username": "alex",
+                'https://cdn.startinblox.com/owl#conversation_set': {'@id': "_:b975"}
             }
         ]
         response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
@@ -139,14 +139,14 @@ class Update(TestCase):
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
-                'http://happy-dev.fr/owl/#description': "conversation update"
+                'https://cdn.startinblox.com/owl#description': "conversation update"
             },
             {
                 '@id': '/users/{}/'.format(user.pk),
-                "http://happy-dev.fr/owl/#first_name": "Alexandre",
-                "http://happy-dev.fr/owl/#last_name": "Bourlier",
-                "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#conversation_set': {'@id': "/conversations/{}/".format(conversation.pk)}
+                "https://cdn.startinblox.com/owl#first_name": "Alexandre",
+                "https://cdn.startinblox.com/owl#last_name": "Bourlier",
+                "https://cdn.startinblox.com/owl#username": "alex",
+                'https://cdn.startinblox.com/owl#conversation_set': {'@id': "/conversations/{}/".format(conversation.pk)}
             }
         ]
         response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
@@ -161,7 +161,7 @@ class Update(TestCase):
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
-                'http://happy-dev.fr/owl/#description': "conversation update",
+                'https://cdn.startinblox.com/owl#description': "conversation update",
             }
         ]
         response = self.client.put('/conversations/{}/'.format(conversation.pk), data=json.dumps(body),
@@ -176,8 +176,8 @@ class Update(TestCase):
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
-                'http://happy-dev.fr/owl/#description': "conversation update",
-                'http://happy-dev.fr/owl/#peer_user': ""
+                'https://cdn.startinblox.com/owl#description': "conversation update",
+                'https://cdn.startinblox.com/owl#peer_user': ""
             }
         ]
         response = self.client.put('/conversations/{}/'.format(conversation.pk), data=json.dumps(body),
@@ -189,12 +189,12 @@ class Update(TestCase):
         resource = Resource.objects.create()
         job = JobOffer.objects.create(title="first title", slug="job")
         body = {
-            'http://happy-dev.fr/owl/#joboffers':
+            'https://cdn.startinblox.com/owl#joboffers':
                 {
                     '@id': "{}/resources/{}/joboffers/".format(settings.BASE_URL, resource.pk),
                     'ldp:contains': [
                         {'@id': job.urlid,
-                         'http://happy-dev.fr/owl/#title': "new job",
+                         'https://cdn.startinblox.com/owl#title': "new job",
                          },
                     ]
                 }
@@ -210,9 +210,9 @@ class Update(TestCase):
     def test_m2m_new_link_embedded(self):
         resource = Resource.objects.create()
         body = {
-            'http://happy-dev.fr/owl/#joboffers': {
-                'http://happy-dev.fr/owl/#slug': 'aaa',
-                'http://happy-dev.fr/owl/#title': "new job",
+            'https://cdn.startinblox.com/owl#joboffers': {
+                'https://cdn.startinblox.com/owl#slug': 'aaa',
+                'https://cdn.startinblox.com/owl#title': "new job",
             }
         }
 
@@ -230,12 +230,12 @@ class Update(TestCase):
         resource.joboffers.add(job)
         resource.save()
         body = {
-            'http://happy-dev.fr/owl/#joboffers': {
+            'https://cdn.startinblox.com/owl#joboffers': {
                 # '@id': "http://testserver/resources/{}/joboffers/".format(resource.pk),
                 'ldp:contains': [
                     {
                         '@id': job.urlid,
-                        'http://happy-dev.fr/owl/#title': "new job",
+                        'https://cdn.startinblox.com/owl#title': "new job",
                     }
                 ]
             }
@@ -251,8 +251,8 @@ class Update(TestCase):
     def test_m2m_new_link_external(self):
         resource = Resource.objects.create()
         body = {
-            'http://happy-dev.fr/owl/#joboffers': {
-                'http://happy-dev.fr/owl/#@id': 'http://external.job/job/1',
+            'https://cdn.startinblox.com/owl#joboffers': {
+                'https://cdn.startinblox.com/owl#@id': 'http://external.job/job/1',
             }
         }
 
@@ -268,7 +268,7 @@ class Update(TestCase):
         resource = Resource.objects.create()
         job = JobOffer.objects.create(title="first title", slug="job")
         body = {
-            'http://happy-dev.fr/owl/#joboffers': {
+            'https://cdn.startinblox.com/owl#joboffers': {
                 '@id': 'http://happy-dev.fr/job-offers/{}/'.format(job.slug),
             }
         }
@@ -287,8 +287,8 @@ class Update(TestCase):
         body = [
             {
                 '@id': "/conversations/{}/".format(conversation.pk),
-                'http://happy-dev.fr/owl/#description': "conversation update",
-                'http://happy-dev.fr/owl/#peer_user': {
+                'https://cdn.startinblox.com/owl#description': "conversation update",
+                'https://cdn.startinblox.com/owl#peer_user': {
                     '@id': 'http://happy-dev.fr/users/{}'.format(self.user.pk),
                 }
             }
@@ -307,9 +307,9 @@ class Update(TestCase):
     def test_m2m_user_link_federated(self):
         project = Project.objects.create(description="project name")
         body = {
-            'http://happy-dev.fr/owl/#description': 'project name',
-            'http://happy-dev.fr/owl/#members': {
-                'http://happy-dev.fr/owl/#@id': 'http://external.user/user/1',
+            'https://cdn.startinblox.com/owl#description': 'project name',
+            'https://cdn.startinblox.com/owl#members': {
+                'https://cdn.startinblox.com/owl#@id': 'http://external.user/user/1',
             }
         }
 
@@ -326,9 +326,9 @@ class Update(TestCase):
         project = Project.objects.create(description="project name")
         ext_user = get_user_model().objects.create(username=str(uuid.uuid4()), urlid='http://external.user/user/1')
         body = {
-            'http://happy-dev.fr/owl/#description': 'project name',
-            'http://happy-dev.fr/owl/#members': {
-                'http://happy-dev.fr/owl/#@id': ext_user.urlid,
+            'https://cdn.startinblox.com/owl#description': 'project name',
+            'https://cdn.startinblox.com/owl#members': {
+                'https://cdn.startinblox.com/owl#@id': ext_user.urlid,
             }
         }
 
@@ -354,17 +354,17 @@ class Update(TestCase):
         body = [
             {
                 '@id': "_:b975",
-                'http://happy-dev.fr/owl/#description': "user description",
-                'http://happy-dev.fr/owl/#dummy': {
+                'https://cdn.startinblox.com/owl#description': "user description",
+                'https://cdn.startinblox.com/owl#dummy': {
                     '@id': './'
                 }
             },
             {
                 '@id': '/users/{}/'.format(user.pk),
-                "http://happy-dev.fr/owl/#first_name": "Alexandre",
-                "http://happy-dev.fr/owl/#last_name": "Bourlier",
-                "http://happy-dev.fr/owl/#username": "alex",
-                'http://happy-dev.fr/owl/#userprofile': {'@id': "_:b975"}
+                "https://cdn.startinblox.com/owl#first_name": "Alexandre",
+                "https://cdn.startinblox.com/owl#last_name": "Bourlier",
+                "https://cdn.startinblox.com/owl#username": "alex",
+                'https://cdn.startinblox.com/owl#userprofile': {'@id': "_:b975"}
             }
         ]
         response = self.client.put('/users/{}/'.format(user.pk), data=json.dumps(body),
@@ -379,8 +379,8 @@ class Update(TestCase):
         project.members.add(ext_user)
         project.save()
         body = {
-            'http://happy-dev.fr/owl/#description': 'project name',
-            'http://happy-dev.fr/owl/#members': {
+            'https://cdn.startinblox.com/owl#description': 'project name',
+            'https://cdn.startinblox.com/owl#members': {
             }
         }
 
@@ -408,7 +408,7 @@ class Update(TestCase):
                 'description': "user update"
             },
             '@context': {
-                "@vocab": "http://happy-dev.fr/owl/#",
+                "@vocab": "https://cdn.startinblox.com/owl/#",
             }
         }
 
@@ -427,9 +427,9 @@ class Update(TestCase):
         profile = UserProfile.objects.create(user=self.user)
         setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
         body = {
-            'http://happy-dev.fr/owl/#@id': setting.urlid,
+            'https://cdn.startinblox.com/owl#@id': setting.urlid,
             'receiveMail': True,
-            "@context": {"@vocab": "http://happy-dev.fr/owl/#",
+            "@context": {"@vocab": "https://cdn.startinblox.com/owl#",
                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                          "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
                          "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
@@ -449,10 +449,10 @@ class Update(TestCase):
         setting = NotificationSetting.objects.create(user=profile, receiveMail=False)
         body = {
             'settings': {
-                'http://happy-dev.fr/owl/#@id': setting.urlid,
+                'https://cdn.startinblox.com/owl#@id': setting.urlid,
                 'receiveMail': True
             },
-            "@context": {"@vocab": "http://happy-dev.fr/owl/#",
+            "@context": {"@vocab": "https://cdn.startinblox.com/owl#",
                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                          "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
                          "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
@@ -474,10 +474,10 @@ class Update(TestCase):
         body = {
             'settings': {
                 'pk': setting.pk,
-                'http://happy-dev.fr/owl/#@id': setting.urlid,
+                'https://cdn.startinblox.com/owl#@id': setting.urlid,
                 'receiveMail': True
             },
-            "@context": {"@vocab": "http://happy-dev.fr/owl/#",
+            "@context": {"@vocab": "https://cdn.startinblox.com/owl#",
                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                          "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "ldp": "http://www.w3.org/ns/ldp#",
                          "foaf": "http://xmlns.com/foaf/0.1/", "name": "rdfs:label",
@@ -501,23 +501,23 @@ class Update(TestCase):
 
         body = {
             "@id": "{}/invoices/{}/".format(base_url, invoice.pk),
-            "http://happy-dev.fr/owl/#title": "new",
-            "http://happy-dev.fr/owl/#batches": [
+            "https://cdn.startinblox.com/owl#title": "new",
+            "https://cdn.startinblox.com/owl#batches": [
                 {
                     "@id": "{}/batchs/{}/".format(base_url, pre_existing_batch.pk),
-                    "http://happy-dev.fr/owl/#title": "new",
-                    "http://happy-dev.fr/owl/#tasks": [
+                    "https://cdn.startinblox.com/owl#title": "new",
+                    "https://cdn.startinblox.com/owl#tasks": [
                         {
                             "@id": "{}/tasks/{}/".format(base_url, pre_existing_task.pk),
-                            "http://happy-dev.fr/owl/#title": "new"
+                            "https://cdn.startinblox.com/owl#title": "new"
                         },
                         {
-                            "http://happy-dev.fr/owl/#title": "tache 2"
+                            "https://cdn.startinblox.com/owl#title": "tache 2"
                         }
                     ]
                 },
                 {
-                    "http://happy-dev.fr/owl/#title": "z",
+                    "https://cdn.startinblox.com/owl#title": "z",
                 }
             ]
         }
@@ -550,13 +550,13 @@ class Update(TestCase):
 
         body = {
             "@id": "{}/circles/{}/".format(settings.BASE_URL, circle.pk),
-            "http://happy-dev.fr/owl/#name": "Updated Name",
-            "http://happy-dev.fr/owl/#members": {
+            "https://cdn.startinblox.com/owl#name": "Updated Name",
+            "https://cdn.startinblox.com/owl#members": {
                 "ldp:contains": [
                     {"@id": "{}/circle-members/{}/".format(settings.BASE_URL, pre_existing.pk),
-                     "http://happy-dev.fr/owl/#is_admin": True},
-                    {"http://happy-dev.fr/owl/#user": {"@id": another_user.urlid},
-                     "http://happy-dev.fr/owl/#is_admin": False},
+                     "https://cdn.startinblox.com/owl#is_admin": True},
+                    {"https://cdn.startinblox.com/owl#user": {"@id": another_user.urlid},
+                     "https://cdn.startinblox.com/owl#is_admin": False},
                 ]
             }
         }

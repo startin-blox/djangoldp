@@ -123,31 +123,31 @@ class TestUserPermissions(UserPermissionsTestCase):
         self.assertNotIn({'mode': {'@type': 'inherit'}}, response.data['permissions'])
 
     def test_post_request_for_authenticated_user(self):
-        post = {'http://happy-dev.fr/owl/#title': "job_created", "http://happy-dev.fr/owl/#slug": 'slug2'}
+        post = {'https://cdn.startinblox.com/owl#title': "job_created", "https://cdn.startinblox.com/owl#slug": 'slug2'}
         response = self.client.post('/job-offers/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
 
     # denied because I don't have model permissions
     def test_post_request_denied_model_perms(self):
-        data = {'http://happy-dev.fr/owl/#some': 'title'}
+        data = {'https://cdn.startinblox.com/owl#some': 'title'}
         response = self.client.post('/permissionless-dummys/', data=json.dumps(data), content_type='application/ld+json')
         self.assertEqual(response.status_code, 403)
 
     def test_post_nested_view_authorized(self):
-        data = { "http://happy-dev.fr/owl/#title": "new skill", "http://happy-dev.fr/owl/#obligatoire": "okay" }
+        data = { "https://cdn.startinblox.com/owl#title": "new skill", "https://cdn.startinblox.com/owl#obligatoire": "okay" }
         response = self.client.post('/job-offers/{}/skills/'.format(self.job.slug), data=json.dumps(data),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
 
     def test_post_nested_view_denied_model_perms(self):
         parent = LDPDummy.objects.create(some='parent')
-        data = { "http://happy-dev.fr/owl/#some": "title" }
+        data = { "https://cdn.startinblox.com/owl#some": "title" }
         response = self.client.post('/ldpdummys/{}/anons/'.format(parent.pk), data=json.dumps(data),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 403)
 
     def test_put_request_for_authenticated_user(self):
-        body = {'http://happy-dev.fr/owl/#title':"job_updated"}
+        body = {'https://cdn.startinblox.com/owl#title':"job_updated"}
         response = self.client.put('/job-offers/{}/'.format(self.job.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
@@ -159,7 +159,7 @@ class TestUserPermissions(UserPermissionsTestCase):
 
     def test_put_request_denied_model_perms(self):
         dummy = PermissionlessDummy.objects.create(some='some', slug='slug')
-        data = {'http://happy-dev.fr/owl/#some': 'new'}
+        data = {'https://cdn.startinblox.com/owl#some': 'new'}
         response = self.client.put('/permissionless-dummys/{}/'.format(dummy.slug), data=json.dumps(data),
                                     content_type='application/ld+json')
         self.assertEqual(response.status_code, 404)
@@ -167,7 +167,7 @@ class TestUserPermissions(UserPermissionsTestCase):
     def test_put_nested_view_denied_model_perms(self):
         parent = LDPDummy.objects.create(some='parent')
         child = PermissionlessDummy.objects.create(some='child', slug='child', parent=parent)
-        data = {"http://happy-dev.fr/owl/#some": "new"}
+        data = {"https://cdn.startinblox.com/owl#some": "new"}
         response = self.client.put('/ldpdummys/{}/anons/{}/'.format(parent.pk, child.slug), data=json.dumps(data),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 404)
@@ -178,8 +178,8 @@ class TestUserPermissions(UserPermissionsTestCase):
     #     parent = LDPDummy.objects.create(some='parent')
     #     dummy = PermissionlessDummy.objects.create(some='some', slug='slug')
     #     data = {
-    #         'http://happy-dev.fr/owl/#anons': [
-    #             {'@id': '{}/permissionless-dummys/{}/'.format(settings.SITE_URL, dummy.slug), 'http://happy-dev.fr/owl/#slug': dummy.slug}
+    #         'https://cdn.startinblox.com/owl#anons': [
+    #             {'@id': '{}/permissionless-dummys/{}/'.format(settings.SITE_URL, dummy.slug), 'https://cdn.startinblox.com/owl#slug': dummy.slug}
     #         ]
     #     }
     #     response = self.client.patch('/ldpdummys/{}/'.format(parent.pk), data=json.dumps(data), content_type='application/ld+json')
@@ -210,14 +210,14 @@ class TestUserPermissions(UserPermissionsTestCase):
 
     def test_put_request_change_pk_rejected(self):
         self.assertEqual(JobOffer.objects.count(), 1)
-        body = {'http://happy-dev.fr/owl/#pk': 2}
+        body = {'https://cdn.startinblox.com/owl#pk': 2}
         response = self.client.put('/job-offers/{}/'.format(self.job.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         # TODO: this is failing quietly
         #  https://git.happy-dev.fr/startinblox/solid-spec/issues/14
         self.assertEqual(response.status_code, 200)
         self.assertEqual(JobOffer.objects.count(), 1)
-        self.assertFalse(JobOffer.objects.filter(pk=body['http://happy-dev.fr/owl/#pk']).exists())
+        self.assertFalse(JobOffer.objects.filter(pk=body['https://cdn.startinblox.com/owl#pk']).exists())
 
     # tests that I receive a list of objects for which I am owner, filtering those for which I am not
     def test_list_owned_resources(self):
@@ -330,7 +330,7 @@ class TestUserPermissions(UserPermissionsTestCase):
         # authenticated has 'change' permission but only owner's have 'control' permission, meaning that I should
         # not be able to change my privilege level
         body = {
-            'http://happy-dev.fr/owl/#user': {'@id': self.user.urlid}
+            'https://cdn.startinblox.com/owl#user': {'@id': self.user.urlid}
         }
         response = self.client.put('/ownedresourcevariants/{}/'.format(resource.pk), data=json.dumps(body),
                                    content_type='application/ld+json')

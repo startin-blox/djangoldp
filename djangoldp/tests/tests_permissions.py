@@ -18,7 +18,7 @@ class TestPermissions(APITestCase):
 
     def check_can_add(self, url, status_code=201, field='content', extra_content={}):
         data = extra_content
-        extra_content[f"http://happy-dev.fr/owl/#{field}"] = "new post"
+        extra_content[f"https://cdn.startinblox.com/owl#{field}"] = "new post"
         response = self.client.post(url, data=json.dumps(data), content_type='application/ld+json')
         self.assertEqual(response.status_code, status_code)
         if status_code == 201:
@@ -26,7 +26,7 @@ class TestPermissions(APITestCase):
             return response.data['@id']
     
     def check_can_change(self, id, status_code=200, field='content'):
-        data = { f"http://happy-dev.fr/owl/#{field}": "changed post" }
+        data = { f"https://cdn.startinblox.com/owl#{field}": "changed post" }
         response = self.client.put(id, data=json.dumps(data), content_type='application/ld+json')
         self.assertEqual(response.status_code, status_code)
         if status_code == 200:
@@ -163,7 +163,7 @@ class TestPermissions(APITestCase):
         self.check_can_view('/doubleinheritmodels/', [resource.urlid])
 
         circle = RestrictedCircle.objects.create()
-        id = self.check_can_add('/doubleinheritmodels/', 404, extra_content={'http://happy-dev.fr/owl/#circle': {'@id': circle.urlid}})
+        id = self.check_can_add('/doubleinheritmodels/', 404, extra_content={'https://cdn.startinblox.com/owl#circle': {'@id': circle.urlid}})
 
     
     def test_and_permissions(self):
