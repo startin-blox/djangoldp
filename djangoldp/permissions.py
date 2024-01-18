@@ -116,7 +116,7 @@ class AnonymousReadOnly(LDPBasePermission):
 class AuthenticatedOnly(LDPBasePermission):
     """Only authenticated users have permissions"""
     def has_permission(self, request, view):
-        return is_authenticated_user(request.user)
+        return request.method=='OPTIONS' or is_authenticated_user(request.user)
 
 class ReadOnly(LDPBasePermission):
     """Users can only view"""
