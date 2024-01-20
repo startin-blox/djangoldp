@@ -146,7 +146,7 @@ class LDListMixin(RDFSerializerMixin):
         if not hasattr(self, 'parent_instance'):
             #This is a container
             return f"{settings.BASE_URL}{self.context['request'].path}"
-        return f"{settings.BASE_URL}{Model.resource_id(self.parent_instance)}{self.field_name}"
+        return f"{settings.BASE_URL}{Model.resource_id(self.parent_instance)}{self.field_name}/"
     
     def get_attribute(self, instance):
         # save the parent object for nested field url
