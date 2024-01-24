@@ -58,6 +58,7 @@ OR.get_permissions = OR_get_permissions
 def OR_get_filter_backend(self, model):
     return join_filter_backends(self.op1, self.op2, model=model, union=True)
 OR.get_filter_backend = OR_get_filter_backend
+OR.__repr__ = lambda self: f"{self.op1}|{self.op2}"
 
 def AND_get_permissions(self, user, model, obj=None):
     perms1 = self.op1.get_permissions(user, model, obj) if hasattr(self.op1, 'get_permissions') else set()
@@ -67,6 +68,7 @@ AND.get_permissions = AND_get_permissions
 def AND_get_filter_backend(self, model):
     return join_filter_backends(self.op1, self.op2, model=model, union=False)
 AND.get_filter_backend = AND_get_filter_backend
+AND.__repr__ = lambda self: f"{self.op1}&{self.op2}"
 
 class LDPBasePermission(BasePermission):
     """
@@ -317,9 +319,13 @@ class InheritPermissions(LDPBasePermission):
     def get_permissions(self, user:object, model:object, obj:object=None) -> set:
         '''returns a union of all inheriting linked permissions'''
         perms = set()
+        parents = []
         for field in InheritPermissions.get_parent_fields(model):
             parent_model = InheritPermissions.get_parent_model(model, field)
             for parent_object in self.get_parent_objects(obj, field):
+                parents.append(parent_object)
                 perms = perms.union(set.intersection(*[perm().get_permissions(user, parent_model, parent_object) 
                                                for perm in parent_model._meta.permission_classes]))
-        return perms
+        if parents:
+            return perms
+        return super().get_permissions(user, model, obj)
