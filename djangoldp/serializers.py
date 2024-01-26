@@ -88,7 +88,7 @@ class RDFSerializerMixin:
         # Don't grant delete permissions on containers
         if not obj and 'delete' in permissions:
             permissions.remove('delete')
-        data['permissions'] = [{'mode': {'@type': name}} for name in permissions]
+        data['permissions'] = permissions
         return data
     
     def serialize_rdf_fields(self, obj, data, include_context=False):

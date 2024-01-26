@@ -33,9 +33,9 @@ class TestUserPermissions(UserPermissionsTestCase):
         response = self.client.get('/job-offers/')
         self.assertEqual(response.status_code, 200)
         # test serialized permissions
-        self.assertIn({'mode': {'@type': 'view'}}, response.data['permissions'])
-        self.assertNotIn({'mode': {'@type': 'inherit'}}, response.data['permissions'])
-        # self.assertNotIn({'mode': {'@type': 'delete'}}, response.data['permissions'])
+        self.assertIn('view', response.data['permissions'])
+        self.assertNotIn('inherit', response.data['permissions'])
+        # self.assertNotIn('delete', response.data['permissions'])
 
     # TODO: list - I do not have permission from the model, but I do have permission via a Group I am assigned
     #  https://git.startinblox.com/djangoldp-packages/djangoldp/issues/291
@@ -119,8 +119,8 @@ class TestUserPermissions(UserPermissionsTestCase):
     def test_get_1_for_authenticated_user(self):
         response = self.client.get('/job-offers/{}/'.format(self.job.slug))
         self.assertEqual(response.status_code, 200)
-        self.assertIn({'mode': {'@type': 'view'}}, response.data['permissions'])
-        self.assertNotIn({'mode': {'@type': 'inherit'}}, response.data['permissions'])
+        self.assertIn('view', response.data['permissions'])
+        self.assertNotIn('inherit', response.data['permissions'])
 
     def test_post_request_for_authenticated_user(self):
         post = {'https://cdn.startinblox.com/owl#title': "job_created", "https://cdn.startinblox.com/owl#slug": 'slug2'}
@@ -239,7 +239,7 @@ class TestUserPermissions(UserPermissionsTestCase):
         response = self.client.get('/ownedresources/{}/'.format(my_resource.pk))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['@id'], my_resource.urlid)
-        self.assertIn({'mode': {'@type': 'delete'}}, response.data['permissions'])
+        self.assertIn('delete', response.data['permissions'])
 
         # I have permission to view this resource
         response = self.client.patch('/ownedresources/{}/'.format(their_resource.pk))

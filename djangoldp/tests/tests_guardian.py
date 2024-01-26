@@ -45,7 +45,7 @@ class TestsGuardian(APITestCase):
 
     # auxiliary function converts permission format for test
     def _unpack_permissions(self, perms_from_response):
-        return [p['mode']['@type'] for p in perms_from_response]
+        return perms_from_response
 
     # test that dummy with no permissions set returns no results
     def test_get_dummy_no_permissions(self):
