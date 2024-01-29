@@ -208,6 +208,28 @@ class PublicPermission(LDPBasePermission):
             return super().has_object_permission(request, view, obj)
         return False
 
+class JoinMembersPermission(LDPBasePermission):
+    filter_backend = None
+    def has_permission(self, request:object, view:object) -> bool:
+        if is_anonymous_user(request.user):
+            return False
+        return request.method == 'PATCH'
+
+    def check_patch(self, first, second, user):
+        diff = first - second
+        return diff == set() or diff == {user.urlid}
+
+    def has_object_permission(self, request:object, view:object, obj:object) -> bool:
+        '''only accept patch request, only if the only difference on the user_set is the user'''
+        if not self.has_permission(request, view) or not obj or not 'user_set' in request.data:
+            return False
+        new_members = request.data['user_set']
+        if not isinstance(new_members, list):
+            new_members = [new_members]
+        new_ids = {user['@id'] for user in new_members}
+        old_ids = {user.urlid for user in obj.members.user_set.all()}
+        return self.check_patch(new_ids, old_ids, request.user) and self.check_patch(old_ids, new_ids, request.user)
+
 
 class InheritPermissions(LDPBasePermission):
     """Gets the permissions from a related objects"""
