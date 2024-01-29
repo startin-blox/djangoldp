@@ -229,6 +229,9 @@ class JoinMembersPermission(LDPBasePermission):
         new_ids = {user['@id'] for user in new_members}
         old_ids = {user.urlid for user in obj.members.user_set.all()}
         return self.check_patch(new_ids, old_ids, request.user) and self.check_patch(old_ids, new_ids, request.user)
+    
+    def get_permissions(self, user, model, obj=None):
+        return set()
 
 
 class InheritPermissions(LDPBasePermission):
