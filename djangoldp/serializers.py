@@ -29,7 +29,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, BindingDict
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
-
+from djangoldp.permissions import DEFAULT_DJANGOLDP_PERMISSIONS
 
 # defaults for various DjangoLDP settings (see documentation)
 MAX_RECORDS_SERIALIZER_CACHE = getattr(settings, 'MAX_RECORDS_SERIALIZER_CACHE', 10000)
@@ -80,6 +80,11 @@ class RDFSerializerMixin:
         '''takes a set or list of permissions and returns them in the JSON-LD format'''
         if self.parent and not settings.LDP_INCLUDE_INNER_PERMS: #Don't serialize permissions on nested objects
             return data
+
+        if user.is_superuser:
+            data['permissions'] = getattr(settings, 'DJANGOLDP_PERMISSIONS', DEFAULT_DJANGOLDP_PERMISSIONS)
+            return data
+
         permission_classes = getattr(model._meta, 'permission_classes', [])
         if not permission_classes:
             return data
