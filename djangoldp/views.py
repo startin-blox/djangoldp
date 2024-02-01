@@ -420,6 +420,21 @@ class LDPViewSet(LDPViewSetGenerator):
         if None in self.filter_backends:
             self.filter_backends.remove(None)
     
+    def filter_queryset(self, queryset):
+        if self.request.user.is_superuser:
+            return queryset
+        return super().filter_queryset(queryset)
+
+    def check_permissions(self, request):
+        if request.user.is_superuser:
+            return True
+        return super().check_permissions(request)
+
+    def check_object_permissions(self, request, obj):
+        if request.user.is_superuser:
+            return True
+        return super().check_object_permissions(request, obj)
+    
     def get_depth(self) -> int:
         if getattr(self, 'force_depth', None):
             #TODO: this exception on depth for writing should be handled by the serializer itself
