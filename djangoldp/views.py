@@ -415,10 +415,21 @@ class LDPViewSet(LDPViewSetGenerator):
         super().__init__(**kwargs)
         # attach filter backends based on permissions classes, to reduce the queryset based on these permissions
         # https://www.django-rest-framework.org/api-guide/filtering/#generic-filtering
-        self.filter_backends = type(self).filter_backends + list({perm_class().get_filter_backend(self.model)
-                for perm_class in self.permission_classes if hasattr(perm_class(), 'get_filter_backend')})
-        if None in self.filter_backends:
-            self.filter_backends.remove(None)
+        if not self.request.user.is_superuser:
+            self.filter_backends = type(self).filter_backends + list({perm_class().get_filter_backend(self.model)
+                    for perm_class in self.permission_classes if hasattr(perm_class(), 'get_filter_backend')})
+            if None in self.filter_backends:
+                self.filter_backends.remove(None)
+    
+    def check_permissions(self, request):
+        if request.user.is_superuser:
+            return True
+        return super().check_permissions(request)
+    
+    def check_object_permissions(self, request, obj):
+        if request.user.is_superuser:
+            return True
+        return super().check_object_permissions(request, obj)
     
     def get_depth(self) -> int:
         if getattr(self, 'force_depth', None):
