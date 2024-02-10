@@ -154,7 +154,7 @@ class TestPermissions(APITestCase):
 
         self.check_can_view('/doubleinheritmodels/', [myresource.urlid, some.urlid])
         self.check_can_change(myresource.urlid)
-        self.check_can_change(some.urlid, 403)
+        self.check_can_change(some.urlid)
         self.check_can_change(other.urlid, 404)
 
     def test_inherit_permissions_none(self):
