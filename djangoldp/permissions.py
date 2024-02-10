@@ -235,7 +235,7 @@ class JoinMembersPermission(LDPBasePermission):
 
 
 class InheritPermissions(LDPBasePermission):
-    """Gets the permissions from a related objects"""
+    """Checks read access on a related objects"""
     @classmethod
     def get_parent_fields(cls, model: object) -> list:
         '''checks that the model is adequately configured and returns the associated model'''
@@ -267,7 +267,7 @@ class InheritPermissions(LDPBasePermission):
         # For some reason if we copy the request itself, we go into an infinite loop, so take the native request instead
         _request = copy(request._request)
         _request.model = model
-        _request.data = request.data #because the data is not present on the native request
+        _request.method = 'HEAD' #only view access is checked on parent
         _request._request = _request #so that it can be nested
         _view = copy(view)
         _view.queryset = None #to make sure the model is taken into account
