@@ -348,9 +348,8 @@ class InheritPermissions(LDPBasePermission):
         for field in InheritPermissions.get_parent_fields(model):
             parent_model = InheritPermissions.get_parent_model(model, field)
             for parent_object in self.get_parent_objects(obj, field):
-                parents.append(parent_object)
-                perms = perms.union(set.intersection(*[perm().get_permissions(user, parent_model, parent_object) 
-                                               for perm in parent_model._meta.permission_classes]))
-        if parents:
-            return perms
+                parent_perms = set.intersection(*[perm().get_permissions(user, parent_model, parent_object) 
+                                               for perm in parent_model._meta.permission_classes])
+                if not 'view' in parent_perms: # only give permissions if user has read access on the parent
+                    return set()
         return super().get_permissions(user, model, obj)
