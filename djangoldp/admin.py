@@ -28,9 +28,9 @@ class DjangoLDPAdmin(GuardedModelAdmin):
         field_list = self.export_fields or self.list_display
         headers = {field:self.resolve_verbose_name(field) for field in field_list}
 
-        writer = DictWriter(response, fieldnames=headers.keys())
+        writer = DictWriter(response, fieldnames=field_list)
         writer.writerow(headers)
-        writer.writerows(queryset.values(*headers.keys()))
+        writer.writerows(queryset.values(*field_list))
         return response
 
 
