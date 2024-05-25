@@ -13,12 +13,20 @@ class DjangoLDPAdmin(GuardedModelAdmin):
     object-level permissions
     '''
     actions = ['export_csv']
+    export_fields = []
+
+    def resolve_verbose_name(self, field_path):
+        field = self
+        for field_name in field_path.split('__'):
+            field = field.model._meta.get_field(field_name)
+        return field.verbose_name
 
     @admin.action(description="Export CSV")
     def export_csv(self, request, queryset):
         response = HttpResponse(content_type="text/csv")
         response['Content-Disposition'] = f'attachment; filename="{self.model.__name__}.csv"'
-        headers = {field.name:field.verbose_name for field in self.model._meta.fields if field.name in self.list_display}
+        field_list = self.export_fields or self.list_display
+        headers = {field:self.resolve_verbose_name(field) for field in field_list}
 
         writer = DictWriter(response, fieldnames=headers.keys())
         writer.writerow(headers)
