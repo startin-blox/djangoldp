@@ -1,6 +1,8 @@
+from csv import DictWriter
 from django.contrib import admin
-from guardian.admin import GuardedModelAdmin
 from django.contrib.auth.admin import UserAdmin
+from django.http import HttpResponse
+from guardian.admin import GuardedModelAdmin
 from djangoldp.models import Activity, ScheduledActivity, Follower
 from djangoldp.activities.services import ActivityQueueService
 
@@ -10,10 +12,21 @@ class DjangoLDPAdmin(GuardedModelAdmin):
     An admin model representing a federated object. Inherits from GuardedModelAdmin to provide Django-Guardian
     object-level permissions
     '''
-    pass
+    actions = ['export_csv']
+
+    @admin.action(description="Export CSV")
+    def export_csv(self, request, queryset):
+        response = HttpResponse(content_type="text/csv")
+        response['Content-Disposition'] = f'attachment; filename="{self.model.__name__}.csv"'
+        headers = {field.name:field.verbose_name for field in self.model._meta.fields if field.name in self.list_display}
+
+        writer = DictWriter(response, fieldnames=headers.keys())
+        writer.writerow(headers)
+        writer.writerows(queryset.values(*headers.keys()))
+        return response
 
 
-class DjangoLDPUserAdmin(UserAdmin, GuardedModelAdmin):
+class DjangoLDPUserAdmin(UserAdmin, DjangoLDPAdmin):
     '''An extension of UserAdmin providing the functionality of DjangoLDPAdmin'''
 
     list_display = ('urlid', 'email', 'first_name', 'last_name', 'date_joined', 'last_login', 'is_staff')
