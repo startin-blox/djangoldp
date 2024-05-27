@@ -1,6 +1,7 @@
 from csv import DictWriter
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.core.exceptions import FieldDoesNotExist
 from django.http import HttpResponse
 from guardian.admin import GuardedModelAdmin
 from djangoldp.models import Activity, ScheduledActivity, Follower
@@ -18,14 +19,18 @@ class DjangoLDPAdmin(GuardedModelAdmin):
     def resolve_verbose_name(self, field_path):
         field = self
         for field_name in field_path.split('__'):
-            field = field.model._meta.get_field(field_name)
+            try:
+                field = field.model._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                return None
         return field.verbose_name
 
     @admin.action(description="Export CSV")
     def export_csv(self, request, queryset):
         response = HttpResponse(content_type="text/csv")
         response['Content-Disposition'] = f'attachment; filename="{self.model.__name__}.csv"'
-        field_list = self.export_fields or self.list_display
+        # only keep fields that can be resolved, keep only urlid if none
+        field_list = list(filter(self.resolve_verbose_name, self.export_fields or self.list_display)) or ['urlid']
         headers = {field:self.resolve_verbose_name(field) for field in field_list}
 
         writer = DictWriter(response, fieldnames=field_list)
