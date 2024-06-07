@@ -630,6 +630,6 @@ def serve_static_content(request, filename):
             content = file.read()
 
         json_content = json.loads(content)
-        return JsonResponse(json_content, safe=False, status=200, content_type='application/ld+json')
+        return JsonResponse(json_content, safe=False, status=200, content_type='application/ld+json', headers={'Access-Control-Allow-Origin': '*'})
     else:
         return HttpResponseNotFound('File not found')
