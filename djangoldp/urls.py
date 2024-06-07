@@ -37,7 +37,8 @@ urlpatterns = [
                                                                     permission_classes=[ReadOnly], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
     path('inbox/', InboxView.as_view()),
-    path('ssr/<str:filename>/', serve_static_content, name='serve_static_content'),
+    # path('ssr/<str:filename>/', serve_static_content, name='serve_static_content'),
+    re_path(r'^ssr/(?P<path>.*)$', serve_static_content, name='serve_static_content'),
 ]
 
 if settings.ENABLE_SWAGGER_DOCUMENTATION:

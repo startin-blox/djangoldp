@@ -618,8 +618,8 @@ class WebFingerView(View):
         return self.on_request(request)
 
 
-def serve_static_content(request, filename):
-    file_path = os.path.join('ssr', filename)
+def serve_static_content(request, path):
+    file_path = os.path.join('ssr', path[:-1])
     # Transform file_path to valid filename by adding .json extension
     if not file_path.endswith('.json'):
         file_path += '.json'
