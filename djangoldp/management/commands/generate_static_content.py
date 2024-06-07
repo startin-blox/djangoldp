@@ -29,13 +29,13 @@ class Command(BaseCommand):
                     for key, value in model._meta.static_params.items():
                         url += f'{key}={value}&'
                     url = url[:-1]
-                    
+
                 print(f"current request url after adding params: {url}")
                 response = requests.get(url)
 
                 if response.status_code == 200:
                     content = response.text
-                    content = self.update_ids(content, base_uri)
+                    content = self.update_ids(content, base_uri, model._meta.model_name.lower())
 
                     filename = container_path[1:-1]
                     file_path = os.path.join(output_dir, f'{filename}.json')
@@ -47,28 +47,28 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.ERROR(f'Failed to fetch content from {url}: {response.status_code}'))
 
-    def update_ids(self, content, base_uri):
+    def update_ids(self, content, base_uri, model_name):
         try:
             data = json.loads(content)
             if isinstance(data, list):
                 for item in data:
-                    self.update_item_id(item, base_uri)
+                    self.update_item_id(item, base_uri, model_name)
             elif isinstance(data, dict):
-                self.update_item_id(data, base_uri)
+                self.update_item_id(data, base_uri, model_name)
             return json.dumps(data)
         except json.JSONDecodeError as e:
             self.stdout.write(self.style.ERROR(f'Failed to decode JSON: {e}'))
             return content
 
-    def update_item_id(self, item, base_uri):
-        if '@id' in item:
+    def update_item_id(self, item, base_uri, model_name):
+        if '@id' in item and model_name in item['@id']:
             parsed_url = urlparse(item['@id'])
             path = f'/ssr{parsed_url.path}'
             item['@id'] = urlunparse((parsed_url.scheme, parsed_url.netloc, path, parsed_url.params, parsed_url.query, parsed_url.fragment))
         for key, value in item.items():
             if isinstance(value, dict):
-                self.update_item_id(value, base_uri)
+                self.update_item_id(value, base_uri, model_name)
             elif isinstance(value, list):
                 for sub_item in value:
                     if isinstance(sub_item, dict):
-                        self.update_item_id(sub_item, base_uri)
+                        self.update_item_id(sub_item, base_uri, model_name)
