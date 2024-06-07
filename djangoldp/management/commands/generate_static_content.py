@@ -61,7 +61,7 @@ class Command(BaseCommand):
             return content
 
     def update_item_id(self, item, base_uri, model_name):
-        if '@id' in item and model_name in item['@id']:
+        if '@id' in item:
             parsed_url = urlparse(item['@id'])
             path = f'/ssr{parsed_url.path}'
             item['@id'] = urlunparse((parsed_url.scheme, parsed_url.netloc, path, parsed_url.params, parsed_url.query, parsed_url.fragment))
