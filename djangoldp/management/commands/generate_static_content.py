@@ -80,28 +80,28 @@ class Command(BaseCommand):
             if not os.path.exists(associated_file_dir):
                 os.makedirs(associated_file_dir)
 
-            if not os.path.exists(associated_file_path):
+            # if not os.path.exists(associated_file_path):
               # Fetch associated content
-              try:
-                  response = requests.get(associated_url, timeout=request_timeout)
-                  if response.status_code == 200:
-                      associated_content = self.update_ids_and_fetch_associated(response.text, base_uri, output_dir, depth + 1, max_depth)
-                      print(f"associated_file_path: {associated_file_path}")
-                      associated_file_dir = os.path.dirname(associated_file_path)
-                      print(f"associated_file_path: {associated_file_dir}")
-                      if not os.path.exists(associated_file_dir):
-                          os.makedirs(associated_file_dir)
-                      with open(associated_file_path, 'w') as f:
-                          f.write(associated_content)
-                      self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content for {associated_url}'))
-                  else:
-                      self.stdout.write(self.style.ERROR(f'Failed to fetch associated content from {associated_url}: {response.status_code}'))
-              except requests.exceptions.Timeout:
-                  self.stdout.write(self.style.ERROR(f'Request to {associated_url} timed out'))
-              except requests.exceptions.RequestException as e:
-                  self.stdout.write(self.style.ERROR(f'An error occurred: {e}'))
-            else:
-                self.stdout.write(self.style.SUCCESS(f'Associated file already exists for {associated_url}, skipping fetch'))
+            try:
+                response = requests.get(associated_url, timeout=request_timeout)
+                if response.status_code == 200:
+                    associated_content = self.update_ids_and_fetch_associated(response.text, base_uri, output_dir, depth + 1, max_depth)
+                    print(f"associated_file_path: {associated_file_path}")
+                    associated_file_dir = os.path.dirname(associated_file_path)
+                    print(f"associated_file_path: {associated_file_dir}")
+                    if not os.path.exists(associated_file_dir):
+                        os.makedirs(associated_file_dir)
+                    with open(associated_file_path, 'w') as f:
+                        f.write(associated_content)
+                    self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content for {associated_url}'))
+                else:
+                    self.stdout.write(self.style.ERROR(f'Failed to fetch associated content from {associated_url}: {response.status_code}'))
+            except requests.exceptions.Timeout:
+                self.stdout.write(self.style.ERROR(f'Request to {associated_url} timed out'))
+            except requests.exceptions.RequestException as e:
+                self.stdout.write(self.style.ERROR(f'An error occurred: {e}'))
+            # else:
+            #     self.stdout.write(self.style.SUCCESS(f'Associated file already exists for {associated_url}, skipping fetch'))
 
         for key, value in item.items():
             if isinstance(value, dict):
