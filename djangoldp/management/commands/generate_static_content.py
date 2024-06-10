@@ -15,7 +15,8 @@ class Command(BaseCommand):
           os.makedirs(output_dir, exist_ok=True)
 
         base_uri = getattr(settings, 'BASE_URL', '')
-        max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)  # Ad
+        max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
+        request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
 
         for model in apps.get_models():
             if hasattr(model._meta, 'static_version'):
@@ -32,7 +33,7 @@ class Command(BaseCommand):
                     url = url[:-1]
 
                 print(f"current request url after adding params: {url}")
-                response = requests.get(url, timeout=settings.SSR_REQUEST_TIMEOUT)
+                response = requests.get(url, timeout=request_timeout)
 
                 if response.status_code == 200:
                     content = response.text
@@ -81,7 +82,7 @@ class Command(BaseCommand):
             if not os.path.exists(associated_file_path):
               # Fetch associated content
               try:
-                  response = requests.get(associated_url, timeout=settings.SSR_REQUEST_TIMEOUT)
+                  response = requests.get(associated_url, timeout=request_timeout)
                   if response.status_code == 200:
                       associated_content = self.update_ids_and_fetch_associated(response.text, base_uri, output_dir, depth + 1, max_depth)
                       print(f"associated_file_path: {associated_file_path}")
