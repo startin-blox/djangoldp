@@ -6,6 +6,10 @@ from django.conf import settings
 from django.apps import apps
 from urllib.parse import urlparse, urlunparse
 
+base_uri = getattr(settings, 'BASE_URL', '')
+max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
+request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
+
 class Command(BaseCommand):
     help = 'Generate static content for models with a specific meta attribute'
 
@@ -14,9 +18,6 @@ class Command(BaseCommand):
         if not os.path.exists(output_dir):
           os.makedirs(output_dir, exist_ok=True)
 
-        base_uri = getattr(settings, 'BASE_URL', '')
-        max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
-        request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
 
         for model in apps.get_models():
             if hasattr(model._meta, 'static_version'):
