@@ -62,7 +62,6 @@ class Command(BaseCommand):
             else:
                 self.update_and_fetch_id(data, base_uri, output_dir, depth, max_depth)
 
-            print(f"Content: {data}")
             return json.dumps(data)
         except json.JSONDecodeError as e:
             self.stdout.write(self.style.ERROR(f'Failed to decode JSON: {e}'))
@@ -73,22 +72,20 @@ class Command(BaseCommand):
             parsed_url = urlparse(item['@id'])
             path = f'/ssr{parsed_url.path}'
             item['@id'] = urlunparse((parsed_url.scheme, parsed_url.netloc, path, parsed_url.params, parsed_url.query, parsed_url.fragment))
+
             associated_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, parsed_url.params, parsed_url.query, parsed_url.fragment))
             associated_file_path = path[1:-1] + '.json'
-            print(f"associated_file_path: {associated_file_path}")
             associated_file_dir = os.path.dirname(associated_file_path)
+
             if not os.path.exists(associated_file_dir):
                 os.makedirs(associated_file_dir)
 
-            # if not os.path.exists(associated_file_path):
-              # Fetch associated content
             try:
                 response = requests.get(associated_url, timeout=request_timeout)
                 if response.status_code == 200:
                     associated_content = self.update_ids_and_fetch_associated(response.text, base_uri, output_dir, depth + 1, max_depth)
-                    print(f"associated_file_path: {associated_file_path}")
                     associated_file_dir = os.path.dirname(associated_file_path)
-                    print(f"associated_file_path: {associated_file_dir}")
+
                     if not os.path.exists(associated_file_dir):
                         os.makedirs(associated_file_dir)
                     with open(associated_file_path, 'w') as f:
@@ -100,8 +97,6 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f'Request to {associated_url} timed out'))
             except requests.exceptions.RequestException as e:
                 self.stdout.write(self.style.ERROR(f'An error occurred: {e}'))
-            # else:
-            #     self.stdout.write(self.style.SUCCESS(f'Associated file already exists for {associated_url}, skipping fetch'))
 
         for key, value in item.items():
             if isinstance(value, dict):

@@ -624,7 +624,6 @@ def serve_static_content(request, path):
     if not file_path.endswith('.json'):
         file_path += '.json'
 
-    print(f"file_path: {file_path}")
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             content = file.read()
