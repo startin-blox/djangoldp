@@ -11,7 +11,7 @@ max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
 request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
 
 class Command(BaseCommand):
-    help = 'Generate static content for models with a specific meta attribute'
+    help = 'Generate static content for models having the static_version meta attribute set to 1/true'
 
     def handle(self, *args, **kwargs):
         output_dir = 'ssr'
