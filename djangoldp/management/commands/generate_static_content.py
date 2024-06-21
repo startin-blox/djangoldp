@@ -1,10 +1,11 @@
-import os
-import requests
 import json
-from django.core.management.base import BaseCommand
-from django.conf import settings
-from django.apps import apps
+import os
 from urllib.parse import urlparse, urlunparse
+
+import requests
+from django.apps import apps
+from django.conf import settings
+from django.core.management.base import BaseCommand
 
 base_uri = getattr(settings, 'BASE_URL', '')
 max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
@@ -45,7 +46,7 @@ class Command(BaseCommand):
                       file_path = os.path.join(output_dir, f'{filename}.jsonld')
 
                       print(f"Output file_path: {file_path}")
-                      with open(file_path, 'w') as f:
+                      with open(file_path, 'w', encoding='utf-8') as f:
                           f.write(content)
                       self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved content for {model._meta.model_name} from {url}'))
                       regenerated_urls.append(url)
@@ -96,7 +97,7 @@ class Command(BaseCommand):
 
                     if not os.path.exists(associated_file_dir):
                         os.makedirs(associated_file_dir)
-                    with open(associated_file_path, 'w') as f:
+                    with open(associated_file_path, 'w', encoding='utf-8') as f:
                         f.write(associated_content)
                     regenerated_urls.append(associated_url)
                     self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content for {associated_url}'))
