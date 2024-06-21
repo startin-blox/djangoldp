@@ -1,13 +1,17 @@
 import json
+import logging
+import os
+
 import validators
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse, Http404, HttpResponseNotFound
+from django.http import Http404, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404
-from django.urls import include, re_path, path
+from django.urls import include, path, re_path
 from django.urls.resolvers import get_resolver
 from django.utils.decorators import classonlymethod
 from django.views import View
@@ -23,15 +27,16 @@ from rest_framework.utils import model_meta
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from djangoldp.activities import (ACTIVITY_SAVING_SETTING, ActivityPubService,
+                                  ActivityQueueService, as_activitystream)
+from djangoldp.activities.errors import (ActivityStreamDecodeError,
+                                         ActivityStreamValidationError)
 from djangoldp.endpoints.webfinger import WebFingerEndpoint, WebFingerError
-from djangoldp.models import LDPSource, Model, Follower, DynamicNestedField
-from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
+from djangoldp.filters import (LocalObjectOnContainerPathBackend,
+                               SearchByQueryParamFilterBackend)
+from djangoldp.models import DynamicNestedField, Follower, LDPSource, Model
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
-from djangoldp.activities import ActivityQueueService, as_activitystream, ACTIVITY_SAVING_SETTING, ActivityPubService
-from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
-import logging
-import os
 
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -619,20 +624,43 @@ class WebFingerView(View):
 
 
 def serve_static_content(request, path):
-    file_path = os.path.join('ssr', path[:-1])
+
+    output_dir = 'ssr'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    file_path = os.path.join(output_dir, path[:-1])
     if not file_path.endswith('.jsonld'):
         file_path += '.jsonld'
 
+    if not os.path.exists(file_path):
+
+        resolver = get_resolver()
+        match = resolver.resolve('/' + path)
+        request.user = AnonymousUser()
+        response = match.func(request, *match.args, **match.kwargs)
+        if response.status_code == 200:
+            directory = os.path.dirname(file_path)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            json_content = JSONRenderer().render(response.data)
+            print(json_content)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(json_content.decode('utf-8'))
+
     if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
 
-        json_content = json.loads(content)
-        return JsonResponse(json_content, safe=False, status=200,
-                            content_type='application/ld+json',
-                            headers={
-                              'Access-Control-Allow-Origin': '*',
-                              'Cache-Control': 'public, max-age=3600',
-                            })
-    else:
-        return HttpResponseNotFound('File not found')
+        try:
+            json_content = json.loads(content)
+            return JsonResponse(json_content, safe=False, status=200,
+                                content_type='application/ld+json',
+                                headers={
+                                    'Access-Control-Allow-Origin': '*',
+                                    'Cache-Control': 'public, max-age=3600',
+                                })
+        except json.JSONDecodeError:
+            pass
+
+    return HttpResponseNotFound('File not found')
