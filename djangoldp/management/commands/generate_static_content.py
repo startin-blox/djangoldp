@@ -21,19 +21,19 @@ class Command(BaseCommand):
 
         for model in apps.get_models():
             if hasattr(model._meta, 'static_version'):
-                print(f"model: {model}")
+                print(f"Generating content for model: {model}")
                 container_path = model.get_container_path()
                 url = f'{base_uri}{container_path}'
-                print(f"current request url before adding params: {url}")
+                print(f"Current request url before adding params: {url}")
 
                 if hasattr(model._meta, 'static_params'):
-                    # static_params which is a json must be decomposed and added to the url as query parameters, first with ? then with &
+                    # static_params are added to the url as query parameters
                     url += '?'
                     for key, value in model._meta.static_params.items():
                         url += f'{key}={value}&'
                     url = url[:-1]
 
-                print(f"current request url after adding params: {url}")
+                print(f"Current request url after adding params: {url}")
                 response = requests.get(url, timeout=request_timeout)
 
                 if response.status_code == 200:
@@ -43,7 +43,7 @@ class Command(BaseCommand):
                     filename = container_path[1:-1]
                     file_path = os.path.join(output_dir, f'{filename}.json')
 
-                    print(f"file_path: {file_path}")
+                    print(f"Output file_path: {file_path}")
                     with open(file_path, 'w') as f:
                         f.write(content)
                     self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved content for {model._meta.model_name} from {url}'))
