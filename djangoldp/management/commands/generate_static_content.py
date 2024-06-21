@@ -41,7 +41,7 @@ class Command(BaseCommand):
                     content = self.update_ids_and_fetch_associated(content, base_uri,  output_dir, 0, max_depth)
 
                     filename = container_path[1:-1]
-                    file_path = os.path.join(output_dir, f'{filename}.json')
+                    file_path = os.path.join(output_dir, f'{filename}.jsonld')
 
                     print(f"Output file_path: {file_path}")
                     with open(file_path, 'w') as f:
@@ -74,7 +74,7 @@ class Command(BaseCommand):
             item['@id'] = urlunparse((parsed_url.scheme, parsed_url.netloc, path, parsed_url.params, parsed_url.query, parsed_url.fragment))
 
             associated_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, parsed_url.params, parsed_url.query, parsed_url.fragment))
-            associated_file_path = path[1:-1] + '.json'
+            associated_file_path = path[1:-1] + '.jsonld'
             associated_file_dir = os.path.dirname(associated_file_path)
 
             if not os.path.exists(associated_file_dir):
