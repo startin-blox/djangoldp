@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 
 import validators
 from django.apps import apps
@@ -632,6 +633,13 @@ def serve_static_content(request, path):
     file_path = os.path.join(output_dir, path[:-1])
     if not file_path.endswith('.jsonld'):
         file_path += '.jsonld'
+
+    if os.path.exists(file_path):
+        current_time = time.time()
+        file_mod_time = os.path.getmtime(file_path)
+        time_difference = current_time - file_mod_time
+        if time_difference > 24 * 60 * 60:
+            os.remove(file_path)
 
     if not os.path.exists(file_path):
 
