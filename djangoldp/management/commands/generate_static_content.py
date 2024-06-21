@@ -9,6 +9,7 @@ from urllib.parse import urlparse, urlunparse
 base_uri = getattr(settings, 'BASE_URL', '')
 max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
 request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
+regenerated_urls = []
 
 class Command(BaseCommand):
     help = 'Generate static content for models having the static_version meta attribute set to 1/true'
@@ -18,7 +19,6 @@ class Command(BaseCommand):
         if not os.path.exists(output_dir):
           os.makedirs(output_dir, exist_ok=True)
 
-
         for model in apps.get_models():
             if hasattr(model._meta, 'static_version'):
                 print(f"Generating content for model: {model}")
@@ -26,29 +26,33 @@ class Command(BaseCommand):
                 url = f'{base_uri}{container_path}'
                 print(f"Current request url before adding params: {url}")
 
-                if hasattr(model._meta, 'static_params'):
-                    # static_params are added to the url as query parameters
-                    url += '?'
-                    for key, value in model._meta.static_params.items():
-                        url += f'{key}={value}&'
-                    url = url[:-1]
+                if (url not in regenerated_urls):
+                  if hasattr(model._meta, 'static_params'):
+                      # static_params are added to the url as query parameters
+                      url += '?'
+                      for key, value in model._meta.static_params.items():
+                          url += f'{key}={value}&'
+                      url = url[:-1]
 
-                print(f"Current request url after adding params: {url}")
-                response = requests.get(url, timeout=request_timeout)
+                  print(f"Current request url after adding params: {url}")
+                  response = requests.get(url, timeout=request_timeout)
 
-                if response.status_code == 200:
-                    content = response.text
-                    content = self.update_ids_and_fetch_associated(content, base_uri,  output_dir, 0, max_depth)
+                  if response.status_code == 200:
+                      content = response.text
+                      content = self.update_ids_and_fetch_associated(content, base_uri,  output_dir, 0, max_depth)
 
-                    filename = container_path[1:-1]
-                    file_path = os.path.join(output_dir, f'{filename}.jsonld')
+                      filename = container_path[1:-1]
+                      file_path = os.path.join(output_dir, f'{filename}.jsonld')
 
-                    print(f"Output file_path: {file_path}")
-                    with open(file_path, 'w') as f:
-                        f.write(content)
-                    self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved content for {model._meta.model_name} from {url}'))
+                      print(f"Output file_path: {file_path}")
+                      with open(file_path, 'w') as f:
+                          f.write(content)
+                      self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved content for {model._meta.model_name} from {url}'))
+                      regenerated_urls.append(url)
+                  else:
+                      self.stdout.write(self.style.ERROR(f'Failed to fetch content from {url}: {response.status_code}'))
                 else:
-                    self.stdout.write(self.style.ERROR(f'Failed to fetch content from {url}: {response.status_code}'))
+                  self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
 
     def update_ids_and_fetch_associated(self, content, base_uri, output_dir, depth, max_depth):
         if depth > max_depth:
@@ -80,6 +84,10 @@ class Command(BaseCommand):
             if not os.path.exists(associated_file_dir):
                 os.makedirs(associated_file_dir)
 
+            if associated_url in regenerated_urls:
+                self.stdout.write(self.style.WARNING(f'Skipping {associated_url} as it has already been fetched'))
+                return
+
             try:
                 response = requests.get(associated_url, timeout=request_timeout)
                 if response.status_code == 200:
@@ -90,6 +98,7 @@ class Command(BaseCommand):
                         os.makedirs(associated_file_dir)
                     with open(associated_file_path, 'w') as f:
                         f.write(associated_content)
+                    regenerated_urls.append(associated_url)
                     self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content for {associated_url}'))
                 else:
                     self.stdout.write(self.style.ERROR(f'Failed to fetch associated content from {associated_url}: {response.status_code}'))
