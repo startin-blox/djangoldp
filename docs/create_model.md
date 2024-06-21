@@ -1,5 +1,5 @@
 
-### User model requirements
+# User model requirements
 
 When implementing authentication in your own application, you have two options:
 
@@ -469,3 +469,4 @@ MIDDLEWARE = [
 ```
 
 Notice that it will return only HTTP 200 Code.
+

@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, HttpResponseNotFound
 from django.shortcuts import get_object_or_404
 from django.urls import include, re_path, path
 from django.urls.resolvers import get_resolver
@@ -31,6 +31,7 @@ from djangoldp.utils import is_authenticated_user
 from djangoldp.activities import ActivityQueueService, as_activitystream, ACTIVITY_SAVING_SETTING, ActivityPubService
 from djangoldp.activities.errors import ActivityStreamDecodeError, ActivityStreamValidationError
 import logging
+import os
 
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -615,3 +616,23 @@ class WebFingerView(View):
 
     def post(self, request, *args, **kwargs):
         return self.on_request(request)
+
+
+def serve_static_content(request, path):
+    file_path = os.path.join('ssr', path[:-1])
+    if not file_path.endswith('.jsonld'):
+        file_path += '.jsonld'
+
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            content = file.read()
+
+        json_content = json.loads(content)
+        return JsonResponse(json_content, safe=False, status=200,
+                            content_type='application/ld+json',
+                            headers={
+                              'Access-Control-Allow-Origin': '*',
+                              'Cache-Control': 'public, max-age=3600',
+                            })
+    else:
+        return HttpResponseNotFound('File not found')

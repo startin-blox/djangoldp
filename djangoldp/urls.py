@@ -7,7 +7,8 @@ from django.urls import path, re_path, include
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import ReadOnly
 from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
-from djangoldp.views import LDPViewSet
+from djangoldp.views import LDPViewSet, serve_static_content
+
 
 def __clean_path(path):
     '''ensures path is Django-friendly'''
@@ -35,7 +36,8 @@ urlpatterns = [
     re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
                                                                     permission_classes=[ReadOnly], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
-    path('inbox/', InboxView.as_view())
+    path('inbox/', InboxView.as_view()),
+    re_path(r'^ssr/(?P<path>.*)$', serve_static_content, name='serve_static_content'),
 ]
 
 if settings.ENABLE_SWAGGER_DOCUMENTATION:
