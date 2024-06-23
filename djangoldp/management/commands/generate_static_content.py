@@ -62,7 +62,7 @@ class StaticContentGenerator:
             file_path += '.jsonld'
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         try:
-            with open(file_path, 'w') as f:
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             self.stdout.write(self.style.SUCCESS(f'Successfully saved content for {model._meta.model_name} from {url} to {file_path}'))
         except IOError as e:
@@ -113,7 +113,6 @@ class StaticContentGenerator:
 
         self._fetch_and_save_associated_content(original_id, path, depth)
 
-
     def _rewrite_ids_before_saving(self, data):
         if isinstance(data, dict):
             if '@id' in data:
@@ -154,7 +153,7 @@ class StaticContentGenerator:
                 updated_content = json.loads(self._update_ids_and_fetch_associated(response.text, depth + 1))
                 updated_content = self._rewrite_ids_before_saving(updated_content)
 
-                with open(file_path, 'w') as f:
+                with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(json.dumps(updated_content))
                 self.regenerated_urls.add(url)
                 self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content from {url} to {file_path}'))
