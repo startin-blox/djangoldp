@@ -643,7 +643,7 @@ def serve_static_content(request, path):
         if time_difference > 24 * 60 * 60:
             os.remove(file_path)
 
-    if not os.path.exists(file_path):
+    if not os.path.exists(file_path) and request.method == "GET":
 
         resolver = get_resolver()
         match = resolver.resolve("/" + path)
