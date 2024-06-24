@@ -626,6 +626,11 @@ class WebFingerView(View):
 
 def serve_static_content(request, path):
 
+    if request.method != "GET":
+        resolver = get_resolver()
+        match = resolver.resolve("/" + path)
+        return match.func(request, *match.args, **match.kwargs)
+
     server_url = getattr(settings, "BASE_URL", "http://localhost")
 
     output_dir = "ssr"
@@ -643,7 +648,7 @@ def serve_static_content(request, path):
         if time_difference > 24 * 60 * 60:
             os.remove(file_path)
 
-    if not os.path.exists(file_path) and request.method == "GET":
+    if not os.path.exists(file_path):
 
         resolver = get_resolver()
         match = resolver.resolve("/" + path)
