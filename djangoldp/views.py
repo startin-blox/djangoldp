@@ -626,13 +626,15 @@ class WebFingerView(View):
 
 def serve_static_content(request, path):
 
-    output_dir = 'ssr'
+    server_url = getattr(settings, "BASE_URL", "http://localhost")
+
+    output_dir = "ssr"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     file_path = os.path.join(output_dir, path[:-1])
-    if not file_path.endswith('.jsonld'):
-        file_path += '.jsonld'
+    if not file_path.endswith(".jsonld"):
+        file_path += ".jsonld"
 
     if os.path.exists(file_path):
         current_time = time.time()
@@ -644,7 +646,7 @@ def serve_static_content(request, path):
     if not os.path.exists(file_path):
 
         resolver = get_resolver()
-        match = resolver.resolve('/' + path)
+        match = resolver.resolve("/" + path)
         request.user = AnonymousUser()
         response = match.func(request, *match.args, **match.kwargs)
         if response.status_code == 200:
@@ -652,23 +654,40 @@ def serve_static_content(request, path):
             if not os.path.exists(directory):
                 os.makedirs(directory)
             json_content = JSONRenderer().render(response.data)
-            print(json_content)
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(json_content.decode('utf-8'))
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(
+                    json_content.decode("utf-8")
+                    .replace('"@id":"' + server_url, '"@id":"' + server_url + "/ssr")
+                    .replace(
+                        '"@id":"' + server_url + "/ssr/ssr",
+                        '"@id":"' + server_url + "/ssr",
+                    )[:-1]
+                    + ',"@context": "'
+                    + getattr(
+                        settings,
+                        "LDP_RDF_CONTEXT",
+                        "https://cdn.startinblox.com/owl/context.jsonld",
+                    )
+                    + '"}'
+                )
 
     if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
 
         try:
             json_content = json.loads(content)
-            return JsonResponse(json_content, safe=False, status=200,
-                                content_type='application/ld+json',
-                                headers={
-                                    'Access-Control-Allow-Origin': '*',
-                                    'Cache-Control': 'public, max-age=3600',
-                                })
+            return JsonResponse(
+                json_content,
+                safe=False,
+                status=200,
+                content_type="application/ld+json",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "public, max-age=3600",
+                },
+            )
         except json.JSONDecodeError:
             pass
 
-    return HttpResponseNotFound('File not found')
+    return HttpResponseNotFound("File not found")
