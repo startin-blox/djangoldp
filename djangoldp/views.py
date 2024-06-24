@@ -629,6 +629,7 @@ def serve_static_content(request, path):
     if request.method != "GET":
         resolver = get_resolver()
         match = resolver.resolve("/" + path)
+        request.user = AnonymousUser()
         return match.func(request, *match.args, **match.kwargs)
 
     server_url = getattr(settings, "BASE_URL", "http://localhost")
