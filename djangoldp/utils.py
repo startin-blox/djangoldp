@@ -1,6 +1,7 @@
 from django.conf import settings
 from guardian.utils import get_anonymous_user
 
+PASSTHROUGH_IPS = getattr(settings, 'PASSTHROUGH_IPS', '')
 
 # convenience function returns True if user is anonymous
 def is_anonymous_user(user):
