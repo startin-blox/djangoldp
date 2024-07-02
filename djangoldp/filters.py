@@ -1,6 +1,9 @@
 from django.conf import settings
 from django.db.models import Q
 from rest_framework.filters import BaseFilterBackend
+from djangoldp.utils import check_client_ip
+
+PASSTHROUGH_IPS = getattr(settings, 'PASSTHROUGH_IPS', '')
 
 class OwnerFilterBackend(BaseFilterBackend):
     """Adds the objects owned by the user"""
@@ -133,3 +136,10 @@ class SearchByQueryParamFilterBackend(BaseFilterBackend):
             queryset = queryset.filter(_construct_search_query(search))
 
         return queryset
+
+class IPFilterBackend(BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        if check_client_ip(request):
+            return queryset
+        else:
+            return queryset.none()
