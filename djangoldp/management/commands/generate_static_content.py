@@ -121,12 +121,13 @@ class StaticContentGenerator:
                     content_id = urljoin(self.base_uri, content_id)
                     parsed_url = urlparse(content_id)
 
-                path = parsed_url.path
-                if path.startswith(urlparse(self.base_uri).path):
-                    path = path[len(urlparse(self.base_uri).path):]
+                if not 'ssr/' in data['@id']:
+                  path = parsed_url.path
+                  if path.startswith(urlparse(self.base_uri).path):
+                      path = path[len(urlparse(self.base_uri).path):]
 
-                new_id = f'/ssr{path}'
-                data['@id'] = urljoin(self.base_uri, new_id)
+                  new_id = f'/ssr{path}'
+                  data['@id'] = urljoin(self.base_uri, new_id)
             for value in data.values():
                 if isinstance(value, (dict, list)):
                     self._rewrite_ids_before_saving(value)
