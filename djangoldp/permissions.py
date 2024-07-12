@@ -4,7 +4,7 @@ from django.http import Http404
 from rest_framework.permissions import BasePermission, DjangoObjectPermissions, OR, AND
 from rest_framework.filters import BaseFilterBackend
 from rest_framework_guardian.filters import ObjectPermissionsFilter
-from djangoldp.filters import OwnerFilterBackend, NoFilterBackend, PublicFilterBackend, IPFilterBackend
+from djangoldp.filters import OwnerFilterBackend, NoFilterBackend, PublicFilterBackend, IPFilterBackend, ActiveFilterBackend
 from djangoldp.utils import is_anonymous_user, is_authenticated_user, check_client_ip
 
 
@@ -79,7 +79,7 @@ class LDPBasePermission(BasePermission):
     """
     # filter backends associated with the permissions class. This will be used to filter queryset in the (auto-generated)
     # view for a model, and in the serializing nested fields
-    filter_backend = NoFilterBackend
+    filter_backend = ActiveFilterBackend
     # by default, all permissions
     permissions = getattr(settings, 'DJANGOLDP_PERMISSIONS', DEFAULT_DJANGOLDP_PERMISSIONS)
     # perms_map defines the permissions required for different methods
