@@ -21,12 +21,22 @@ class OwnerFilterBackend(BaseFilterBackend):
 
 class PublicFilterBackend(BaseFilterBackend):
     """
-    No filter applied.
-    This class is useful for permission classes that don't filter objects, so that they can be chained with other
+    Public filter applied.
+    This class can be applied on models which bears a is_public boolean field, to filter objects that are public.
     """       
     def filter_queryset(self, request, queryset, view):
         public_field = queryset.model._meta.public_field
         return queryset.filter(**{public_field: True})
+
+class ActiveFilterBackend(BaseFilterBackend):
+    """
+    Filter which removes inactive objects from the queryset, useful for user for instance and configurable using the active_field meta
+    """
+    def filter_queryset(self, request, queryset, view):
+        if (hasattr(queryset.model._meta, 'active_field')):
+            is_active_field = queryset.model._meta.active_field
+            return queryset.filter(**{is_active_field :True})
+        return queryset
 
 class NoFilterBackend(BaseFilterBackend):
     """
