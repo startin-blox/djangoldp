@@ -22,7 +22,7 @@ class OwnerFilterBackend(BaseFilterBackend):
 class PublicFilterBackend(BaseFilterBackend):
     """
     Public filter applied.
-    This class is on models which bears a is_public boolean field, to filter objects that are public
+    This class can be applied on models which bears a is_public boolean field, to filter objects that are public.
     """       
     def filter_queryset(self, request, queryset, view):
         public_field = queryset.model._meta.public_field
