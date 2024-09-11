@@ -15,6 +15,7 @@ class StaticContentGenerator:
         self.request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
         self.regenerated_urls = set()
         self.output_dir = 'ssr'
+        self.output_dir_filtered = 'ssr_filtered'
 
     def generate_content(self):
         self._create_output_directory()
@@ -23,6 +24,7 @@ class StaticContentGenerator:
 
     def _create_output_directory(self):
         os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(self.output_dir_filtered, exist_ok=True)
 
     def _get_static_models(self):
         return [model for model in apps.get_models() if hasattr(model._meta, 'static_version')]
@@ -31,31 +33,37 @@ class StaticContentGenerator:
         self.stdout.write(f"Generating content for model: {model}")
         url = self._build_url(model)
         if url not in self.regenerated_urls:
-            self._fetch_and_save_content(model, url)
+            self._fetch_and_save_content(model, url, self.output_dir)
         else:
             self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
+        if hasattr(model._meta, 'static_params'):
+            url = self._build_url(model, True)
+            if url not in self.regenerated_urls:
+                self._fetch_and_save_content(model, url, self.output_dir_filtered)
+            else:
+                self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
 
-    def _build_url(self, model):
+    def _build_url(self, model, use_static_params=True):
         container_path = model.get_container_path()
         url = urljoin(self.base_uri, container_path)
-        if hasattr(model._meta, 'static_params'):
+        if hasattr(model._meta, 'static_params') and use_static_params:
             url += '?' + '&'.join(f'{k}={v}' for k, v in model._meta.static_params.items())
         return url
 
-    def _fetch_and_save_content(self, model, url):
+    def _fetch_and_save_content(self, model, url, output_dir):
         try:
             response = requests.get(url, timeout=self.request_timeout)
             if response.status_code == 200:
                 content = self._update_ids_and_fetch_associated(response.text)
-                self._save_content(model, url, content)
+                self._save_content(model, url, content, output_dir)
             else:
                 self.stdout.write(self.style.ERROR(f'Failed to fetch content from {url}: HTTP {response.status_code}'))
         except requests.exceptions.RequestException as e:
             self.stdout.write(self.style.ERROR(f'Error fetching content from {url}: {str(e)}'))
 
-    def _save_content(self, model, url, content):
+    def _save_content(self, model, url, content, output_dir):
         relative_path = urlparse(url).path.strip('/')
-        file_path = os.path.join(self.output_dir, relative_path)
+        file_path = os.path.join(output_dir, relative_path)
         if file_path.endswith('/'):
             file_path = file_path[:-1]
         if not file_path.endswith('.jsonld'):
@@ -116,18 +124,19 @@ class StaticContentGenerator:
     def _rewrite_ids_before_saving(self, data):
         if isinstance(data, dict):
             if '@id' in data:
+                original_id = data['@id']
                 parsed_url = urlparse(data['@id'])
                 if not parsed_url.netloc:
-                    content_id = urljoin(self.base_uri, content_id)
+                    content_id = urljoin(self.base_uri, original_id)
                     parsed_url = urlparse(content_id)
 
-                if not 'ssr/' in data['@id']:
-                  path = parsed_url.path
-                  if path.startswith(urlparse(self.base_uri).path):
-                      path = path[len(urlparse(self.base_uri).path):]
+                if 'ssr/' not in data['@id']:
+                    path = parsed_url.path
+                    if path.startswith(urlparse(self.base_uri).path):
+                        path = path[len(urlparse(self.base_uri).path):]
 
-                  new_id = f'/ssr{path}'
-                  data['@id'] = urljoin(self.base_uri, new_id)
+                    new_id = f'/ssr{path}'
+                    data['@id'] = urljoin(self.base_uri, new_id)
             for value in data.values():
                 if isinstance(value, (dict, list)):
                     self._rewrite_ids_before_saving(value)

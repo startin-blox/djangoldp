@@ -634,11 +634,16 @@ def serve_static_content(request, path):
 
     server_url = getattr(settings, "BASE_URL", "http://localhost")
 
+    is_filtered = request.GET.get('search-fields', False)
+
     output_dir = "ssr"
+    output_dir_filtered = "ssr_filtered"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
+    if not os.path.exists(output_dir_filtered):
+        os.makedirs(output_dir_filtered, exist_ok=True)
 
-    file_path = os.path.join(output_dir, path[:-1])
+    file_path = os.path.join(output_dir if not is_filtered else output_dir_filtered, path[:-1])
     if not file_path.endswith(".jsonld"):
         file_path += ".jsonld"
 
