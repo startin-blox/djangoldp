@@ -43,7 +43,7 @@ class StaticContentGenerator:
             else:
                 self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
 
-    def _build_url(self, model, use_static_params=True):
+    def _build_url(self, model, use_static_params=False):
         container_path = model.get_container_path()
         url = urljoin(self.base_uri, container_path)
         if hasattr(model._meta, 'static_params') and use_static_params:
