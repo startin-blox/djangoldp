@@ -14,6 +14,7 @@ class StaticContentGenerator:
         self.max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
         self.request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
         self.regenerated_urls = set()
+        self.failed_urls = set()
         self.output_dir = 'ssr'
         self.output_dir_filtered = 'ssr_filtered'
 
@@ -32,13 +33,13 @@ class StaticContentGenerator:
     def _process_model(self, model):
         self.stdout.write(f"Generating content for model: {model}")
         url = self._build_url(model)
-        if url not in self.regenerated_urls:
+        if url not in self.regenerated_urls and url not in self.failed_urls:
             self._fetch_and_save_content(model, url, self.output_dir)
         else:
             self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
         if hasattr(model._meta, 'static_params'):
             url = self._build_url(model, True)
-            if url not in self.regenerated_urls:
+            if url not in self.regenerated_urls and url not in self.failed_urls:
                 self._fetch_and_save_content(model, url, self.output_dir_filtered)
             else:
                 self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
@@ -149,6 +150,9 @@ class StaticContentGenerator:
         if url in self.regenerated_urls:
             self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
             return
+        if url in self.failed_urls:
+            self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been tried and failed'))
+            return
 
         file_path = os.path.join(self.output_dir, new_path.strip('/'))
         if file_path.endswith('/'):
@@ -168,6 +172,7 @@ class StaticContentGenerator:
                 self.regenerated_urls.add(url)
                 self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content from {url} to {file_path}'))
             else:
+                self.failed_urls.add(url)
                 self.stdout.write(self.style.ERROR(f'Failed to fetch associated content from {url}: HTTP {response.status_code}'))
         except requests.exceptions.RequestException as e:
             self.stdout.write(self.style.ERROR(f'Error fetching associated content from {url}: {str(e)}'))
