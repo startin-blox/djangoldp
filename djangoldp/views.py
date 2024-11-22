@@ -86,6 +86,7 @@ class InboxView(APIView):
     Receive linked data notifications
     """
     permission_classes = [AllowAny, ]
+    renderer_classes = [JSONLDRenderer]
 
     def post(self, request, *args, **kwargs):
         '''
