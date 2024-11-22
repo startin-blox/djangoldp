@@ -69,13 +69,15 @@ for model in get_all_non_abstract_subclasses(Model):
     model_path = __clean_path(model.get_container_path())
     # urls_fct will be a method which generates urls for a ViewSet (defined in LDPViewSetGenerator)
     urls_fct = getattr(model, 'view_set', LDPViewSet).urls
-    urlpatterns.append(path('' + model_path,
-        urls_fct(model=model,
-                 lookup_field=getattr(model._meta, 'lookup_field', 'pk'),
-                 permission_classes=getattr(model._meta, 'permission_classes', []),
-                 fields=getattr(model._meta, 'serializer_fields', []),
-                 nested_fields=getattr(model._meta, 'nested_fields', [])
-                 )))
+    disable_url = getattr(model._meta, 'disable_url', False)
+    if not disable_url:
+        urlpatterns.append(path('' + model_path,
+            urls_fct(model=model,
+                    lookup_field=getattr(model._meta, 'lookup_field', 'pk'),
+                    permission_classes=getattr(model._meta, 'permission_classes', []),
+                    fields=getattr(model._meta, 'serializer_fields', []),
+                    nested_fields=getattr(model._meta, 'nested_fields', [])
+                    )))
 
 # NOTE: this route will be ignored if a custom (subclass of Model) user model is used, or it is registered by a package
 # Django matches the first url it finds for a given path
