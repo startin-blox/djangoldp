@@ -267,6 +267,7 @@ class Activity(Model):
     class Meta(Model.Meta):
         container_path = "activities"
         rdf_type = 'as:Activity'
+        disable_url = True
 
     def to_activitystream(self):
         return json.loads(self.payload)
@@ -284,6 +285,9 @@ class ScheduledActivity(Activity):
         self.is_finished = False
         super(ScheduledActivity, self).save(*args, **kwargs)
 
+    class Meta(Model.Meta):
+        disable_url = True
+
 
 class Follower(Model):
     '''Models a subscription on a model. When the model is saved, an Update activity will be sent to the inbox'''
@@ -293,6 +297,9 @@ class Follower(Model):
 
     def __str__(self):
         return 'Inbox ' + str(self.inbox) + ' on ' + str(self.object)
+
+    class Meta(Model.Meta):
+        disable_url = True
 
 class DynamicNestedField:
     '''
