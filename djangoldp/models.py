@@ -340,7 +340,7 @@ def auto_urlid(sender, instance, **kwargs):
 def create_role_groups(sender, instance, created, **kwargs):
     if created:
         for name, params in getattr(instance._meta, 'permission_roles', {}).items():
-            group = Group.objects.create(name=f'LDP_{instance._meta.model_name}_{name}_{instance.id}')
+            group, x = Group.objects.get_or_create(name=f'LDP_{instance._meta.model_name}_{name}_{instance.id}')
             setattr(instance, name, group)
             instance.save()
             if params.get('add_author'):
