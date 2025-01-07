@@ -1,12 +1,15 @@
-import uuid
-import time
 import copy
+import time
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
-from djangoldp.tests.models import Circle, Project
+
+from djangoldp.activities.services import (BACKLINKS_ACTOR, ActivityPubService,
+                                           ActivityQueueService)
 from djangoldp.models import Activity, ScheduledActivity
-from djangoldp.activities.services import BACKLINKS_ACTOR, ActivityPubService, ActivityQueueService
+from djangoldp.tests.models import Circle, Project
 
 
 class TestsBacklinksService(APITestCase):
@@ -111,13 +114,13 @@ class TestsBacklinksService(APITestCase):
 
             time.sleep(0.1)
             # assert that all scheduled activities were cleaned up
-            self.assertEquals(ScheduledActivity.objects.count(), 0)
+            self.assertEqual(ScheduledActivity.objects.count(), 0)
 
             # assert that ONLY the newly scheduled activity was sent
             activities = Activity.objects.all()
-            self.assertEquals(Activity.objects.count(), 1)
+            self.assertEqual(Activity.objects.count(), 1)
             astream = activities[0].to_activitystream()
-            self.assertEquals(astream['summary'], new_activity['summary'])
+            self.assertEqual(astream['summary'], new_activity['summary'])
             activities[0].delete()
 
         # variation using expanded syntax
@@ -147,8 +150,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('http://127.0.0.1:8001/idontexist/', scheduled_b)
 
         # assert that both scheduled activities were sent, and the scheduled activities were cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 2)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 2)
 
     # variation on the previous test where the two activities are working on different models (using the same object)
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
@@ -168,8 +171,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('http://127.0.0.1:8001/idontexist/', scheduled_b)
 
         # assert that both scheduled activities were sent, and the scheduled activities were cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 2)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 2)
 
     # variation using an Add and a Remove (one defines target, the other origin)
     # also tests that an unnecessary add is not sent
@@ -189,8 +192,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('http://127.0.0.1:8001/idontexist/', scheduled_b)
 
         # assert that both scheduled activities were sent, and the scheduled activities were cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 1)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 1)
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_unnecessary_add_not_sent(self):
@@ -206,8 +209,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled_b)
 
         # assert that only the previous activity was sent, and the scheduled activites cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 1)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 1)
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_unnecessary_remove_not_sent(self):
@@ -223,8 +226,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled_b)
 
         # assert that only the previous activity was sent, and the scheduled activites cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 1)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 1)
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_necessary_add_sent(self):
@@ -240,8 +243,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled_b)
 
         # assert that both activities sent, and the scheduled activites cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 2)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 2)
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_first_add_sent(self):
@@ -254,8 +257,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled)
 
         # assert that the activity was sent, and the scheduled activites cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 1)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 1)
 
     # validate Update activity objects have new info before sending the notification
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
@@ -278,8 +281,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled_b)
 
         # assert that only the previous activity was sent, and the scheduled activites cleaned up
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 1)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 1)
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_necessary_update_is_sent(self):
@@ -302,8 +305,8 @@ class TestsBacklinksService(APITestCase):
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled_b)
 
         # assert that both activities were sent
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 2)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 2)
 
     @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX='DEBUG')
     def test_first_update_is_sent(self):
@@ -318,5 +321,5 @@ class TestsBacklinksService(APITestCase):
         scheduled = ActivityQueueService._save_sent_activity(activity, ScheduledActivity, type='update',
                                                              external_id='https://distant.com/inbox/')
         ActivityQueueService._activity_queue_worker('https://distant.com/inbox/', scheduled)
-        self.assertEquals(ScheduledActivity.objects.count(), 0)
-        self.assertEquals(Activity.objects.count(), 1)
+        self.assertEqual(ScheduledActivity.objects.count(), 0)
+        self.assertEqual(Activity.objects.count(), 1)

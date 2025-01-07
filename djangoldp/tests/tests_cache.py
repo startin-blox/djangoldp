@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
-from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.utils import json
 
-from djangoldp.tests.models import Conversation, Project, Circle
+from djangoldp.tests.models import Circle, Conversation, Project
 
 
 class TestCache(TestCase):
@@ -45,8 +45,8 @@ class TestCache(TestCase):
 
         response = self.client.get('/batchs/', content_type='application/ld+json')
         self.assertIn('ldp:contains', response.data)
-        self.assertEquals(response.data['ldp:contains'][0]['title'], "title")
-        self.assertEquals(response.data['ldp:contains'][0]['invoice']['title'], "title 2")
+        self.assertEqual(response.data['ldp:contains'][0]['title'], "title")
+        self.assertEqual(response.data['ldp:contains'][0]['invoice']['title'], "title 2")
 
     # test resource cache after it is updated
     @override_settings(SERIALIZER_CACHE=True)
@@ -68,7 +68,7 @@ class TestCache(TestCase):
 
         response = self.client.get('/conversations/{}/'.format(conversation.pk), content_type='application/ld+json')
         self.assertIn('peer_user', response.data)
-        self.assertEquals('conversation update', response.data['description'])
+        self.assertEqual('conversation update', response.data['description'])
         self.assertEqual(response.data['peer_user']['@id'], self.user.urlid)
         self.assertIn('@type', response.data['peer_user'])
 
@@ -94,7 +94,7 @@ class TestCache(TestCase):
 
         response = self.client.get('/conversations/{}/'.format(conversation.pk), content_type='application/ld+json')
         self.assertIn('peer_user', response.data)
-        self.assertEquals('conversation update', response.data['description'])
+        self.assertEqual('conversation update', response.data['description'])
         self.assertIn('@id', response.data['peer_user'])
         # serialize external id and only external id
         self.assertEqual(response.data['peer_user']['@id'], external_user.urlid)

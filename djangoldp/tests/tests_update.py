@@ -1,12 +1,14 @@
 import uuid
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.utils import json
 
-from djangoldp.tests.models import UserProfile, Resource, Invoice, Batch, Task, Skill, JobOffer, Conversation, Project,\
-    NotificationSetting
+from djangoldp.tests.models import (Batch, Conversation, Invoice, JobOffer,
+                                    NotificationSetting, Project, Resource,
+                                    Skill, Task, UserProfile)
 
 
 class Update(TestCase):
@@ -38,15 +40,15 @@ class Update(TestCase):
         response = self.client.patch('/job-offers/{}/'.format(job.slug),
                                      data=json.dumps(post),
                                      content_type='application/ld+json')
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
-        self.assertEquals(response.data['title'], job.title)
+        self.assertEqual(response.data['title'], job.title)
         self.assertIs(job.skills.count(), 3)
         skills = job.skills.all().order_by('title')
-        self.assertEquals(skills[0].title, "new skill")  # new skill
-        self.assertEquals(skills[1].title, pre_existing_skill_a.title)  # old skill unchanged
-        self.assertEquals(skills[2].title, "z")  # updated
-        self.assertEquals(skills[2].obligatoire, pre_existing_skill_b.obligatoire)  # another field not updated
+        self.assertEqual(skills[0].title, "new skill")  # new skill
+        self.assertEqual(skills[1].title, pre_existing_skill_a.title)  # old skill unchanged
+        self.assertEqual(skills[2].title, "z")  # updated
+        self.assertEqual(skills[2].obligatoire, pre_existing_skill_b.obligatoire)  # another field not updated
     '''
 
     def test_put_resource(self):
@@ -57,8 +59,8 @@ class Update(TestCase):
         response = self.client.put('/skills/{}/'.format(skill.slug), data=json.dumps(body),
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['title'], "new")
-        self.assertEquals(response.data['obligatoire'], "new")
+        self.assertEqual(response.data['title'], "new")
+        self.assertEqual(response.data['obligatoire'], "new")
         self.assertIn('location', response.headers)
 
     def test_patch_resource(self):
@@ -70,8 +72,8 @@ class Update(TestCase):
         response = self.client.patch('/skills/{}/'.format(skill.slug), data=json.dumps(body),
                                      content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['title'], "new")
-        self.assertEquals(response.data['obligatoire'], "original")
+        self.assertEqual(response.data['title'], "new")
+        self.assertEqual(response.data['obligatoire'], "original")
 
     def test_create_sub_object_in_existing_object_with_existing_reverse_1to1_relation(self):
         user = get_user_model().objects.create(username="alex", password="test")
@@ -526,21 +528,21 @@ class Update(TestCase):
                                    content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
 
-        self.assertEquals(response.data['title'], "new")
-        self.assertEquals(response.data['@id'], invoice.urlid)
+        self.assertEqual(response.data['title'], "new")
+        self.assertEqual(response.data['@id'], invoice.urlid)
 
         invoice = Invoice.objects.get(pk=invoice.pk)
         self.assertIs(invoice.batches.count(), 2)
         batches = invoice.batches.all().order_by('title')
-        self.assertEquals(batches[0].title, "new")
-        self.assertEquals(batches[0].urlid, pre_existing_batch.urlid)
-        self.assertEquals(batches[1].title, "z")
+        self.assertEqual(batches[0].title, "new")
+        self.assertEqual(batches[0].urlid, pre_existing_batch.urlid)
+        self.assertEqual(batches[1].title, "z")
 
         self.assertIs(batches[0].tasks.count(), 2)
         tasks = batches[0].tasks.all().order_by('title')
-        self.assertEquals(tasks[0].title, "new")
-        self.assertEquals(tasks[0].pk, pre_existing_task.pk)
-        self.assertEquals(tasks[1].title, "tache 2")
+        self.assertEqual(tasks[0].title, "new")
+        self.assertEqual(tasks[0].pk, pre_existing_task.pk)
+        self.assertEqual(tasks[1].title, "tache 2")
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/333
     '''def test_update_container_nested_view(self):
@@ -567,7 +569,7 @@ class Update(TestCase):
         print(str(response.data))
         self.assertEqual(response.status_code, 200)
 
-        self.assertEquals(response.data['name'], circle.name)
+        self.assertEqual(response.data['name'], circle.name)
         self.assertEqual(response.data['@id'], circle.urlid)
         self.assertIs(CircleMember.objects.count(), 2)
         self.assertIs(circle.members.count(), 2)

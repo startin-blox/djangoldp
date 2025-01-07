@@ -1,9 +1,13 @@
 from datetime import datetime
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIRequestFactory, APIClient, APITestCase
 
-from djangoldp.tests.models import User, Post, Invoice, JobOffer, Skill, Batch, DateModel, Circle, UserProfile, Conversation, Message
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient, APIRequestFactory, APITestCase
+
 from djangoldp.serializers import GLOBAL_SERIALIZER_CACHE
+from djangoldp.tests.models import (Batch, Circle, Conversation, DateModel,
+                                    Invoice, JobOffer, Message, Post, Skill,
+                                    User, UserProfile)
+
 
 class TestGET(APITestCase):
 
@@ -21,7 +25,7 @@ class TestGET(APITestCase):
         post = Post.objects.create(content="content")
         response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json', HTTP_ORIGIN='http://localhost:8080/test/')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['content'], "content")
+        self.assertEqual(response.data['content'], "content")
         self.assertIn('author', response.data)
         self.assertIn('@type', response.data)
 
@@ -39,7 +43,7 @@ class TestGET(APITestCase):
         post = Post.objects.create(content="content", author=user)
         response = self.client.get('/posts/{}/'.format(post.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['content'], "content")
+        self.assertEqual(response.data['content'], "content")
         self.assertEqual(response.data['author']['@id'], user.urlid)
 
     def test_get_container(self):
@@ -48,7 +52,7 @@ class TestGET(APITestCase):
         Post.objects.create(content="federated", urlid="https://external.com/posts/1/")
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(1, len(response.data['ldp:contains']))
+        self.assertEqual(1, len(response.data['ldp:contains']))
         self.assertIn('@type', response.data)
         self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertNotIn('permissions', response.data['ldp:contains'][0])
@@ -57,12 +61,12 @@ class TestGET(APITestCase):
         response = self.client.get('/invoices/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
         self.assertIn('permissions', response.data)
-        self.assertEquals(1, len(response.data['permissions']))  # read only
+        self.assertEqual(1, len(response.data['permissions']))  # read only
 
     def test_get_empty_container(self):
         response = self.client.get('/posts/', content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(0, len(response.data['ldp:contains']))
+        self.assertEqual(0, len(response.data['ldp:contains']))
 
     def test_get_filtered_fields(self):
         skill = Skill.objects.create(title="Java", obligatoire="ok", slug="1")
@@ -114,14 +118,14 @@ class TestGET(APITestCase):
         distant_batch = Batch.objects.create(invoice=invoice, title="distant", urlid="https://external.com/batch/1/")
         response = self.client.get('/invoices/{}/batches/'.format(invoice.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
+        self.assertEqual(response.data['@id'], 'http://happy-dev.fr/invoices/{}/batches/'.format(invoice.pk))
         self.assertIn('permissions', response.data)
-        self.assertEquals(len(response.data['ldp:contains']), 2)
+        self.assertEqual(len(response.data['ldp:contains']), 2)
         self.assertIn('@type', response.data['ldp:contains'][0])
         self.assertIn('@type', response.data['ldp:contains'][1])
         self.assertNotIn('permissions', response.data['ldp:contains'][0])
         self.assertNotIn('permissions', response.data['ldp:contains'][1])
-        self.assertEquals(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
+        self.assertEqual(response.data['ldp:contains'][0]['invoice']['@id'], invoice.urlid)
         self.assertEqual(response.data['ldp:contains'][1]['@id'], distant_batch.urlid)
 
     def test_get_nested_without_related_name(self):
@@ -130,8 +134,8 @@ class TestGET(APITestCase):
         message = Message.objects.create(conversation=conversation, author_user=user)
         response = self.client.get('/conversations/{}/message_set/'.format(conversation.pk), content_type='application/ld+json')
         self.assertEqual(response.status_code, 200)
-        self.assertEquals(response.data['@id'], 'http://happy-dev.fr/conversations/{}/message_set/'.format(conversation.pk))
-        self.assertEquals(len(response.data['ldp:contains']), 1)
+        self.assertEqual(response.data['@id'], 'http://happy-dev.fr/conversations/{}/message_set/'.format(conversation.pk))
+        self.assertEqual(len(response.data['ldp:contains']), 1)
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/335
     #  test getting a route with multiple nested fields (/job-offers/X/skills/Y/)
@@ -232,4 +236,4 @@ class TestGET(APITestCase):
     #     for test_fields in fields_to_test:
     #         test_fields = list(test_fields)
     #         o_f = [field for field in self.ordered_fields if field in test_fields]
-    #         self.assertEquals(o_f, test_fields[:len(o_f)])
+    #         self.assertEqual(o_f, test_fields[:len(o_f)])

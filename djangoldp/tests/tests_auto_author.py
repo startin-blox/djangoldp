@@ -1,7 +1,8 @@
 import json
 
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIRequestFactory, APIClient, APITestCase
+from rest_framework.test import APIClient, APIRequestFactory, APITestCase
+
 from djangoldp.tests.models import UserProfile
 
 
@@ -22,4 +23,4 @@ class TestAutoAuthor(APITestCase):
 
         response = self.client.post('/posts/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEquals(response.data['content'], "post content")
+        self.assertEqual(response.data['content'], "post content")

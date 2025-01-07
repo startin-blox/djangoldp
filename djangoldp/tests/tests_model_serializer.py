@@ -1,11 +1,11 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
-from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 
 from djangoldp.serializers import LDPSerializer
-from djangoldp.tests.models import Invoice, Batch, ModelTask
-from djangoldp.tests.models import Skill, JobOffer, Conversation, Message
+from djangoldp.tests.models import (Batch, Conversation, Invoice, JobOffer,
+                                    Message, ModelTask, Skill)
 
 
 class LDPModelSerializerTestCase(TestCase):
@@ -42,13 +42,13 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
 
-        self.assertEquals(result.title, "job test updated")
+        self.assertEqual(result.title, "job test updated")
         self.assertIs(result.skills.count(), 2)
         skills = result.skills.all().order_by("title")
-        self.assertEquals(skills[0].title, "new skill")
-        self.assertEquals(skills[0].obligatoire, "okay")
-        self.assertEquals(skills[1].title, "z") # updated
-        self.assertEquals(skills[1].obligatoire, pre_existing_skill.obligatoire)
+        self.assertEqual(skills[0].title, "new skill")
+        self.assertEqual(skills[0].obligatoire, "okay")
+        self.assertEqual(skills[1].title, "z") # updated
+        self.assertEqual(skills[1].obligatoire, pre_existing_skill.obligatoire)
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/326
     '''
@@ -72,13 +72,13 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
         result = serializer.save(partial=True)
 
-        self.assertEquals(result.title, job.title)
+        self.assertEqual(result.title, job.title)
         self.assertIs(result.skills.count(), 3)
         skills = result.skills.all().order_by('title')
-        self.assertEquals(skills[0].title, "new skill") # new skill
-        self.assertEquals(skills[1].title, pre_existing_skill_a.title) # old skill unchanged
-        self.assertEquals(skills[2].title, "z") # updated
-        self.assertEquals(skills[2].obligatoire, pre_existing_skill_b.obligatoire) # another field not updated
+        self.assertEqual(skills[0].title, "new skill") # new skill
+        self.assertEqual(skills[1].title, pre_existing_skill_a.title) # old skill unchanged
+        self.assertEqual(skills[2].title, "z") # updated
+        self.assertEqual(skills[2].obligatoire, pre_existing_skill_b.obligatoire) # another field not updated
     '''
 
     def test_update_container_edit_and_new_external_resources(self):
@@ -101,17 +101,17 @@ class LDPModelSerializerTestCase(TestCase):
         result = serializer.save()
 
         skills = result.skills.all().order_by('urlid')
-        self.assertEquals(result.title, job.title)
+        self.assertEqual(result.title, job.title)
         self.assertEqual(result.pk, job.pk)
         self.assertEqual(result.urlid, job.urlid)
         self.assertIs(result.skills.count(), 2)
-        self.assertEquals(skills[0].title, "external skill")  # new skill
-        self.assertEquals(skills[0].urlid, "https://external.com/skills/1/")  # new skill
-        self.assertEquals(skills[0].obligatoire, "okay")
-        self.assertEquals(skills[1].title, pre_existing_external.title)  # old skill unchanged
-        self.assertEquals(skills[1].urlid, pre_existing_external.urlid)
-        self.assertEquals(skills[1].obligatoire, "okay")
-        self.assertEquals(skills[1].pk, pre_existing_external.pk)
+        self.assertEqual(skills[0].title, "external skill")  # new skill
+        self.assertEqual(skills[0].urlid, "https://external.com/skills/1/")  # new skill
+        self.assertEqual(skills[0].obligatoire, "okay")
+        self.assertEqual(skills[1].title, pre_existing_external.title)  # old skill unchanged
+        self.assertEqual(skills[1].urlid, pre_existing_external.urlid)
+        self.assertEqual(skills[1].obligatoire, "okay")
+        self.assertEqual(skills[1].pk, pre_existing_external.pk)
 
     def test_update_container_attach_existing_resource(self):
         job = JobOffer.objects.create(title="job test")
@@ -134,11 +134,11 @@ class LDPModelSerializerTestCase(TestCase):
         result = serializer.save()
 
         skills = result.skills.all().order_by('urlid')
-        self.assertEquals(result.title, job.title)
+        self.assertEqual(result.title, job.title)
         self.assertEqual(result.pk, job.pk)
         self.assertEqual(result.urlid, job.urlid)
         self.assertIs(result.skills.count(), 1)
-        self.assertEquals(skills[0].urlid, pre_existing_skill.urlid)
+        self.assertEqual(skills[0].urlid, pre_existing_skill.urlid)
         self.assertIs(another_job.skills.count(), 1)
         self.assertIs(Skill.objects.count(), 1)
 
@@ -164,11 +164,11 @@ class LDPModelSerializerTestCase(TestCase):
         result = serializer.save()
 
         skills = result.skills.all().order_by('urlid')
-        self.assertEquals(result.title, job.title)
+        self.assertEqual(result.title, job.title)
         self.assertEqual(result.pk, job.pk)
         self.assertEqual(result.urlid, job.urlid)
         self.assertIs(result.skills.count(), 1)
-        self.assertEquals(skills[0].urlid, pre_existing_external.urlid)
+        self.assertEqual(skills[0].urlid, pre_existing_external.urlid)
         self.assertIs(another_job.skills.count(), 1)
         self.assertIs(Skill.objects.count(), 1)
 
@@ -275,7 +275,7 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
 
-        self.assertEquals(result.name, circle.name)
+        self.assertEqual(result.name, circle.name)
         self.assertEqual(result.pk, circle.pk)
         self.assertEqual(result.urlid, circle.urlid)
         self.assertIs(result.members.count(), 2)
@@ -328,21 +328,21 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
 
-        self.assertEquals(result.title, "new")
-        self.assertEquals(result.urlid, invoice.urlid)
-        self.assertEquals(result.pk, invoice.pk)
+        self.assertEqual(result.title, "new")
+        self.assertEqual(result.urlid, invoice.urlid)
+        self.assertEqual(result.pk, invoice.pk)
 
         self.assertIs(result.batches.count(), 2)
         batches = result.batches.all().order_by('title')
-        self.assertEquals(batches[0].title, "new")
-        self.assertEquals(batches[0].urlid, pre_existing_batch.urlid)
-        self.assertEquals(batches[1].title, "z")
+        self.assertEqual(batches[0].title, "new")
+        self.assertEqual(batches[0].urlid, pre_existing_batch.urlid)
+        self.assertEqual(batches[1].title, "z")
 
         self.assertIs(batches[0].tasks.count(), 2)
         tasks = batches[0].tasks.all().order_by('title')
-        self.assertEquals(tasks[0].title, "new")
-        self.assertEquals(tasks[0].urlid, pre_existing_task.urlid)
-        self.assertEquals(tasks[1].title, "tache 2")
+        self.assertEqual(tasks[0].title, "new")
+        self.assertEqual(tasks[0].urlid, pre_existing_task.urlid)
+        self.assertEqual(tasks[1].title, "tache 2")
 
     # variation on the above test with external resources
     def test_update_container_twice_nested_external_resources(self):
@@ -380,21 +380,21 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
 
-        self.assertEquals(result.title, "new")
-        self.assertEquals(result.urlid, invoice.urlid)
-        self.assertEquals(result.pk, invoice.pk)
+        self.assertEqual(result.title, "new")
+        self.assertEqual(result.urlid, invoice.urlid)
+        self.assertEqual(result.pk, invoice.pk)
 
         self.assertIs(result.batches.count(), 2)
         batches = result.batches.all().order_by('title')
-        self.assertEquals(batches[0].title, "new")
-        self.assertEquals(batches[0].urlid, pre_existing_batch.urlid)
-        self.assertEquals(batches[1].title, "z")
+        self.assertEqual(batches[0].title, "new")
+        self.assertEqual(batches[0].urlid, pre_existing_batch.urlid)
+        self.assertEqual(batches[1].title, "z")
 
         self.assertIs(batches[0].tasks.count(), 2)
         tasks = batches[0].tasks.all().order_by('title')
-        self.assertEquals(tasks[0].title, "new")
-        self.assertEquals(tasks[0].urlid, pre_existing_task.urlid)
-        self.assertEquals(tasks[1].title, "tache 2")'''
+        self.assertEqual(tasks[0].title, "new")
+        self.assertEqual(tasks[0].urlid, pre_existing_task.urlid)
+        self.assertEqual(tasks[1].title, "tache 2")'''
 
     # variation on the test where a field is omitted on each level (no changes are made)
     def test_update_container_twice_nested_no_changes_missing_fields(self):
@@ -421,18 +421,18 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid(raise_exception=True)
         result = serializer.save(partial=True)
 
-        self.assertEquals(result.title, invoice.title)
-        self.assertEquals(result.urlid, invoice.urlid)
-        self.assertEquals(result.pk, invoice.pk)
+        self.assertEqual(result.title, invoice.title)
+        self.assertEqual(result.urlid, invoice.urlid)
+        self.assertEqual(result.pk, invoice.pk)
 
         self.assertIs(result.batches.count(), 1)
         batches = result.batches.all()
-        self.assertEquals(batches[0].title, pre_existing_batch.title)
-        self.assertEquals(batches[0].urlid, pre_existing_batch.urlid)
+        self.assertEqual(batches[0].title, pre_existing_batch.title)
+        self.assertEqual(batches[0].urlid, pre_existing_batch.urlid)
 
         self.assertIs(batches[0].tasks.count(), 1)
         tasks = batches[0].tasks.all()
-        self.assertEquals(tasks[0].title, pre_existing_task.title)
+        self.assertEqual(tasks[0].title, pre_existing_task.title)
 
     def test_update_graph_edit_and_new_resource(self):
         redundant_skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug1")
@@ -475,11 +475,11 @@ class LDPModelSerializerTestCase(TestCase):
 
         skills = result.skills.all().order_by('title')
 
-        self.assertEquals(result.title, "job test updated")
+        self.assertEqual(result.title, "job test updated")
         self.assertIs(result.skills.count(), 3)
-        self.assertEquals(skills[0].title, "new skill")  # new skill
-        self.assertEquals(skills[1].title, "skill1")  # no change
-        self.assertEquals(skills[2].title, "skill2 UP")  # title updated
+        self.assertEqual(skills[0].title, "new skill")  # new skill
+        self.assertEqual(skills[1].title, "skill1")  # no change
+        self.assertEqual(skills[2].title, "skill2 UP")  # title updated
 
     def test_update_graph_2(self):
         skill = Skill.objects.create(title="to drop", obligatoire="obligatoire", slug="slug")
@@ -530,12 +530,12 @@ class LDPModelSerializerTestCase(TestCase):
 
         skills = result.skills.all().order_by('title')
 
-        self.assertEquals(result.title, "job test updated")
+        self.assertEqual(result.title, "job test updated")
         self.assertIs(result.skills.count(), 3)
-        self.assertEquals(skills[0].title, "new skill")  # new skill
-        self.assertEquals(skills[1].title, "skill1")  # no change
-        self.assertEquals(skills[2].title, "skill2 UP")  # title updated
-        self.assertEquals(skill, skill._meta.model.objects.get(pk=skill.pk))  # title updated
+        self.assertEqual(skills[0].title, "new skill")  # new skill
+        self.assertEqual(skills[1].title, "skill1")  # no change
+        self.assertEqual(skills[2].title, "skill2 UP")  # title updated
+        self.assertEqual(skill, skill._meta.model.objects.get(pk=skill.pk))  # title updated
 
     def test_update_list_with_reverse_relation(self):
         user1 = get_user_model().objects.create()
@@ -573,10 +573,10 @@ class LDPModelSerializerTestCase(TestCase):
 
         messages = result.message_set.all().order_by('text')
 
-        self.assertEquals(result.description, "Conversation 1 UP")
+        self.assertEqual(result.description, "Conversation 1 UP")
         self.assertIs(result.message_set.count(), 2)
-        self.assertEquals(messages[0].text, "Message 1 UP")
-        self.assertEquals(messages[1].text, "Message 2 UP")
+        self.assertEqual(messages[0].text, "Message 1 UP")
+        self.assertEqual(messages[1].text, "Message 2 UP")
 
     def test_add_new_element_with_foreign_key_id(self):
         user1 = get_user_model().objects.create()
@@ -637,11 +637,11 @@ class LDPModelSerializerTestCase(TestCase):
 
         messages = result.message_set.all().order_by('text')
 
-        self.assertEquals(result.description, "Conversation 1 UP")
+        self.assertEqual(result.description, "Conversation 1 UP")
         self.assertIs(result.message_set.count(), 3)
-        self.assertEquals(messages[0].text, "Message 1 UP")
-        self.assertEquals(messages[1].text, "Message 2 UP")
-        self.assertEquals(messages[2].text, "Message 3 NEW")
+        self.assertEqual(messages[0].text, "Message 1 UP")
+        self.assertEqual(messages[1].text, "Message 2 UP")
+        self.assertEqual(messages[2].text, "Message 3 NEW")
 
     # TODO: variation on https://git.startinblox.com/djangoldp-packages/djangoldp/issues/344
     '''def test_update_container_invalid_fk_reference_given(self):
@@ -676,11 +676,11 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid()
         result = serializer.save()
 
-        self.assertEquals(result.title, "Nouvelle facture")
+        self.assertEqual(result.title, "Nouvelle facture")
         self.assertIs(result.batches.count(), 1)
-        self.assertEquals(result.batches.all()[0].title, "Batch 1")
+        self.assertEqual(result.batches.all()[0].title, "Batch 1")
         self.assertIs(result.batches.all()[0].tasks.count(), 1)
-        self.assertEquals(result.batches.all()[0].tasks.all()[0].title, "Tache 1")
+        self.assertEqual(result.batches.all()[0].tasks.all()[0].title, "Tache 1")
 
     def test_save_m2m(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="slug1")
@@ -704,11 +704,11 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid()
         result = serializer.save()
 
-        self.assertEquals(result.title, "job test")
+        self.assertEqual(result.title, "job test")
         self.assertIs(result.skills.count(), 3)
-        self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
-        self.assertEquals(result.skills.all()[1].title, "skill2 UP")  # title updated
-        self.assertEquals(result.skills.all()[2].title, "skill3")  # creation on the fly
+        self.assertEqual(result.skills.all()[0].title, "skill1")  # no change
+        self.assertEqual(result.skills.all()[1].title, "skill2 UP")  # title updated
+        self.assertEqual(result.skills.all()[2].title, "skill3")  # creation on the fly
 
     # variation switching the http prefix of the BASE_URL in the request
     @override_settings(BASE_URL='http://happy-dev.fr/')
@@ -731,9 +731,9 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid()
         result = serializer.save()
 
-        self.assertEquals(result.title, "job test")
+        self.assertEqual(result.title, "job test")
         self.assertIs(result.skills.count(), 1)
-        self.assertEquals(result.skills.all()[0].title, "skill1")  # no change
+        self.assertEqual(result.skills.all()[0].title, "skill1")  # no change
 
     def test_save_m2m_graph_simple(self):
         job = {"@graph": [
@@ -749,7 +749,7 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid()
         result = serializer.save()
 
-        self.assertEquals(result.title, "job test")
+        self.assertEqual(result.title, "job test")
         self.assertIs(result.skills.count(), 0)
 
     def test_save_m2m_graph_with_nested(self):
@@ -772,9 +772,9 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid()
         result = serializer.save()
 
-        self.assertEquals(result.title, "job test")
+        self.assertEqual(result.title, "job test")
         self.assertIs(result.skills.count(), 1)
-        self.assertEquals(result.skills.all()[0].title, "skill3 NEW")  # creation on the fly
+        self.assertEqual(result.skills.all()[0].title, "skill3 NEW")  # creation on the fly
 
     def test_save_without_nested_fields(self):
         skill1 = Skill.objects.create(title="skill1", obligatoire="obligatoire", slug="a")
@@ -789,7 +789,7 @@ class LDPModelSerializerTestCase(TestCase):
         serializer.is_valid()
         result = serializer.save()
 
-        self.assertEquals(result.title, "job test")
+        self.assertEqual(result.title, "job test")
         self.assertIs(result.skills.count(), 0)
 
     def test_save_on_sub_iri(self):
@@ -809,7 +809,7 @@ class LDPModelSerializerTestCase(TestCase):
         kwargs['joboffer'] = job
         result = serializer.save(**kwargs)
 
-        self.assertEquals(result.title, "new SKILL")
+        self.assertEqual(result.title, "new SKILL")
         self.assertIs(result.joboffer_set.count(), 1)
-        self.assertEquals(result.joboffer_set.get(), job)
+        self.assertEqual(result.joboffer_set.get(), job)
         self.assertIs(result.joboffer_set.get().skills.count(), 1)

@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.utils import json
 
 from djangoldp.models import Model
-from djangoldp.tests.models import Invoice, LDPDummy, Resource, Post, Circle, Project, Space
+from djangoldp.tests.models import (Circle, Invoice, LDPDummy, Post, Project,
+                                    Resource, Space)
 
 
 class PostTestCase(TestCase):
@@ -35,8 +36,8 @@ class PostTestCase(TestCase):
         response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('author', response.data)
-        self.assertEquals(response.data['title'], "title")
-        self.assertEquals(response.data['invoice']['title'], "title 2")
+        self.assertEqual(response.data['title'], "title")
+        self.assertEqual(response.data['invoice']['title'], "title 2")
 
     def test_save_fk_graph_with_existing_nested(self):
         invoice = Invoice.objects.create(title="title 3")
@@ -54,8 +55,8 @@ class PostTestCase(TestCase):
         response = self.client.post('/batchs/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('author', response.data)
-        self.assertEquals(response.data['title'], "title")
-        self.assertEquals(response.data['invoice']['title'], "title 3")
+        self.assertEqual(response.data['title'], "title")
+        self.assertEqual(response.data['invoice']['title'], "title 3")
 
     def test_post_should_accept_missing_field_id_nullable(self):
             body = [
@@ -236,7 +237,7 @@ class PostTestCase(TestCase):
         }
         response = self.client.post('/invoices/', data=json.dumps(post), content_type='application/ld+json')
         self.assertEqual(response.status_code, 201)
-        self.assertEquals(response.data['title'], "title")
+        self.assertEqual(response.data['title'], "title")
 
     # from JSON-LD spec: "The value associated with the @value key MUST be either a string, a number, true, false or null"
     def test_save_field_with_invalid_value_object(self):

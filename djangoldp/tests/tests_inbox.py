@@ -1,10 +1,12 @@
 import json
-from django.contrib.auth import get_user_model
+
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
-from djangoldp.tests.models import Circle, Project, DateModel, DateChild
+
 from djangoldp.models import Activity, Follower
+from djangoldp.tests.models import Circle, DateChild, DateModel, Project
 
 
 class TestsInbox(APITestCase):
@@ -48,7 +50,7 @@ class TestsInbox(APITestCase):
     def _assert_activity_created(self, response, activity_len=1):
         '''Auxiliary function asserts that the activity was created and returned correctly'''
         activities = Activity.objects.all()
-        self.assertEquals(len(activities), activity_len)
+        self.assertEqual(len(activities), activity_len)
         self.assertIn(response["Location"], activities.values_list('urlid', flat=True))
 
     def _assert_follower_created(self, local_urlid, external_urlid):
@@ -76,13 +78,13 @@ class TestsInbox(APITestCase):
 
         # assert that the circle was created and the user associated as owner
         circles = Circle.objects.all()
-        self.assertEquals(len(circles), 1)
+        self.assertEqual(len(circles), 1)
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self.assertEqual(circles[0].owner, self.user)
         self._assert_activity_created(response)
 
         # assert external circle member now following local user
-        self.assertEquals(Follower.objects.count(), 1)
+        self.assertEqual(Follower.objects.count(), 1)
         self._assert_follower_created(self.user.urlid, "https://distant.com/circles/1/")
 
     # # tests creation, and tests that consequential creation also happens
@@ -108,7 +110,7 @@ class TestsInbox(APITestCase):
 
     #     # assert that the circle was created and the user associated as member
     #     circles = Circle.objects.all()
-    #     self.assertEquals(len(circles), 1)
+    #     self.assertEqual(len(circles), 1)
     #     self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
     #     self.assertTrue(circles[0].members.filter(user=self.user).exists())
     #     self._assert_activity_created(response)
@@ -136,8 +138,8 @@ class TestsInbox(APITestCase):
         self.assertEqual(response.status_code, 404)
 
         # assert that the circle was not created neither a backlinked user
-        self.assertEquals(Circle.objects.count(), 0)
-        self.assertEquals(get_user_model().objects.count(), prior_users_length)
+        self.assertEqual(Circle.objects.count(), 0)
+        self.assertEqual(get_user_model().objects.count(), prior_users_length)
 
     #
     #   ADD ACTIVITIES
@@ -158,14 +160,14 @@ class TestsInbox(APITestCase):
         # assert that the project backlink(s) & activity were created
         projects = Project.objects.all()
         user_projects = self.user.projects.all()
-        self.assertEquals(len(projects), 1)
-        self.assertEquals(len(user_projects), 1)
+        self.assertEqual(len(projects), 1)
+        self.assertEqual(len(user_projects), 1)
         self.assertIn("https://distant.com/projects/1/", projects.values_list('urlid', flat=True))
         self.assertIn("https://distant.com/projects/1/", user_projects.values_list('urlid', flat=True))
         self._assert_activity_created(response)
 
         # assert external circle member now following local user
-        self.assertEquals(Follower.objects.count(), 1)
+        self.assertEqual(Follower.objects.count(), 1)
         self._assert_follower_created(self.user.urlid, "https://distant.com/projects/1/")
 
 #TODO: write a new test for the new circle architecture
@@ -196,14 +198,14 @@ class TestsInbox(APITestCase):
     #     # assert that the circle backlink(s) & activity were created
     #     circles = Circle.objects.all()
     #     user_circles = self.user.circles.all()
-    #     self.assertEquals(len(circles), 1)
-    #     self.assertEquals(len(user_circles), 1)
+    #     self.assertEqual(len(circles), 1)
+    #     self.assertEqual(len(user_circles), 1)
     #     self.assertIn(ext_circle_urlid, circles.values_list('urlid', flat=True))
     #     self.assertIn(ext_circlemember_urlid, user_circles.values_list('urlid', flat=True))
     #     self._assert_activity_created(response)
 
     #     # assert external circle member now following local user
-    #     self.assertEquals(Follower.objects.count(), 1)
+    #     self.assertEqual(Follower.objects.count(), 1)
     #     self._assert_follower_created(self.user.urlid, ext_circlemember_urlid)
 
     # test sending an add activity when the backlink already exists
@@ -235,15 +237,15 @@ class TestsInbox(APITestCase):
     #     # assert that the circle backlink(s) & activity were created
     #     circles = Circle.objects.all()
     #     user_circles = self.user.circles.all()
-    #     self.assertEquals(len(circles), 1)
-    #     self.assertEquals(len(user_circles), 1)
+    #     self.assertEqual(len(circles), 1)
+    #     self.assertEqual(len(user_circles), 1)
     #     self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
     #     self.assertIn("https://distant.com/circle-members/1/", user_circles.values_list('urlid', flat=True))
     #     self._assert_activity_created(response)
     #     self.assertEqual(Activity.objects.count(), prior_count + 1)
 
     #     # assert that followers exist for the external urlids
-    #     self.assertEquals(Follower.objects.count(), 1)
+    #     self.assertEqual(Follower.objects.count(), 1)
     #     self._assert_follower_created(self.user.urlid, '') #TODO: replace with an existing model
 
     # TODO: https://git.startinblox.com/djangoldp-packages/djangoldp/issues/250
@@ -272,10 +274,10 @@ class TestsInbox(APITestCase):
         self.assertEqual(response.status_code, 400)
 
         # assert that nothing was created
-        self.assertEquals(Circle.objects.count(), 0)
-        self.assertEquals(self.user.owned_circles.count(), 0)
+        self.assertEqual(Circle.objects.count(), 0)
+        self.assertEqual(self.user.owned_circles.count(), 0)
         self.assertEqual(Activity.objects.count(), 0)
-        self.assertEquals(Follower.objects.count(), 0)
+        self.assertEqual(Follower.objects.count(), 0)
 
     # # error behaviour - invalid url
     # @override_settings(SEND_BACKLINKS=True, DISABLE_OUTBOX=True)
@@ -440,8 +442,8 @@ class TestsInbox(APITestCase):
         # assert that the project backlink(s) & activity were created
         projects = Project.objects.all()
         user_projects = self.user.projects.all()
-        self.assertEquals(len(projects), 1)
-        self.assertEquals(len(user_projects), 1)
+        self.assertEqual(len(projects), 1)
+        self.assertEqual(len(user_projects), 1)
         self.assertIn("https://distant.com/projects/1/", projects.values_list('urlid', flat=True))
         self.assertIn("https://distant.com/projects/1/", user_projects.values_list('urlid', flat=True))
         self._assert_activity_created(response)
@@ -494,8 +496,8 @@ class TestsInbox(APITestCase):
         # assert that the circle backlink(s) were removed & activity were created
         projects = Project.objects.all()
         user_projects = self.user.projects.all()
-        self.assertEquals(len(projects), 1)
-        self.assertEquals(len(user_projects), 0)
+        self.assertEqual(len(projects), 1)
+        self.assertEqual(len(user_projects), 0)
         self.assertIn("https://distant.com/projects/1/", projects.values_list('urlid', flat=True))
         self._assert_activity_created(response, prior_activity_count + 1)
         self.assertEqual(Follower.objects.count(), 0)
@@ -574,9 +576,9 @@ class TestsInbox(APITestCase):
     #     # assert that the Circle member was removed and activity was created
     #     circles = Circle.objects.all()
     #     user_circles = self.user.circles.all()
-    #     self.assertEquals(len(circles), 1)
-    #     self.assertEquals(circle.members.count(), 0)
-    #     self.assertEquals(len(user_circles), 0)
+    #     self.assertEqual(len(circles), 1)
+    #     self.assertEqual(circle.members.count(), 0)
+    #     self.assertEqual(len(user_circles), 0)
     #     self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
     #     self._assert_activity_created(response)
     #     self.assertEqual(Follower.objects.count(), 0)
@@ -608,8 +610,8 @@ class TestsInbox(APITestCase):
         # assert that the circle was created and the user associated as owner
         circles = Circle.objects.all()
         users = get_user_model().objects.all()
-        self.assertEquals(len(circles), 1)
-        self.assertEquals(len(users), prior_user_count + 1)
+        self.assertEqual(len(circles), 1)
+        self.assertEqual(len(users), prior_user_count + 1)
         distant_user = get_user_model().objects.get(urlid="https://distant.com/users/1/")
         self.assertIn("https://distant.com/circles/1/", circles.values_list('urlid', flat=True))
         self.assertEqual(circles[0].owner, distant_user)
@@ -632,7 +634,7 @@ class TestsInbox(APITestCase):
 
         # assert that Follower was created with correct values
         followers = Follower.objects.all()
-        self.assertEquals(len(followers), 1)
+        self.assertEqual(len(followers), 1)
         self._assert_activity_created(response)
         follower = followers[0]
         self.assertEqual("http://127.0.0.1:8000/inbox/", follower.inbox)
@@ -643,10 +645,10 @@ class TestsInbox(APITestCase):
         circle = Circle.objects.create(description='Test Description')
         Follower.objects.create(object=circle.urlid, inbox="http://127.0.0.1:8000/inbox/")
         followers = Follower.objects.all()
-        self.assertEquals(len(followers), 1)
+        self.assertEqual(len(followers), 1)
         circle.delete()
         followers = Follower.objects.all()
-        self.assertEquals(len(followers), 0)
+        self.assertEqual(len(followers), 0)
 
     #
     #   GET Inbox
