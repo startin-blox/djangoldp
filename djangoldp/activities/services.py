@@ -624,7 +624,7 @@ class ActivityPubService(object):
     @classmethod
     def get_follower_inboxes(cls, object_urlid):
         '''Auxiliary function returns a set of inboxes, from the followers of parameterised object urlid'''
-        inboxes = set(Follower.objects.filter(object=object_urlid).values_list('inbox', flat=True))
+        inboxes = set(Follower.objects.filter(object__startswith=object_urlid).values_list('inbox', flat=True))
         return inboxes
 
     @classmethod
