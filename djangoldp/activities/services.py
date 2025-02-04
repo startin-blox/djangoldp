@@ -8,6 +8,7 @@ from requests.exceptions import Timeout, ConnectionError
 from urllib.parse import urlparse
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save, post_delete, m2m_changed
+from django.db.models import Q
 from django.dispatch import receiver, Signal
 from django.conf import settings
 from rest_framework.utils import model_meta
@@ -622,9 +623,9 @@ class ActivityPubService(object):
         return inboxes
 
     @classmethod
-    def get_follower_inboxes(cls, object_urlid):
+    def get_follower_inboxes(cls, object_urlid, object_container=None):
         '''Auxiliary function returns a set of inboxes, from the followers of parameterised object urlid'''
-        inboxes = set(Follower.objects.filter(object=object_urlid).values_list('inbox', flat=True))
+        inboxes = set(Follower.objects.filter(Q(object=object_urlid) | Q(object__endswith=object_container)).values_list('inbox', flat=True))
         return inboxes
 
     @classmethod
@@ -664,7 +665,7 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
             and not Model.is_external(instance) \
             and getattr(instance, 'username', None) != 'hubl-workaround-493':
         external_urlids = ActivityPubService.get_related_externals(sender, instance)
-        inboxes = ActivityPubService.get_follower_inboxes(instance.urlid)
+        inboxes = ActivityPubService.get_follower_inboxes(instance.urlid, instance.get_container_path())
         targets = set().union(ActivityPubService.get_target_inboxes(external_urlids), inboxes)
 
         if len(targets) > 0:
@@ -687,7 +688,7 @@ def check_save_for_backlinks(sender, instance, created, **kwargs):
 def check_delete_for_backlinks(sender, instance, **kwargs):
     if getattr(settings, 'SEND_BACKLINKS', True) and getattr(instance, 'allow_create_backlink', False) \
             and getattr(instance, 'username', None) != 'hubl-workaround-493':
-        targets = ActivityPubService.get_follower_inboxes(instance.urlid)
+        targets = ActivityPubService.get_follower_inboxes(instance.urlid, instance.get_container_path())
 
         if len(targets) > 0:
             for target in targets:
