@@ -749,7 +749,7 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
         query_set = member_model.objects.filter(pk__in=pk_set)
         targets = build_targets(query_set)
 
-        if len(targets) > 0:
+        if len(targets) > 0 and hasattr(instance, 'urlid'):
             obj = {
                 "@type": container_rdf_type,
                 "@id": instance.urlid
@@ -763,3 +763,4 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
                 for target in targets:
                     ActivityPubService.send_remove_activity(BACKLINKS_ACTOR, obj, target)
                     ActivityPubService.remove_followers_for_resource(target['@id'], obj['@id'])
+
