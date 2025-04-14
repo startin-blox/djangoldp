@@ -211,9 +211,19 @@ class Model(models.Model):
         if type == 'foaf:user':
             return get_user_model()
 
+        def find_subclass_with_rdf_type(cls):
+            if getattr(cls._meta, "rdf_type", None) == type:
+                return cls
+            for subcls in cls.__subclasses__():
+                result = find_subclass_with_rdf_type(subcls)
+                if result:
+                    return result
+            return None
+
         for subcls in Model.__subclasses__():
-            if getattr(subcls._meta, "rdf_type", None) == type:
-                return subcls
+            result = find_subclass_with_rdf_type(subcls)
+            if result:
+                return result
 
         return None
 
