@@ -1,11 +1,13 @@
 from csv import DictWriter
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.core.exceptions import FieldDoesNotExist
 from django.http import HttpResponse
 from guardian.admin import GuardedModelAdmin
-from djangoldp.models import Activity, ScheduledActivity, Follower
+
 from djangoldp.activities.services import ActivityQueueService
+from djangoldp.models import Activity, Follower, ScheduledActivity
 
 
 class DjangoLDPAdmin(GuardedModelAdmin):
@@ -74,17 +76,14 @@ resend_activity.short_description = 'Resend activity'
 @admin.register(Activity, ScheduledActivity)
 class ActivityAdmin(DjangoLDPAdmin):
     fields = ['urlid', 'type', 'local_id', 'external_id', 'created_at', 'success', 'payload_view', 'response_code',
-              'response_location', 'response_body_view']
+              'response_location', 'response_body']
     list_display = ['created_at', 'type', 'local_id', 'external_id', 'success', 'response_code']
-    readonly_fields = ['created_at', 'payload_view', 'response_location', 'response_code', 'response_body_view']
+    readonly_fields = ['created_at', 'payload_view', 'response_location', 'response_code', 'response_body']
     search_fields = ['urlid', 'type', 'local_id', 'external_id', 'response_code']
     actions = [resend_activity]
 
     def payload_view(self, obj):
         return str(obj.to_activitystream())
-
-    def response_body_view(self, obj):
-        return str(obj.response_to_json())
 
 
 @admin.register(Follower)
