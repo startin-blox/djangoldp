@@ -4,6 +4,7 @@ import os
 import time
 
 import validators
+from collections import OrderedDict
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -52,11 +53,19 @@ class JSONLDRenderer(JSONRenderer):
         if isinstance(data, dict):
             context = data.get("@context")
             if isinstance(context, list):
-                data["@context"] = [settings.LDP_RDF_CONTEXT] + context
+                context_value = [settings.LDP_RDF_CONTEXT] + context
             elif isinstance(context, str) or isinstance(context, dict):
-                data["@context"] = [settings.LDP_RDF_CONTEXT, context]
+                context_value = [settings.LDP_RDF_CONTEXT, context]
             else:
-                data["@context"] = settings.LDP_RDF_CONTEXT
+                context_value = settings.LDP_RDF_CONTEXT
+
+            ordered_data = OrderedDict()
+            ordered_data["@context"] = context_value
+            for key, value in data.items():
+                if key != "@context":
+                    ordered_data[key] = value
+            data = ordered_data
+
         return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
 
 
