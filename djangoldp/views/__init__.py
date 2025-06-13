@@ -1,0 +1,1 @@
+"""Views served by default on DjangoLDP.""" 

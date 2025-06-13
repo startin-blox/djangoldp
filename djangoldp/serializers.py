@@ -433,7 +433,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
     def build_property_field(self, field_name, model_class):
         class JSonLDPropertyField(ReadOnlyField):
             def to_representation(self, instance):
-                from djangoldp.views import LDPViewSet
+                from djangoldp.views.ldp_viewset import LDPViewSet
                 if isinstance(instance, QuerySet):
                     model = instance.model
                 elif isinstance(instance, Model):

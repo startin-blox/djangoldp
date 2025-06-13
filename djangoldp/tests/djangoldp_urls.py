@@ -1,7 +1,7 @@
 from django.urls import path
 from djangoldp.tests.models import Message, Conversation, Dummy, PermissionlessDummy, Task, DateModel, LDPDummy
 from djangoldp.permissions import ACLPermissions
-from djangoldp.views import LDPViewSet
+from djangoldp.views.ldp_viewset import LDPViewSet
 
 urlpatterns = [
     path('messages/', LDPViewSet.urls(model=Message, fields=["@id", "text", "conversation"], nested_fields=['conversation'])),
