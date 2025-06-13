@@ -61,7 +61,7 @@ Note that this will be overridden if you explicitly set the fields= parameter as
 ```python
 from django.conf.urls import url
 from django.contrib import admin
-from djangoldp.views import LDPViewSet
+from djangoldp.views.ldp_viewset import LDPViewSet
 from .models import Todo
 
 urlpatterns = [
