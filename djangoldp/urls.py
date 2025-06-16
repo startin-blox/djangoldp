@@ -6,8 +6,10 @@ from django.urls import path, re_path, include
 
 from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import ReadOnly
-from djangoldp.views import LDPSourceViewSet, WebFingerView, InboxView
-from djangoldp.views import LDPViewSet, serve_static_content
+from djangoldp.views.webfinger import WebFingerView
+from djangoldp.views.inbox import InboxView
+from djangoldp.views.ldp_viewset import LDPViewSet, LDPSourceViewSet
+from djangoldp.views.static import serve_static_content
 
 
 def __clean_path(path):
