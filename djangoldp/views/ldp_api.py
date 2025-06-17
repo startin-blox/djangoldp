@@ -15,8 +15,8 @@ class LDPAPIView(APIView):
     def dispatch(self, request, *args, **kwargs):
         '''overriden dispatch method to append some custom headers'''
         response = super().dispatch(request, *args, **kwargs)
-        
-        if response.status_code in [201, 200] and isinstance(response.data, dict) and '@id' in response.data:
+
+        if response.status_code in [201, 200] and getattr(response, 'data') and isinstance(response.data, dict) and '@id' in response.data:
             response["Location"] = str(response.data['@id'])
         else:
             pass
