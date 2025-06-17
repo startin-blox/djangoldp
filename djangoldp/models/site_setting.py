@@ -1,7 +1,7 @@
 # models.py
 from django.db import models
 
-class SiteSettings(models.Model):
+class SiteSetting(models.Model):
     title = models.CharField(max_length=200, default="My App")
     description = models.TextField(blank=True)
     terms_url = models.URLField(blank=True)
