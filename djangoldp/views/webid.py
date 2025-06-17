@@ -2,6 +2,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
 
+from djangoldp.models import SiteSetting
+
 from rest_framework import status
 
 
@@ -25,13 +27,22 @@ class InstanceWebIDView(View):
                 "@id": request.build_absolute_uri(f"/profile"),
                 "@type": "foaf:PersonalProfileDocument",
                 "foaf:primaryTopic": request.build_absolute_uri(f"/profile#me"),
-            },
-            {
-                "@id": request.build_absolute_uri(f"/profile#me"),
-                "@type": ["sib:HublApplication", "solid:Application", "foaf:Agent"],
-                "solid:publicTypeIndex": request.build_absolute_uri(typeIndexLocation),
             }
         ]
+
+        try:
+            config = SiteSetting.get_solo()
+        except SiteSetting.DoesNotExist:
+            config = SiteSetting(title="Default Title", description="", terms_url="")
+
+        response["@graph"].append({
+            "@id": request.build_absolute_uri("/profile#me"),
+            "@type": ["sib:HublApplication", "solid:Application", "foaf:Agent"],
+            "title": config.title,
+            "description": config.description,
+            "termsAndConditions": config.terms_url,
+            "solid:publicTypeIndex": request.build_absolute_uri(typeIndexLocation),
+        })
 
         return JsonResponse(response,
                         content_type='application/ld+json',

@@ -3,11 +3,13 @@ from csv import DictWriter
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.core.exceptions import FieldDoesNotExist
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
+
 from guardian.admin import GuardedModelAdmin
 
 from djangoldp.activities.services import ActivityQueueService
-from djangoldp.models import Activity, Follower, ScheduledActivity
+from djangoldp.models import Activity, Follower, ScheduledActivity, SiteSetting
 
 
 class DjangoLDPAdmin(GuardedModelAdmin):
@@ -92,4 +94,22 @@ class FollowerAdmin(DjangoLDPAdmin):
     list_display = ['urlid', 'object', 'inbox', 'follower']
     search_fields = ['object', 'inbox', 'follower']
 
+
+@admin.register(SiteSetting)
+class SiteSettingAdmin(admin.ModelAdmin):
+    fields = ['title', 'description', 'terms_url']
+    list_display = ['title', 'description', 'terms_url']
+
+    def has_add_permission(self, request):
+        # Prevent “Add” button if instance already exists
+        return not SiteSetting.objects.exists()
+
+    def changelist_view(self, request, extra_context=None):
+        # If an instance exists, redirect the changelist to the change form
+        config = SiteSetting.objects.first()
+        if config:
+            return HttpResponseRedirect(
+                reverse('admin:djangoldp_sitesetting_change', args=[config.pk])
+            )
+        return super().changelist_view(request, extra_context)
 
