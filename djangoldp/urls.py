@@ -8,6 +8,9 @@ from djangoldp.models import LDPSource, Model
 from djangoldp.permissions import ReadOnly
 from djangoldp.views.webfinger import WebFingerView
 from djangoldp.views.inbox import InboxView
+from djangoldp.views.instance_container import InstanceRootContainerView
+from djangoldp.views.webid import InstanceWebIDView
+from djangoldp.views.type_index import PublicTypeIndexView
 from djangoldp.views.ldp_viewset import LDPViewSet, LDPSourceViewSet
 from djangoldp.views.static import serve_static_content
 
@@ -39,6 +42,9 @@ urlpatterns = [
                                                                     permission_classes=[ReadOnly], )),
     re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
     path('inbox/', InboxView.as_view()),
+    path('', InstanceRootContainerView.as_view()),
+    path('profile', InstanceWebIDView.as_view()),
+    path('profile/publicTypeIndex', PublicTypeIndexView.as_view()),
     re_path(r'^ssr/(?P<path>.*)$', serve_static_content, name='serve_static_content'),
 ]
 
