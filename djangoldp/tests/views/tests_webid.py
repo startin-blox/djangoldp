@@ -1,3 +1,4 @@
+import json
 from django.test import override_settings
 from rest_framework.test import APIRequestFactory, APITestCase
 from djangoldp.views.webid import InstanceWebIDView
@@ -13,7 +14,7 @@ class InstanceWebIDViewTests(APITestCase):
         response = view(request)
 
         self.assertEqual(response.status_code, 200)
-        data = response.json()
+        data = json.loads(response.content)
 
         self.assertIn('@context', data)
         self.assertIn('@graph', data)

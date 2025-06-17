@@ -1,3 +1,5 @@
+import json
+
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, APITestCase
 from djangoldp.views.type_index import PublicTypeIndexView
@@ -15,7 +17,7 @@ class PublicTypeIndexViewTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/ld+json')
 
-        data = response.json()
+        data = json.loads(response.content)
         self.assertIn('@context', data)
         self.assertIn('@graph', data)
         self.assertIsInstance(data['@graph'], list)

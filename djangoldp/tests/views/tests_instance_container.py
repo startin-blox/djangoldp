@@ -1,4 +1,5 @@
 # tests/test_views.py
+import json
 from rest_framework.test import APITestCase, APIRequestFactory, APIClient
 
 from djangoldp.views.instance_container import InstanceRootContainerView
@@ -16,7 +17,7 @@ class InstanceRootContainerViewTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/ld+json')
 
-        data = response.json()
+        data = json.loads(response.content)
         self.assertIn('@context', data)
         self.assertIn('@id', data)
         self.assertIn('@type', data)
