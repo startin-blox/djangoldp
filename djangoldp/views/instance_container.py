@@ -1,7 +1,7 @@
 from django.apps import apps
 from django.conf import settings
-from django.http import JsonResponse
-from django.views import View
+
+from djangoldp.views.ldp_api import LDPAPIView
 
 from rest_framework.response import Response
 from rest_framework import status
@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class InstanceRootContainerView(View):
+class InstanceRootContainerView(LDPAPIView):
     def get(self, request, *args, **kwargs):
         return self.on_request(request)
 
@@ -35,7 +35,7 @@ class InstanceRootContainerView(View):
                               "@id": request.build_absolute_uri(model.get_container_path()),
                               "@type": "ldp:Container"
                           })
-          response = JsonResponse(response,
+          response = Response(response,
                           content_type='application/ld+json',
                           headers={
                             'Access-Control-Allow-Origin': '*',

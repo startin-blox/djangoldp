@@ -1,12 +1,12 @@
 from django.apps import apps
 from django.conf import settings
-from django.http import JsonResponse
-from django.views import View
+
+from djangoldp.views.ldp_api import LDPAPIView
 
 from rest_framework.response import Response
 
 
-class PublicTypeIndexView(View):
+class PublicTypeIndexView(LDPAPIView):
     def get(self, request, *args, **kwargs):
         return self.on_request(request)
 
@@ -48,7 +48,7 @@ class PublicTypeIndexView(View):
                             "solid:instanceContainer": request.build_absolute_uri(model.get_container_path())
                         })
 
-        return JsonResponse(response,
+        return Response(response,
                         content_type='application/ld+json',
                         headers={
                           'Access-Control-Allow-Origin': '*',

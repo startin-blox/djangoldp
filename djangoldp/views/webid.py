@@ -1,13 +1,13 @@
 from django.conf import settings
-from django.http import JsonResponse
-from django.views import View
 
 from djangoldp.models import SiteSetting
+from djangoldp.views.ldp_api import LDPAPIView
 
 from rest_framework import status
+from rest_framework.response import Response
 
 
-class InstanceWebIDView(View):
+class InstanceWebIDView(LDPAPIView):
     def get(self, request, *args, **kwargs):
         return self.on_request(request)
 
@@ -44,7 +44,7 @@ class InstanceWebIDView(View):
             "solid:publicTypeIndex": request.build_absolute_uri(typeIndexLocation),
         })
 
-        return JsonResponse(response,
+        return Response(response,
                         content_type='application/ld+json',
                         status=status.HTTP_200_OK,
                         headers={
