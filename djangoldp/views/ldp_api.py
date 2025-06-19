@@ -26,3 +26,5 @@ class LDPAPIView(APIView):
                 response['User'] = request.user.urlid
             except AttributeError:
                 pass
+
+        return response
