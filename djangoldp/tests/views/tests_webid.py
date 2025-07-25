@@ -12,6 +12,7 @@ class InstanceWebIDViewTests(APITestCase):
         request = self.factory.get('/profile')
         view = InstanceWebIDView.as_view()
         response = view(request)
+        response.render()
 
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)

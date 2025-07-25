@@ -13,6 +13,7 @@ class PublicTypeIndexViewTests(APITestCase):
         request = self.factory.get('/profile/publicTypeIndex')
         view = PublicTypeIndexView.as_view()
         response = view(request)
+        response.render()
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/ld+json')
