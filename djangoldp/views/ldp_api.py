@@ -3,7 +3,7 @@ import logging
 from rest_framework.views import APIView
 
 from djangoldp.utils import is_authenticated_user
-from djangoldp.views.commons import NoCSRFAuthentication
+from djangoldp.views.commons import NoCSRFAuthentication, JSONLDRenderer
 
 logger = logging.getLogger('djangoldp')
 
@@ -11,6 +11,7 @@ logger = logging.getLogger('djangoldp')
 class LDPAPIView(APIView):
     '''extends rest framework APIView to support Solid standards'''
     authentication_classes = (NoCSRFAuthentication,)
+    renderer_classes = (JSONLDRenderer,)
 
     def dispatch(self, request, *args, **kwargs):
         '''overriden dispatch method to append some custom headers'''
