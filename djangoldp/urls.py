@@ -36,17 +36,7 @@ def get_all_non_abstract_subclasses(cls):
     return set(c for c in cls.__subclasses__() if valid_subclass(c)).union(
         [subclass for c in cls.__subclasses__() for subclass in get_all_non_abstract_subclasses(c) if valid_subclass(subclass)])
 
-urlpatterns = [
-    path('groups/', LDPViewSet.urls(model=Group)),
-    re_path(r'^sources/(?P<federation>\w+)/', LDPSourceViewSet.urls(model=LDPSource, fields=['federation', 'urlid'],
-                                                                    permission_classes=[ReadOnly], )),
-    re_path(r'^\.well-known/webfinger/?$', WebFingerView.as_view()),
-    path('inbox/', InboxView.as_view()),
-    path('', InstanceRootContainerView.as_view()),
-    path('profile', InstanceWebIDView.as_view()),
-    path('profile/publicTypeIndex', PublicTypeIndexView.as_view()),
-    re_path(r'^ssr/(?P<path>.*)$', serve_static_content, name='serve_static_content'),
-]
+urlpatterns = []
 
 if settings.ENABLE_SWAGGER_DOCUMENTATION:
     from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -61,6 +51,7 @@ if settings.ENABLE_SWAGGER_DOCUMENTATION:
         )
     ])
 
+# Import package models and URLs.
 for package in settings.DJANGOLDP_PACKAGES:
     try:
         import_module('{}.models'.format(package))
@@ -70,6 +61,29 @@ for package in settings.DJANGOLDP_PACKAGES:
         urlpatterns.append(path('', include('{}.djangoldp_urls'.format(package))))
     except ModuleNotFoundError:
         pass
+
+# Set Default DjangoLDP behaviours (these can be extended by a package.)
+urlpatterns.extend(
+    [
+        path("groups/", LDPViewSet.urls(model=Group)),
+        re_path(
+            r"^sources/(?P<federation>\w+)/",
+            LDPSourceViewSet.urls(
+                model=LDPSource,
+                fields=["federation", "urlid"],
+                permission_classes=[ReadOnly],
+            ),
+        ),
+        re_path(r"^\.well-known/webfinger/?$", WebFingerView.as_view()),
+        path("inbox/", InboxView.as_view()),
+        path("", InstanceRootContainerView.as_view()),
+        path("profile", InstanceWebIDView.as_view()),
+        path("profile/publicTypeIndex", PublicTypeIndexView.as_view()),
+        re_path(
+            r"^ssr/(?P<path>.*)$", serve_static_content, name="serve_static_content"
+        ),
+    ]
+)
 
 # append urls for all DjangoLDP Model subclasses
 for model in get_all_non_abstract_subclasses(Model):
