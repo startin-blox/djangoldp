@@ -1,10 +1,11 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.utils import json
 
 from djangoldp.models import Model
-from djangoldp.tests.models import (Circle, Invoice, LDPDummy, Post, Project,
+from djangoldp.tests.models import (Circle, Enterprise, Invoice, LDPDummy, Post, Project,
                                     Resource, Space)
 
 
@@ -288,3 +289,25 @@ class PostTestCase(TestCase):
 
         self.assertIsNotNone(space)
         self.assertIsNotNone(space.circle)
+
+    @override_settings(LDP_RDF_CONTEXT="https://cdn.startinblox.com/owl/dfc.jsonld")
+    def test_post_compacted_rdf(self):
+        """
+        Models can use RDF fields with an rdf_type parameter to override the format of fields in the request.
+        """
+        body = {
+            "@context": settings.LDP_RDF_CONTEXT,
+            "dfc-b:name": "Startin'Blox",
+            "dfc-b:VATStatus": True,
+            "dfc-b:affiliatedTo": {
+                "@id": "https://distantUser.com/users/1/",
+                "@type": "foaf:user"
+            }
+        }
+        response = self.client.post("/enterprises/", data=json.dumps(body), content_type="application/ld+json")
+        self.assertEqual(response.status_code, 201)
+        enterprise = Enterprise.objects.get() # Also asserts count == 1
+        self.assertEqual(enterprise.name, body["dfc-b:name"])
+        self.assertEqual(enterprise.VATstatus, body["dfc-b:VATStatus"])
+        affiliate = get_user_model().objects.get(urlid="https://distantUser.com/users/1/") # Also asserts user exists
+        self.assertTrue(enterprise.affiliated_to.get() == affiliate) # Also asserts count == 1

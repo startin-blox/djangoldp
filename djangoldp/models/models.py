@@ -5,7 +5,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.core.exceptions import ObjectDoesNotExist, ValidationError, FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.signals import post_save, pre_save, pre_delete, m2m_changed
@@ -14,7 +14,6 @@ from django.urls import get_resolver
 from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.decorators import classonlymethod
 from guardian.shortcuts import assign_perm
-from rest_framework.utils import model_meta
 from djangoldp.fields import LDPUrlField
 from djangoldp.permissions import DEFAULT_DJANGOLDP_PERMISSIONS, OwnerPermissions, InheritPermissions, ReadOnly
 
@@ -225,6 +224,25 @@ class Model(models.Model):
             if result:
                 return result
 
+        return None
+    
+    @classmethod
+    def get_field_from_rdf_type(cls, rdf_type):
+        """Returns field on this model with the parameterised rdf_type, or None"""
+        try:
+            return cls._meta.get_field(rdf_type)
+        except FieldDoesNotExist:
+            pass
+
+        for field in cls._meta.get_fields():
+            if (
+                getattr(field, "rdf_type", None) == rdf_type
+                or (
+                    hasattr(field, "field")
+                    and getattr(field.field, "related_rdf_type", None) == rdf_type
+                )
+            ):
+                return field
         return None
 
     @classmethod

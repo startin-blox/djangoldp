@@ -1,14 +1,14 @@
 import uuid
 import json
 from collections import OrderedDict
-from collections.abc import Mapping, Iterable
+from collections.abc import Mapping
 from copy import copy
 from typing import Any
 from urllib import parse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, FieldDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import QuerySet
@@ -407,6 +407,21 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         except AttributeError:
             fields = super().get_default_field_names(declared_fields, model_info)
         return fields + list(getattr(self.Meta, 'extra_fields', []))
+    
+    def _get_rdf_field_name(self, model_field):
+        """
+        :return: a string RDF type, if configured on the model_field directly 
+         or on a reverse relation. None, if not configured.
+        """
+        if getattr(model_field, "rdf_type", None) is not None:
+            return model_field.rdf_type
+        # If an RDF type is not configured on the foreign key directly, it may be on the reverse-key
+        elif (
+            hasattr(model_field, "field")
+            and getattr(model_field.field, "related_rdf_type", None) is not None
+        ):
+            return model_field.field.related_rdf_type
+        return None
 
     def to_representation(self, obj):
         # external Models should only be returned with rdf values
@@ -425,6 +440,23 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             data['@id'] = data.pop('urlid')['@id']
         if not '@id' in data:
             data['@id'] = '{}{}'.format(settings.SITE_URL, Model.resource(obj))
+
+        # Django Rest Framework will by default serialize fields with the field name.
+        # LDPFields may have configured an RDF type which is required for valid serialization.
+        # This is handled after serialization to avoid overriding the basic serialization of DRF.
+        model = self.Meta.model
+        for field in self._readable_fields:
+            try:
+                model_field = model._meta.get_field(field.source)
+                if (
+                    model_field is not None
+                    and field.field_name in data
+                    and self._get_rdf_field_name(model_field) is not None
+                ):
+                    data[self._get_rdf_field_name(model_field)] = data[field.field_name]
+                    data.pop(field.field_name)
+            except FieldDoesNotExist:
+                pass
 
         data = self.serialize_rdf_fields(obj, data, include_context=True)
         data = self.add_permissions(data, self.context['request'].user, type(obj), obj=obj)
@@ -541,8 +573,26 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                     errors = OrderedDict()
 
                     # validate fields passed in the data
-                    fields = list(filter(lambda x: x.field_name in data, self._writable_fields))
-                    for field in fields:
+                    for field in self._writable_fields:
+                        # Consider only fields which are present in data, but try to find alternative keys for that field
+                        # in the data, first.
+                        if field.field_name not in data:
+                            try:
+                                model_field = self.Meta.model._meta.get_field(field.source)
+                                rdf_field_name = self._get_rdf_field_name(model_field)
+                                if (
+                                    model_field is not None
+                                    and field.field_name not in data
+                                    and rdf_field_name is not None
+                                    and rdf_field_name in data
+                                ):
+                                    data[field.field_name] = data[rdf_field_name]
+                                    data.pop(rdf_field_name)
+                                else:
+                                    continue
+                            except FieldDoesNotExist:
+                                continue
+
                         validate_method = getattr(self, 'validate_' + field.field_name, None)
                         primitive_value = field.get_value(data)
                         try:
@@ -625,6 +675,29 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         is_user_and_external = self.Meta.model is get_user_model() and '@id' in data and Model.is_external(data['@id'])
         if is_user_and_external:
             data['username'] = 'external'
+
+        # Django Rest Framework will by default parse fields using the field name.
+        # The user may give us JSON-LD, which will have been compacted by the JSON-LD parser, but which may still have
+        # a namespace associated to it.
+        # Currently this data may not always find the correct field, but we make a best-effort by matching
+        # the namespace of the data given to an rdf_type configured on that field.
+        # TODO: This is not a robust solution but a temporary mitigation.
+        # The parser may compact the field to a different namespace or it may not be able to compact the field at all.
+        for field in self._writable_fields:
+            try:
+                model_field = self.Meta.model._meta.get_field(field.source)
+                rdf_field_name = self._get_rdf_field_name(model_field)
+                if (
+                    model_field is not None
+                    and field.field_name not in data
+                    and rdf_field_name is not None
+                    and rdf_field_name in data
+                ):
+                    data[field.field_name] = data[rdf_field_name]
+                    data.pop(rdf_field_name)
+            except FieldDoesNotExist:
+                pass
+
         ret = super().to_internal_value(data)
         if is_user_and_external:
             ret['urlid'] = data['@id']
