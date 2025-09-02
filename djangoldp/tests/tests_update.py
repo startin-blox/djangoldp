@@ -2,13 +2,14 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.utils import json
+from unittest.mock import patch
 
-from djangoldp.tests.models import (Batch, Conversation, Invoice, JobOffer,
+from djangoldp.tests.models import (Batch, Conversation, Enterprise, Invoice, JobOffer,
                                     NotificationSetting, Project, Resource,
-                                    Skill, Task, UserProfile)
+                                    Skill, Task, User, UserProfile)
 
 
 class Update(TestCase):
@@ -583,3 +584,28 @@ class Update(TestCase):
         self.assertEqual(members[1].user, another_user)
         self.assertEqual(members[1].is_admin, False)'''
 
+    @override_settings(LDP_RDF_CONTEXT="https://cdn.startinblox.com/owl/dfc.jsonld")
+    def test_post_compacted_rdf(self):
+        """
+        Models can use RDF fields with an rdf_type parameter to override the format of fields in the request.
+        """
+
+        with patch.object(User._meta, "depth", 1):
+            user = User.objects.create(username="alex", password="test")
+            enterprise = Enterprise.objects.create()
+            body = {
+                "@context": settings.LDP_RDF_CONTEXT,
+                "dfc-b:affiliates": {
+                    "@id": enterprise.get_absolute_url(),
+                    "@type": "dfc-b:Enterprise",
+                    "dfc-b:name": "Startin'Blox",
+                    "dfc-b:VATStatus": True
+                }
+            }
+            response = self.client.patch(
+                "/users/{}/".format(user.pk), data=json.dumps(body), content_type='application/ld+json'
+            )
+        self.assertEqual(response.status_code, 200)
+        enterprise = user.affiliates.get() # Also asserts count == 1
+        self.assertEqual(enterprise.name, "Startin'Blox")
+        self.assertEqual(enterprise.VATstatus, True)

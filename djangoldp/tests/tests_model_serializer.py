@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
-from rest_framework.test import APIClient, APIRequestFactory
+from rest_framework.test import APIRequestFactory
 
 from djangoldp.serializers import LDPSerializer
 from djangoldp.tests.models import (Batch, Conversation, Invoice, JobOffer,

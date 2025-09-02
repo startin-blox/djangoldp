@@ -38,9 +38,9 @@ class InstanceWebIDView(LDPAPIView):
         response["@graph"].append({
             "@id": request.build_absolute_uri("/profile#me"),
             "@type": ["sib:HublApplication", "solid:Application", "foaf:Agent"],
-            "title": config.title,
-            "description": config.description,
-            "termsAndConditions": config.terms_url,
+            "dcterms:title": config.title,
+            "dcterms:description": config.description,
+            "dcterms:license": config.terms_url,
             "solid:publicTypeIndex": request.build_absolute_uri(typeIndexLocation),
         })
 

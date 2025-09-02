@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
 from django.utils.datetime_safe import date
 
+from djangoldp import fields
 from djangoldp.models import Model, DynamicNestedField
 from djangoldp.permissions import ACLPermissions, AuthenticatedOnly, ReadOnly, \
     ReadAndCreate, AnonymousReadOnly, OwnerPermissions, InheritPermissions
@@ -12,12 +13,14 @@ from .permissions import Only2WordsForToto, ReadOnlyStartsWithA
 
 class User(AbstractUser, Model):
     class Meta(AbstractUser.Meta, Model.Meta):
+        depth = 0
+        empty_containers = []
         ordering = ['pk']
         serializer_fields = ['@id', 'username', 'first_name', 'last_name', 'email', 'userprofile',
-                             'conversation_set','groups', 'projects', 'owned_circles']
+                             'conversation_set','groups', 'projects', 'owned_circles', 'affiliates']
         permission_classes = [ReadAndCreate|OwnerPermissions]
         rdf_type = 'foaf:user'
-        nested_fields = ['owned_circles']
+        nested_fields = ['owned_circles', 'affiliates']
 
 
 class Skill(Model):
@@ -400,3 +403,20 @@ class NoSuperUsersAllowedModel(Model):
     class Meta(Model.Meta):
         ordering = ['pk']
         permission_classes = [ACLPermissions]
+
+
+class Enterprise(Model):
+    name = fields.TextField(rdf_type="dfc-b:name", blank=True, null=True)
+    VATstatus = fields.BooleanField(
+        rdf_type="dfc-b:VATStatus", default=False, null=True
+    )
+    affiliated_to = fields.ManyToManyField(
+        User,
+        rdf_type="dfc-b:affiliatedTo",
+        related_rdf_type="dfc-b:affiliates",
+        related_name="affiliates",
+        blank=True,
+    )
+
+    class Meta(Model.Meta):
+        rdf_type = "dfc-b:Enterprise"
