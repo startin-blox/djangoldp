@@ -18,7 +18,6 @@ class InstanceRootContainerView(LDPAPIView):
         try:
           # Generate a jsonld response with the context and a @graph containing all the models in the system
           response = {
-              '@context': settings.LDP_RDF_CONTEXT,
               '@id': request.build_absolute_uri(),
               '@type': 'ldp:Container',
               'ldp:contains': []
