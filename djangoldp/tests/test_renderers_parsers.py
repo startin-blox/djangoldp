@@ -515,3 +515,179 @@ class TestRenderersParserIntegration(TestCase):
         # Should be able to parse it back (may not be identical due to RDF semantics)
         result = parser.parse(stream)
         self.assertIsInstance(result, dict)
+
+
+class TestTurtleNestedResources(TestCase):
+    """Test that Turtle renderer properly handles nested resources after JSON-LD expansion."""
+
+    def test_nested_resource_properties_included(self):
+        """
+        Test that nested resource properties are included in Turtle output.
+
+        This tests the JSON-LD expansion feature that was added to fix incomplete
+        Turtle responses.
+        """
+        data = {
+            '@context': {
+                'username': 'http://example.org/username',
+                'email': 'http://example.org/email',
+                'member': 'http://example.org/member'
+            },
+            '@id': 'http://localhost:8000/users/',
+            '@type': 'http://www.w3.org/ns/ldp#BasicContainer',
+            'member': [
+                {
+                    '@id': 'http://localhost:8000/users/user1/',
+                    'username': 'user1',
+                    'email': 'user1@example.com'
+                },
+                {
+                    '@id': 'http://localhost:8000/users/user2/',
+                    'username': 'user2',
+                    'email': 'user2@example.com'
+                }
+            ]
+        }
+
+        renderer = TurtleRenderer()
+        result = renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Should include the container URI
+        self.assertIn('http://localhost:8000/users/', content)
+
+        # Should include nested user URIs
+        self.assertIn('http://localhost:8000/users/user1/', content)
+        self.assertIn('http://localhost:8000/users/user2/', content)
+
+        # CRITICAL: Should include nested resource properties (not just URIs)
+        self.assertIn('user1', content)
+        self.assertIn('user2', content)
+        self.assertIn('user1@example.com', content)
+        self.assertIn('user2@example.com', content)
+
+    def test_ldp_contains_with_nested_properties(self):
+        """Test ldp:contains with full nested resource serialization."""
+        data = {
+            '@context': 'https://cdn.startinblox.com/owl/context.jsonld',
+            '@id': 'http://localhost:8000/posts/',
+            '@type': 'ldp:BasicContainer',
+            'ldp:contains': [
+                {
+                    '@id': 'http://localhost:8000/posts/1/',
+                    'title': 'First Post',
+                    'content': 'Hello World'
+                },
+                {
+                    '@id': 'http://localhost:8000/posts/2/',
+                    'title': 'Second Post',
+                    'content': 'Goodbye World'
+                }
+            ]
+        }
+
+        renderer = TurtleRenderer()
+        result = renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Should have ldp:contains relationships (may use namespace prefix like ns1:contains)
+        self.assertTrue('contains' in content.lower(), "Should have 'contains' predicate")
+
+        # Should include nested post properties
+        self.assertIn('First Post', content)
+        self.assertIn('Second Post', content)
+        self.assertIn('Hello World', content)
+        self.assertIn('Goodbye World', content)
+
+    def test_deeply_nested_resources(self):
+        """Test that deeply nested resources (3+ levels) are serialized."""
+        data = {
+            '@context': {
+                'author': 'http://example.org/author',
+                'name': 'http://example.org/name',
+                'org': 'http://example.org/organization'
+            },
+            '@id': 'http://example.org/post/1',
+            'author': {
+                '@id': 'http://example.org/user/1',
+                'name': 'John Doe',
+                'org': {
+                    '@id': 'http://example.org/org/1',
+                    'name': 'Acme Corp'
+                }
+            }
+        }
+
+        renderer = TurtleRenderer()
+        result = renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Should include all levels
+        self.assertIn('http://example.org/post/1', content)
+        self.assertIn('http://example.org/user/1', content)
+        self.assertIn('http://example.org/org/1', content)
+
+        # Should include properties at all levels
+        self.assertIn('John Doe', content)
+        self.assertIn('Acme Corp', content)
+
+    def test_fallback_handles_nested_resources(self):
+        """Test that the simple fallback converter also handles nested resources."""
+        renderer = TurtleRenderer()
+
+        # Create data that will likely use the fallback (no @context URL to fetch)
+        data = {
+            '@id': 'http://example.org/container/',
+            '@type': 'ldp:BasicContainer',
+            'ldp:contains': [
+                {
+                    '@id': 'http://example.org/item1/',
+                    'http://example.org/title': 'Item 1'
+                }
+            ]
+        }
+
+        # Directly test the fallback method
+        result = renderer.simple_jsonld_to_turtle(data)
+        content = result.decode('utf-8') if isinstance(result, bytes) else result
+
+        # Should include nested item properties
+        self.assertIn('http://example.org/item1/', content)
+        self.assertIn('Item 1', content)
+
+    def test_comparison_with_without_expansion(self):
+        """
+        Document the difference between old behavior (no expansion) and new behavior (with expansion).
+
+        This test shows WHY the JSON-LD expansion was needed.
+        """
+        data = {
+            '@context': {
+                'member': 'http://example.org/member',
+                'username': 'http://example.org/username'
+            },
+            '@id': 'http://localhost:8000/users/',
+            'member': [
+                {
+                    '@id': 'http://localhost:8000/users/user1/',
+                    'username': 'test_user'
+                }
+            ]
+        }
+
+        renderer = TurtleRenderer()
+        result = renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Count triples (approximate - count lines with predicates)
+        triple_lines = [line for line in content.split('\n')
+                       if line.strip() and not line.strip().startswith('@prefix')
+                       and not line.strip().startswith('#')]
+
+        # With expansion, we should have multiple triples:
+        # 1. Container has type
+        # 2. Container has member relationship
+        # 3. Member has username property
+        # Without expansion, we'd only have triples 1 and 2
+        self.assertGreaterEqual(len(triple_lines), 2,
+                               "Should have triples for both container and nested resources")

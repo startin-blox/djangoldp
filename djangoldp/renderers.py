@@ -11,6 +11,7 @@ import logging
 from collections import OrderedDict
 
 from django.conf import settings
+from pyld import jsonld
 from rest_framework.renderers import JSONRenderer, BaseRenderer
 from rdflib import Graph, Namespace, URIRef, Literal
 from rdflib.namespace import RDF, RDFS
@@ -66,7 +67,10 @@ class TurtleRenderer(BaseRenderer):
         """
         Render JSON-LD data to Turtle format using rdflib.
 
-        Falls back to a simple converter if rdflib parsing fails.
+        Tries JSON-LD expansion first to include nested resources, but falls back
+        to direct parsing if expansion fails (e.g., network timeout on @context fetch).
+
+        Falls back to a simple converter if rdflib parsing fails entirely.
         Always returns bytes (UTF-8 encoded).
         """
         if data is None:
@@ -75,35 +79,82 @@ class TurtleRenderer(BaseRenderer):
         # Create RDF graph
         g = Graph()
 
-        # Parse JSON-LD into graph
+        # Strategy 1: Try expansion to include all nested resources
         try:
-            json_str = json.dumps(data)
-            g.parse(data=json_str, format='json-ld')
-            # Serialize graph to Turtle - always return bytes
-            turtle_str = g.serialize(format='turtle')
-            if isinstance(turtle_str, str):
-                return turtle_str.encode('utf-8')
-            return turtle_str
-        except Exception as e:
-            # Log the error for debugging
-            logger.warning(f"Failed to parse JSON-LD to Turtle: {str(e)}, falling back to simple converter")
+            # Expand JSON-LD to include all nested resources as triples
+            # This converts embedded objects into separate resource descriptions
+            # Set a timeout to avoid hanging on @context URL fetches
+            logger.debug("Attempting JSON-LD expansion for Turtle rendering")
+
+            # Configure jsonld expansion with timeout (2 seconds)
+            document_loader = jsonld.requests_document_loader(timeout=2.0)
+            options = {
+                'documentLoader': document_loader
+            }
+            expanded = jsonld.expand(data, options)
+            logger.debug(f"Expansion successful, expanded data has {len(expanded)} top-level items")
+
+            # Check if expansion actually worked (expanded data should not have prefixed terms)
+            expanded_str = json.dumps(expanded)
+            if 'ldp:' in expanded_str or 'foaf:' in expanded_str or '@context' in expanded_str:
+                # Expansion failed - data still has prefixes or context
+                logger.warning("Expansion did not resolve all prefixes - @context fetch likely failed")
+                raise Exception("Incomplete expansion - prefixes still present")
+
+            # Parse the expanded JSON-LD into RDF graph
+            # Now all nested resource properties become triples
+            g.parse(data=expanded_str, format='json-ld')
+            logger.debug(f"Parsed expanded JSON-LD into graph with {len(g)} triples")
+
+            # Check if we got meaningful data
+            if len(g) > 0:
+                # Serialize graph to Turtle - always return bytes
+                turtle_str = g.serialize(format='turtle')
+                if isinstance(turtle_str, str):
+                    return turtle_str.encode('utf-8')
+                return turtle_str
+            else:
+                # Expansion produced empty graph - try direct parsing
+                raise Exception("Expansion produced empty graph")
+
+        except Exception as expansion_error:
+            # Expansion failed (e.g., @context URL timeout) - try direct parsing
+            logger.warning(f"JSON-LD expansion failed ({str(expansion_error)}), trying direct parse")
+
+            # Strategy 2: Try direct parsing without expansion
             try:
-                # Fallback: manual conversion for simple cases
-                fallback_result = self.simple_jsonld_to_turtle(data)
-                if isinstance(fallback_result, str):
-                    return fallback_result.encode('utf-8')
-                return fallback_result
-            except Exception as fallback_error:
-                logger.error(f"Fallback Turtle serialization failed: {str(fallback_error)}")
-                # Return minimal valid Turtle on complete failure
-                return b'# Serialization error\n'
+                json_str = json.dumps(data)
+                g.parse(data=json_str, format='json-ld')
+
+                if len(g) > 0:
+                    turtle_str = g.serialize(format='turtle')
+                    if isinstance(turtle_str, str):
+                        return turtle_str.encode('utf-8')
+                    return turtle_str
+                else:
+                    raise Exception("Direct parsing produced empty graph")
+
+            except Exception as parse_error:
+                # Both expansion and direct parsing failed
+                logger.warning(f"Direct JSON-LD parse also failed ({str(parse_error)}), using simple converter")
+
+                # Strategy 3: Fallback to simple manual conversion
+                try:
+                    fallback_result = self.simple_jsonld_to_turtle(data)
+                    if isinstance(fallback_result, str):
+                        return fallback_result.encode('utf-8')
+                    return fallback_result
+                except Exception as fallback_error:
+                    logger.error(f"Fallback Turtle serialization failed: {str(fallback_error)}")
+                    # Return minimal valid Turtle on complete failure
+                    return b'# Serialization error\n'
 
     def simple_jsonld_to_turtle(self, data):
         """
         Simple fallback converter for basic JSON-LD to Turtle.
 
         Handles common LDP patterns when full rdflib parsing fails.
-        Enhanced with better namespace handling.
+        Enhanced with better namespace handling and recursive nested resource processing.
         """
         g = Graph()
 
@@ -119,37 +170,63 @@ class TurtleRenderer(BaseRenderer):
         g.bind("rdf", RDF)
         g.bind("rdfs", RDFS)
 
-        if isinstance(data, dict):
-            subject_uri = data.get('@id', '_:blank')
-            subject = URIRef(subject_uri) if subject_uri != '_:blank' else URIRef('urn:blank')
+        def add_resource_triples(resource_data, graph):
+            """Recursively add resource and nested resources to graph."""
+            if not isinstance(resource_data, dict):
+                return
+
+            subject_uri = resource_data.get('@id', '_:blank')
+            if subject_uri == '_:blank':
+                return  # Skip blank nodes in simple converter
+
+            subject = URIRef(subject_uri)
 
             # Add type
-            if '@type' in data:
-                types = data['@type'] if isinstance(data['@type'], list) else [data['@type']]
+            if '@type' in resource_data:
+                types = resource_data['@type'] if isinstance(resource_data['@type'], list) else [resource_data['@type']]
                 for type_uri in types:
                     if type_uri.startswith('ldp:'):
-                        g.add((subject, RDF.type, LDP[type_uri[4:]]))
+                        graph.add((subject, RDF.type, LDP[type_uri[4:]]))
                     elif type_uri.startswith('foaf:'):
-                        g.add((subject, RDF.type, FOAF[type_uri[5:]]))
+                        graph.add((subject, RDF.type, FOAF[type_uri[5:]]))
                     else:
-                        g.add((subject, RDF.type, URIRef(type_uri)))
+                        graph.add((subject, RDF.type, URIRef(type_uri)))
 
             # Add properties
-            for key, value in data.items():
+            for key, value in resource_data.items():
                 if key not in ['@id', '@type', '@context']:
-                    # Handle containers
-                    if key == 'ldp:contains' and isinstance(value, list):
+                    predicate_uri = key
+                    if key.startswith('ldp:'):
+                        predicate = LDP[key[4:]]
+                    elif key.startswith('foaf:'):
+                        predicate = FOAF[key[5:]]
+                    else:
+                        predicate = URIRef(key)
+
+                    # Handle arrays
+                    if isinstance(value, list):
                         for item in value:
                             if isinstance(item, dict) and '@id' in item:
-                                g.add((subject, LDP.contains, URIRef(item['@id'])))
+                                # Add reference
+                                graph.add((subject, predicate, URIRef(item['@id'])))
+                                # Recursively process nested resource
+                                add_resource_triples(item, graph)
+                            else:
+                                # Simple literal in array
+                                graph.add((subject, predicate, Literal(item)))
+
                     # Handle simple literals
                     elif isinstance(value, (str, int, float, bool)):
-                        predicate = URIRef(key) if not key.startswith('ldp:') else LDP[key[4:]]
-                        g.add((subject, predicate, Literal(value)))
+                        graph.add((subject, predicate, Literal(value)))
+
                     # Handle nested objects with @id
                     elif isinstance(value, dict) and '@id' in value:
-                        predicate = URIRef(key) if not key.startswith('ldp:') else LDP[key[4:]]
-                        g.add((subject, predicate, URIRef(value['@id'])))
+                        graph.add((subject, predicate, URIRef(value['@id'])))
+                        # Recursively process nested resource
+                        add_resource_triples(value, graph)
+
+        # Process the main resource and all nested resources
+        add_resource_triples(data, g)
 
         turtle_result = g.serialize(format='turtle')
         if isinstance(turtle_result, bytes):
