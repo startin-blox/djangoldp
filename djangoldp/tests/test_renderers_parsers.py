@@ -691,3 +691,120 @@ class TestTurtleNestedResources(TestCase):
         # Without expansion, we'd only have triples 1 and 2
         self.assertGreaterEqual(len(triple_lines), 2,
                                "Should have triples for both container and nested resources")
+
+    def test_real_world_user_structure_serialization(self):
+        """
+        Test that real-world complex nested structures serialize completely.
+
+        Based on actual DjangoLDP user data with account, chatProfile, and owned_objects.
+        """
+        data = {
+            '@context': 'https://cdn.startinblox.com/owl/context.jsonld',
+            '@id': 'http://localhost:8000/users/testuser/',
+            '@type': 'foaf:user',
+            'username': 'testuser',
+            'email': 'test@example.com',
+            'first_name': 'Test',
+            'last_name': 'User',
+            'account': {
+                '@id': 'http://localhost:8000/accounts/testuser/',
+                'is_backlink': False,
+                'allow_create_backlink': True,
+                'slug': 'testuser',
+                'user': {
+                    '@id': 'http://localhost:8000/users/testuser/',
+                    '@type': 'foaf:user'
+                }
+            },
+            'chatProfile': {
+                '@id': 'http://localhost:8000/chatprofiles/testuser/',
+                'is_backlink': False,
+                'slug': 'testuser',
+                'jabberID': None
+            },
+            'owned_objects': [
+                {
+                    '@id': 'http://localhost:8000/users/testuser/owned_trial1/',
+                    'container': 'owned_trial1',
+                    '@type': ['tems:Object', 'tems:Article']
+                }
+            ]
+        }
+
+        renderer = TurtleRenderer()
+        result = renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Main user resource
+        self.assertIn('http://localhost:8000/users/testuser/', content)
+        self.assertIn('testuser', content)
+        self.assertIn('test@example.com', content)
+        self.assertIn('Test', content)
+        self.assertIn('User', content)
+
+        # Nested account resource
+        self.assertIn('http://localhost:8000/accounts/testuser/', content)
+        # Account properties should be present
+        # (either as literals or as part of the serialization)
+
+        # Nested chatProfile resource
+        self.assertIn('http://localhost:8000/chatprofiles/testuser/', content)
+
+        # Owned objects
+        self.assertIn('http://localhost:8000/users/testuser/owned_trial1/', content)
+        self.assertIn('owned_trial1', content)
+
+    def test_container_with_multiple_nested_users(self):
+        """
+        Test container serialization with multiple users and their nested resources.
+
+        Simulates /users/ endpoint response.
+        """
+        data = {
+            '@context': 'https://cdn.startinblox.com/owl/context.jsonld',
+            '@id': 'http://localhost:8000/users/',
+            '@type': 'ldp:Container',
+            'ldp:contains': [
+                {
+                    '@id': 'http://localhost:8000/users/user1/',
+                    '@type': 'foaf:user',
+                    'username': 'user1',
+                    'email': 'user1@example.com',
+                    'account': {
+                        '@id': 'http://localhost:8000/accounts/user1/',
+                        'slug': 'user1'
+                    }
+                },
+                {
+                    '@id': 'http://localhost:8000/users/user2/',
+                    '@type': 'foaf:user',
+                    'username': 'user2',
+                    'email': 'user2@example.com',
+                    'account': {
+                        '@id': 'http://localhost:8000/accounts/user2/',
+                        'slug': 'user2'
+                    }
+                }
+            ]
+        }
+
+        renderer = TurtleRenderer()
+        result = renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Container
+        self.assertIn('http://localhost:8000/users/', content)
+
+        # Both users
+        self.assertIn('http://localhost:8000/users/user1/', content)
+        self.assertIn('http://localhost:8000/users/user2/', content)
+
+        # User properties
+        self.assertIn('user1', content)
+        self.assertIn('user2', content)
+        self.assertIn('user1@example.com', content)
+        self.assertIn('user2@example.com', content)
+
+        # Nested accounts
+        self.assertIn('http://localhost:8000/accounts/user1/', content)
+        self.assertIn('http://localhost:8000/accounts/user2/', content)
