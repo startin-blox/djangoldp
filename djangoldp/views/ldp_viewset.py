@@ -14,7 +14,7 @@ from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryPa
 from djangoldp.models import DynamicNestedField, LDPSource
 from djangoldp.related import get_prefetch_fields
 from djangoldp.utils import is_authenticated_user
-from djangoldp.views.commons import JSONLDParser, JSONLDRenderer, NoCSRFAuthentication
+from djangoldp.views.commons import JSONLDParser, JSONLDRenderer, TurtleParser, TurtleRenderer, NoCSRFAuthentication
 
 # DRF imports
 from rest_framework import status
@@ -126,8 +126,8 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    renderer_classes = (JSONLDRenderer,)
-    parser_classes = (JSONLDParser,)
+    renderer_classes = (JSONLDRenderer, TurtleRenderer)
+    parser_classes = (JSONLDParser, TurtleParser)
     authentication_classes = (NoCSRFAuthentication,)
     filter_backends = [SearchByQueryParamFilterBackend, LocalObjectOnContainerPathBackend]
     prefetch_fields = None
