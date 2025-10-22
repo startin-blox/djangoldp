@@ -12,9 +12,11 @@ from django.utils.http import parse_etags, http_date, parse_http_date
 from djangoldp.etag import generate_etag, generate_container_etag, normalize_etag
 from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
 from djangoldp.models import DynamicNestedField, LDPSource
+from djangoldp.parsers import JSONLDParser, TurtleParser
 from djangoldp.related import get_prefetch_fields
+from djangoldp.renderers import JSONLDRenderer, TurtleRenderer
 from djangoldp.utils import is_authenticated_user
-from djangoldp.views.commons import JSONLDParser, JSONLDRenderer, TurtleParser, TurtleRenderer, NoCSRFAuthentication
+from djangoldp.views.commons import NoCSRFAuthentication
 
 # DRF imports
 from rest_framework import status

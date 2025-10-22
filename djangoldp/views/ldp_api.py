@@ -2,8 +2,9 @@ import logging
 
 from rest_framework.views import APIView
 
+from djangoldp.renderers import JSONLDRenderer
 from djangoldp.utils import is_authenticated_user
-from djangoldp.views.commons import NoCSRFAuthentication, JSONLDRenderer
+from djangoldp.views.commons import NoCSRFAuthentication
 
 logger = logging.getLogger('djangoldp')
 

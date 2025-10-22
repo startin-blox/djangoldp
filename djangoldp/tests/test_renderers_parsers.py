@@ -1,0 +1,508 @@
+"""
+Unit tests for DjangoLDP renderers and parsers.
+
+Tests both JSON-LD and Turtle renderers/parsers in isolation.
+"""
+
+import json
+from io import BytesIO
+from unittest.mock import Mock, patch
+
+from django.conf import settings
+from django.test import TestCase, override_settings
+from rest_framework.exceptions import ParseError
+
+from djangoldp.parsers import JSONLDParser, TurtleParser
+from djangoldp.renderers import JSONLDRenderer, TurtleRenderer
+
+
+class TestJSONLDRenderer(TestCase):
+    """Test JSONLDRenderer class."""
+
+    def setUp(self):
+        self.renderer = JSONLDRenderer()
+
+    def test_media_type(self):
+        """Verify renderer has correct media type."""
+        self.assertEqual(self.renderer.media_type, 'application/ld+json')
+
+    def test_render_with_no_context(self):
+        """Test rendering data without existing @context."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'Resource',
+            'content': 'test'
+        }
+
+        result = self.renderer.render(data)
+        parsed = json.loads(result)
+
+        # Should add LDP_RDF_CONTEXT
+        self.assertIn('@context', parsed)
+        self.assertEqual(parsed['@context'], settings.LDP_RDF_CONTEXT)
+
+    def test_render_with_string_context(self):
+        """Test rendering data with existing string @context."""
+        data = {
+            '@context': 'http://custom.example.org/context.jsonld',
+            '@id': 'http://example.org/resource/1',
+            'content': 'test'
+        }
+
+        result = self.renderer.render(data)
+        parsed = json.loads(result)
+
+        # Should merge contexts
+        self.assertIsInstance(parsed['@context'], list)
+        self.assertEqual(len(parsed['@context']), 2)
+        self.assertEqual(parsed['@context'][0], settings.LDP_RDF_CONTEXT)
+        self.assertEqual(parsed['@context'][1], 'http://custom.example.org/context.jsonld')
+
+    def test_render_with_dict_context(self):
+        """Test rendering data with existing dict @context."""
+        custom_context = {'custom': 'http://example.org/custom#'}
+        data = {
+            '@context': custom_context,
+            '@id': 'http://example.org/resource/1',
+            'content': 'test'
+        }
+
+        result = self.renderer.render(data)
+        parsed = json.loads(result)
+
+        # Should merge contexts
+        self.assertIsInstance(parsed['@context'], list)
+        self.assertEqual(len(parsed['@context']), 2)
+        self.assertEqual(parsed['@context'][0], settings.LDP_RDF_CONTEXT)
+        self.assertEqual(parsed['@context'][1], custom_context)
+
+    def test_render_with_list_context(self):
+        """Test rendering data with existing list @context."""
+        existing_contexts = [
+            'http://custom1.example.org/context.jsonld',
+            'http://custom2.example.org/context.jsonld'
+        ]
+        data = {
+            '@context': existing_contexts,
+            '@id': 'http://example.org/resource/1',
+            'content': 'test'
+        }
+
+        result = self.renderer.render(data)
+        parsed = json.loads(result)
+
+        # Should prepend LDP_RDF_CONTEXT to list
+        self.assertIsInstance(parsed['@context'], list)
+        self.assertEqual(len(parsed['@context']), 3)
+        self.assertEqual(parsed['@context'][0], settings.LDP_RDF_CONTEXT)
+
+    def test_render_preserves_field_order(self):
+        """Test that @context appears first in rendered output."""
+        data = {
+            'name': 'Test',
+            '@id': 'http://example.org/resource/1',
+            '@type': 'Resource'
+        }
+
+        result = self.renderer.render(data)
+        parsed = json.loads(result)
+
+        # @context should be first key
+        keys = list(parsed.keys())
+        self.assertEqual(keys[0], '@context')
+
+    def test_render_non_dict_data(self):
+        """Test rendering non-dict data (should pass through)."""
+        data = ['item1', 'item2']
+
+        result = self.renderer.render(data)
+        parsed = json.loads(result)
+
+        # Should return as-is for non-dict data
+        self.assertEqual(parsed, data)
+
+    def test_render_none(self):
+        """Test rendering None."""
+        result = self.renderer.render(None)
+        self.assertEqual(result, b'null')
+
+
+class TestJSONLDParser(TestCase):
+    """Test JSONLDParser class."""
+
+    def setUp(self):
+        self.parser = JSONLDParser()
+
+    def test_media_type(self):
+        """Verify parser has correct media type."""
+        self.assertEqual(self.parser.media_type, 'application/ld+json')
+
+    @patch('djangoldp.parsers.jsonld.compact')
+    def test_parse_applies_context(self, mock_compact):
+        """Test that parser applies LDP_RDF_CONTEXT to input data."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'Resource',
+            'content': 'test'
+        }
+        stream = BytesIO(json.dumps(data).encode('utf-8'))
+
+        mock_compact.return_value = data
+
+        result = self.parser.parse(stream)
+
+        # Verify jsonld.compact was called with settings.LDP_RDF_CONTEXT
+        mock_compact.assert_called_once()
+        args = mock_compact.call_args[0]
+        self.assertEqual(args[1], settings.LDP_RDF_CONTEXT)
+
+    @patch('djangoldp.parsers.jsonld.compact')
+    def test_parse_jsonld_error(self, mock_compact):
+        """Test that JsonLdError is converted to ParseError."""
+        from pyld import jsonld
+
+        # Create a mock JsonLdError
+        error_cause = Exception("Invalid JSON-LD")
+        mock_error = jsonld.JsonLdError()
+        mock_error.cause = error_cause
+        mock_compact.side_effect = mock_error
+
+        data = {'@id': 'http://example.org/resource/1'}
+        stream = BytesIO(json.dumps(data).encode('utf-8'))
+
+        with self.assertRaises(ParseError) as cm:
+            self.parser.parse(stream)
+
+        self.assertIn("Invalid JSON-LD", str(cm.exception))
+
+
+class TestTurtleRenderer(TestCase):
+    """Test TurtleRenderer class."""
+
+    def setUp(self):
+        self.renderer = TurtleRenderer()
+
+    def test_media_type(self):
+        """Verify renderer has correct media type."""
+        self.assertEqual(self.renderer.media_type, 'text/turtle')
+        self.assertEqual(self.renderer.format, 'turtle')
+        self.assertEqual(self.renderer.charset, 'utf-8')
+
+    def test_render_none(self):
+        """Test rendering None returns empty bytes."""
+        result = self.renderer.render(None)
+        self.assertEqual(result, b'')
+
+    def test_render_simple_resource(self):
+        """Test rendering a simple LDP resource."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'http://www.w3.org/ns/ldp#Resource',
+            'http://example.org/content': 'test content'
+        }
+
+        result = self.renderer.render(data)
+
+        # Should return bytes
+        self.assertIsInstance(result, bytes)
+
+        # Should contain Turtle syntax
+        content = result.decode('utf-8')
+        self.assertTrue('@prefix' in content or 'http://' in content)
+
+    def test_render_with_ldp_type(self):
+        """Test rendering resource with ldp: prefix."""
+        data = {
+            '@id': 'http://example.org/container/1',
+            '@type': 'ldp:BasicContainer',
+            'ldp:contains': [
+                {'@id': 'http://example.org/resource/1'},
+                {'@id': 'http://example.org/resource/2'}
+            ]
+        }
+
+        result = self.renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Should contain ldp namespace
+        self.assertIn('ldp:', content)
+
+    def test_render_returns_bytes(self):
+        """Test that render always returns bytes, not str."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'Resource'
+        }
+
+        result = self.renderer.render(data)
+        self.assertIsInstance(result, bytes)
+
+    def test_render_fallback_on_error(self):
+        """Test that render falls back to simple converter on error."""
+        # Create data that might cause rdflib parsing to fail
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'ldp:BasicContainer',
+            'ldp:contains': []
+        }
+
+        # Should not raise exception, should fall back gracefully
+        result = self.renderer.render(data)
+        self.assertIsInstance(result, bytes)
+
+    def test_simple_jsonld_to_turtle_with_foaf(self):
+        """Test simple converter with FOAF namespace."""
+        data = {
+            '@id': 'http://example.org/person/1',
+            '@type': 'foaf:Person',
+            'foaf:name': 'John Doe'
+        }
+
+        result = self.renderer.simple_jsonld_to_turtle(data)
+
+        # Should handle foaf: prefix
+        self.assertIsInstance(result, bytes)
+        content = result.decode('utf-8')
+        self.assertIn('foaf:', content)
+
+    def test_simple_jsonld_to_turtle_multiple_types(self):
+        """Test simple converter with multiple @type values."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': ['ldp:Resource', 'ldp:BasicContainer']
+        }
+
+        result = self.renderer.simple_jsonld_to_turtle(data)
+        self.assertIsInstance(result, bytes)
+
+    def test_render_with_literals(self):
+        """Test rendering resource with various literal types."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            'http://example.org/string': 'text',
+            'http://example.org/number': 42,
+            'http://example.org/float': 3.14,
+            'http://example.org/bool': True
+        }
+
+        result = self.renderer.render(data)
+        self.assertIsInstance(result, bytes)
+        self.assertGreater(len(result), 0)
+
+    def test_render_nested_objects(self):
+        """Test rendering with nested objects."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            'http://example.org/related': {
+                '@id': 'http://example.org/resource/2'
+            }
+        }
+
+        result = self.renderer.render(data)
+        content = result.decode('utf-8')
+
+        # Should contain both resource URIs
+        self.assertIn('resource/1', content)
+        self.assertIn('resource/2', content)
+
+
+class TestTurtleParser(TestCase):
+    """Test TurtleParser class."""
+
+    def setUp(self):
+        self.parser = TurtleParser()
+
+    def test_media_type(self):
+        """Verify parser has correct media type."""
+        self.assertEqual(self.parser.media_type, 'text/turtle')
+
+    def test_parse_valid_turtle(self):
+        """Test parsing valid Turtle data."""
+        turtle_data = """
+        @prefix ldp: <http://www.w3.org/ns/ldp#> .
+        @prefix ex: <http://example.org/> .
+
+        <http://example.org/resource/1> a ldp:Resource ;
+            ex:content "test content" .
+        """
+
+        stream = BytesIO(turtle_data.encode('utf-8'))
+        result = self.parser.parse(stream)
+
+        # Should return parsed and compacted data
+        self.assertIsInstance(result, dict)
+
+    def test_parse_empty_turtle(self):
+        """Test that empty Turtle raises ParseError."""
+        empty_turtle = ""
+        stream = BytesIO(empty_turtle.encode('utf-8'))
+
+        with self.assertRaises(ParseError) as cm:
+            self.parser.parse(stream)
+
+        self.assertIn("Empty Turtle data", str(cm.exception))
+
+    def test_parse_whitespace_only(self):
+        """Test that whitespace-only Turtle raises ParseError."""
+        whitespace_turtle = "   \n\t   \n  "
+        stream = BytesIO(whitespace_turtle.encode('utf-8'))
+
+        with self.assertRaises(ParseError) as cm:
+            self.parser.parse(stream)
+
+        self.assertIn("Empty Turtle data", str(cm.exception))
+
+    def test_parse_malformed_turtle(self):
+        """Test that malformed Turtle raises ParseError."""
+        malformed_turtle = """
+        @prefix ldp: <http://www.w3.org/ns/ldp#>
+        This is not valid Turtle syntax!!!
+        """
+
+        stream = BytesIO(malformed_turtle.encode('utf-8'))
+
+        with self.assertRaises(ParseError) as cm:
+            self.parser.parse(stream)
+
+        self.assertIn("Invalid Turtle syntax", str(cm.exception))
+
+    def test_parse_invalid_utf8(self):
+        """Test that invalid UTF-8 encoding raises ParseError."""
+        # Create invalid UTF-8 bytes
+        invalid_utf8 = b'\x80\x81\x82\x83'
+        stream = BytesIO(invalid_utf8)
+
+        with self.assertRaises(ParseError) as cm:
+            self.parser.parse(stream)
+
+        self.assertIn("Invalid UTF-8 encoding", str(cm.exception))
+
+    def test_parse_with_multiple_triples(self):
+        """Test parsing Turtle with multiple triples."""
+        turtle_data = """
+        @prefix ldp: <http://www.w3.org/ns/ldp#> .
+        @prefix ex: <http://example.org/> .
+
+        <http://example.org/resource/1> a ldp:Resource ;
+            ex:title "First Resource" ;
+            ex:order 1 .
+
+        <http://example.org/resource/2> a ldp:Resource ;
+            ex:title "Second Resource" ;
+            ex:order 2 .
+        """
+
+        stream = BytesIO(turtle_data.encode('utf-8'))
+        result = self.parser.parse(stream)
+
+        # Should successfully parse
+        self.assertIsInstance(result, dict)
+
+    def test_parse_with_blank_nodes(self):
+        """Test parsing Turtle with blank nodes."""
+        turtle_data = """
+        @prefix ldp: <http://www.w3.org/ns/ldp#> .
+        @prefix ex: <http://example.org/> .
+
+        <http://example.org/resource/1> a ldp:Resource ;
+            ex:author [
+                ex:name "John Doe" ;
+                ex:email "john@example.org"
+            ] .
+        """
+
+        stream = BytesIO(turtle_data.encode('utf-8'))
+        result = self.parser.parse(stream)
+
+        # Should successfully parse blank nodes
+        self.assertIsInstance(result, dict)
+
+    def test_parse_applies_context(self):
+        """Test that parsed Turtle data has context applied."""
+        turtle_data = """
+        @prefix ldp: <http://www.w3.org/ns/ldp#> .
+
+        <http://example.org/resource/1> a ldp:Resource .
+        """
+
+        stream = BytesIO(turtle_data.encode('utf-8'))
+
+        # Mock the compact function to verify it's called
+        with patch('djangoldp.parsers.jsonld.compact') as mock_compact:
+            mock_compact.return_value = {'@id': 'http://example.org/resource/1'}
+
+            result = self.parser.parse(stream)
+
+            # Verify compact was called with LDP_RDF_CONTEXT
+            mock_compact.assert_called_once()
+            args = mock_compact.call_args
+            # Second argument (or 'ctx' keyword arg) should be LDP_RDF_CONTEXT
+            self.assertEqual(args[1]['ctx'], settings.LDP_RDF_CONTEXT)
+
+    def test_parse_turtle_to_jsonld_conversion(self):
+        """Test the Turtle to JSON-LD conversion process."""
+        turtle_data = """
+        @prefix ex: <http://example.org/> .
+
+        <http://example.org/resource/1>
+            ex:title "Test Resource" ;
+            ex:count 42 .
+        """
+
+        stream = BytesIO(turtle_data.encode('utf-8'))
+        result = self.parser.parse(stream)
+
+        # Should return dict after compaction
+        self.assertIsInstance(result, dict)
+
+
+class TestRenderersParserIntegration(TestCase):
+    """Integration tests for renderers and parsers working together."""
+
+    def test_jsonld_roundtrip(self):
+        """Test JSON-LD can be rendered and parsed back."""
+        original_data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'Resource',
+            'content': 'test content',
+            'count': 42
+        }
+
+        # Render
+        renderer = JSONLDRenderer()
+        rendered = renderer.render(original_data)
+
+        # Parse back
+        parser = JSONLDParser()
+        stream = BytesIO(rendered)
+
+        with patch('djangoldp.parsers.jsonld.compact') as mock_compact:
+            mock_compact.return_value = original_data
+            parsed = parser.parse(stream)
+
+            # Should get back similar structure
+            self.assertEqual(parsed['@id'], original_data['@id'])
+
+    def test_turtle_can_represent_jsonld_structure(self):
+        """Test that Turtle can represent JSON-LD structure."""
+        data = {
+            '@id': 'http://example.org/resource/1',
+            '@type': 'http://www.w3.org/ns/ldp#Resource',
+            'http://example.org/title': 'Test'
+        }
+
+        # Render to Turtle
+        renderer = TurtleRenderer()
+        turtle_output = renderer.render(data)
+
+        # Should produce valid Turtle
+        self.assertIsInstance(turtle_output, bytes)
+        self.assertGreater(len(turtle_output), 0)
+
+        # Parse it back
+        parser = TurtleParser()
+        stream = BytesIO(turtle_output)
+
+        # Should be able to parse it back (may not be identical due to RDF semantics)
+        result = parser.parse(stream)
+        self.assertIsInstance(result, dict)
