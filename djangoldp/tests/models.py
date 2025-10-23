@@ -215,9 +215,7 @@ class Post(Model):
     author = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post",
                                   on_delete=models.SET_NULL)
-    # Timestamp fields for If-Modified-Since / Last-Modified support
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # Timestamp fields (created_at, updated_at) are inherited from Model base class
 
     class Meta(Model.Meta):
         ordering = ['pk']

@@ -12,7 +12,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.urls import resolve, Resolver404, get_script_prefix
 from django.utils.encoding import uri_to_iri
-from django.utils.functional import cached_property
+from functools import cached_property
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
 from rest_framework.fields import get_error_detail, set_value
