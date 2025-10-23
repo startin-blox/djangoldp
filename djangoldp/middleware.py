@@ -28,12 +28,9 @@ class AllowRequestedCORSMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method == 'OPTIONS':
-            # Return an empty 200 response for OPTIONS requests
-            # The CORS headers will be added by AllowRequestedCORSMiddleware later
-            response = HttpResponse(status=200)
-        else:
-            response = self.get_response(request)
+        # Let OPTIONS requests pass through to the viewset
+        # The viewset's OPTIONS method will handle LDP-specific headers
+        response = self.get_response(request)
 
         response["Access-Control-Allow-Origin"] = request.headers.get('origin')
         response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"

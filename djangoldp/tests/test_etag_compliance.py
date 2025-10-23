@@ -228,9 +228,6 @@ class TestETagCompliance(APITestCase):
 
         post = Post.objects.create(content="test content")
 
-        # Small delay to ensure timestamp precision
-        time.sleep(0.1)
-
         # Get the resource to obtain Last-Modified
         response1 = self.client.get(
             f'/posts/{post.pk}/',
@@ -241,9 +238,6 @@ class TestETagCompliance(APITestCase):
         # Response should have Last-Modified header
         self.assertIn('Last-Modified', response1)
         last_modified = response1['Last-Modified']
-
-        # Small delay before next request
-        time.sleep(0.1)
 
         # Make another GET request with If-Modified-Since set to the Last-Modified value
         response2 = self.client.get(
@@ -257,6 +251,10 @@ class TestETagCompliance(APITestCase):
 
         # 304 responses should have no body
         self.assertEqual(len(response2.content), 0)
+
+        # Wait at least 1 second to ensure updated_at changes
+        # (HTTP dates only have second precision, not microsecond)
+        time.sleep(1.1)
 
         # Update the resource
         post.content = "updated content"
