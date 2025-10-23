@@ -15,12 +15,38 @@ from django.utils.encoding import uri_to_iri
 from functools import cached_property
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField, empty, ReadOnlyField
-from rest_framework.fields import get_error_detail, set_value
+from rest_framework.fields import get_error_detail
 from rest_framework.serializers import HyperlinkedModelSerializer, ModelSerializer, LIST_SERIALIZER_KWARGS
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
 from rest_framework.utils.serializer_helpers import BindingDict
+
+# Import set_value if available (DRF < 3.15), otherwise define it ourselves
+try:
+    from rest_framework.fields import set_value
+except ImportError:
+    # set_value was removed in DRF 3.15+
+    # Implement it ourselves for compatibility
+    def set_value(dictionary, keys, value):
+        """
+        Similar to Python's built in `dictionary[key] = value`,
+        but takes a list of nested keys instead of a single key.
+
+        set_value({'a': 1}, [], {'b': 2}) -> {'a': 1, 'b': 2}
+        set_value({'a': 1}, ['x'], 2) -> {'a': 1, 'x': 2}
+        set_value({'a': 1}, ['x', 'y'], 2) -> {'a': 1, 'x': {'y': 2}}
+        """
+        if not keys:
+            dictionary.update(value)
+            return
+
+        for key in keys[:-1]:
+            if key not in dictionary:
+                dictionary[key] = {}
+            dictionary = dictionary[key]
+
+        dictionary[keys[-1]] = value
 
 from djangoldp.fields import LDPUrlField, IdURLField
 from djangoldp.models import Model
