@@ -35,8 +35,8 @@ class LDPViewSetGenerator(ModelViewSet):
     model = None
     nested_fields = []
     model_prefix = None
-    list_actions = {'get': 'list', 'post': 'create'}
-    detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
+    list_actions = {'get': 'list', 'post': 'create', 'options': 'options'}
+    detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy', 'options': 'options'}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -429,7 +429,9 @@ class LDPViewSet(LDPViewSetGenerator):
             if hasattr(instance, 'updated_at') and instance.updated_at:
                 try:
                     modified_since = parse_http_date(if_modified_since)
-                    if instance.updated_at.timestamp() <= modified_since:
+                    # Compare at second precision (HTTP dates don't include microseconds)
+                    resource_timestamp = int(instance.updated_at.timestamp())
+                    if resource_timestamp <= modified_since:
                         return Response(status=status.HTTP_304_NOT_MODIFIED)
                 except (ValueError, TypeError) as e:
                     # Log malformed date but continue (don't return 400)
@@ -516,7 +518,9 @@ class LDPViewSet(LDPViewSetGenerator):
             # Container view: GET, POST, HEAD, OPTIONS
             allowed_methods = ['GET', 'POST', 'HEAD', 'OPTIONS']
 
-        response = Response(status=status.HTTP_200_OK)
+        # Use HttpResponse instead of DRF Response to avoid content-type rendering issues
+        from django.http import HttpResponse
+        response = HttpResponse(status=200)
         response['Allow'] = ', '.join(allowed_methods)
 
         # Add Accept-Post for container views

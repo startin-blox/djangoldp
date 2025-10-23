@@ -329,7 +329,6 @@ class TestPreferHeaders(APITestCase):
         self.assertIn(response.status_code, [201, 204])
 
 
-@unittest.skip("OPTIONS method needs URL routing configuration - TODO for future enhancement")
 class TestOPTIONSMethod(APITestCase):
     """Test OPTIONS method support with proper LDP headers."""
 
@@ -524,7 +523,6 @@ class TestOPTIONSMethod(APITestCase):
             self.assertNotEqual(delete_response.status_code, 405)
 
 
-@unittest.skip("OPTIONS method needs URL routing configuration - TODO for future enhancement")
 class TestPreferAndOPTIONSIntegration(APITestCase):
     """Test integration between Prefer headers and OPTIONS method."""
 

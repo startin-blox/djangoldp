@@ -224,10 +224,58 @@ class TestETagCompliance(APITestCase):
 
     def test_if_modified_since_304(self):
         """Test If-Modified-Since returns 304 when resource hasn't changed."""
-        # Skip this test for models without updated_at field
-        # Post model doesn't have updated_at, so If-Modified-Since won't work
-        # In a real application, use a model with updated_at for this test
-        self.skipTest("Post model doesn't have updated_at field - If-Modified-Since not supported")
+        import time
+
+        post = Post.objects.create(content="test content")
+
+        # Small delay to ensure timestamp precision
+        time.sleep(0.1)
+
+        # Get the resource to obtain Last-Modified
+        response1 = self.client.get(
+            f'/posts/{post.pk}/',
+            content_type='application/ld+json'
+        )
+        self.assertEqual(response1.status_code, 200)
+
+        # Response should have Last-Modified header
+        self.assertIn('Last-Modified', response1)
+        last_modified = response1['Last-Modified']
+
+        # Small delay before next request
+        time.sleep(0.1)
+
+        # Make another GET request with If-Modified-Since set to the Last-Modified value
+        response2 = self.client.get(
+            f'/posts/{post.pk}/',
+            HTTP_IF_MODIFIED_SINCE=last_modified,
+            content_type='application/ld+json'
+        )
+
+        # Should return 304 Not Modified since the resource hasn't changed
+        self.assertEqual(response2.status_code, 304)
+
+        # 304 responses should have no body
+        self.assertEqual(len(response2.content), 0)
+
+        # Update the resource
+        post.content = "updated content"
+        post.save()
+
+        # Make another request with the old If-Modified-Since value
+        response3 = self.client.get(
+            f'/posts/{post.pk}/',
+            HTTP_IF_MODIFIED_SINCE=last_modified,
+            content_type='application/ld+json'
+        )
+
+        # Should return 200 with full content since resource has been modified
+        self.assertEqual(response3.status_code, 200)
+        self.assertGreater(len(response3.content), 0)
+
+        # Should have a new Last-Modified header
+        self.assertIn('Last-Modified', response3)
+        self.assertNotEqual(response3['Last-Modified'], last_modified)
 
     # ===== ETag Stability Tests =====
 
