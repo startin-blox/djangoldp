@@ -1,7 +1,7 @@
+from datetime import date
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
-from django.utils.datetime_safe import date
 
 from djangoldp import fields
 from djangoldp.models import Model, DynamicNestedField
