@@ -13,7 +13,6 @@ class PublicTypeIndexView(LDPAPIView):
     def on_request(self, request):
         # Generate a jsonld response with the context and a @graph containing all the models in the system
         response = {
-            '@context': settings.LDP_RDF_CONTEXT,
             '@graph': [{
               "@id": request.build_absolute_uri('publicTypeIndex'),
               "@type": "solid:TypeIndex"
