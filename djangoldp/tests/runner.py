@@ -38,6 +38,11 @@ failures = test_runner.run_tests([
     'djangoldp.tests.views.tests_instance_container',
     'djangoldp.tests.views.tests_webid',
     'djangoldp.tests.views.tests_type_index',
+    'djangoldp.tests.test_etag_compliance',
+    'djangoldp.tests.test_ldp_compliance',
+    'djangoldp.tests.test_prefer_options',
+    'djangoldp.tests.test_pagination_cors',
+    'djangoldp.tests.test_renderers_parsers',
 ])
 if failures:
     sys.exit(failures)

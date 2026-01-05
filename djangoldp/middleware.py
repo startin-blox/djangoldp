@@ -17,24 +17,48 @@ class AllowOnlySiteUrl:
 
 
 class AllowRequestedCORSMiddleware:
-    '''A CORS Middleware which allows the domains requested by the request'''
+    '''
+    A CORS Middleware which allows the domains requested by the request.
+
+    This middleware sets CORS headers including Access-Control-Expose-Headers
+    for LDP compliance. The exposed headers can be customized via settings,
+    or will default to the standard LDP headers.
+    '''
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method == 'OPTIONS':
-            # Return an empty 200 response for OPTIONS requests
-            # The CORS headers will be added by AllowRequestedCORSMiddleware later
-            response = HttpResponse(status=200)
-        else:
-            response = self.get_response(request)
+        # Let OPTIONS requests pass through to the viewset
+        # The viewset's OPTIONS method will handle LDP-specific headers
+        response = self.get_response(request)
 
         response["Access-Control-Allow-Origin"] = request.headers.get('origin')
         response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"
         response["Access-Control-Allow-Headers"] = \
             getattr(settings, 'OIDC_ACCESS_CONTROL_ALLOW_HEADERS',
                     "authorization, Content-Type, if-match, accept, DPoP, cache-control, prefer")
-        response["Access-Control-Expose-Headers"] = "Location, User"
+
+        # Enhanced CORS expose headers for LDP compliance
+        # Allow customization via settings, or use default LDP headers
+        default_expose_headers = [
+            'Link',
+            'ETag',
+            'Accept-Post',
+            'Accept-Patch',
+            'Preference-Applied',
+            'Last-Modified',
+            'Location',
+            'User',
+            'Allow'
+        ]
+        expose_headers = getattr(settings, 'CORS_EXPOSE_HEADERS', default_expose_headers)
+
+        # If expose_headers is a list, join it; if it's already a string, use it as-is
+        if isinstance(expose_headers, list):
+            response["Access-Control-Expose-Headers"] = ', '.join(expose_headers)
+        else:
+            response["Access-Control-Expose-Headers"] = expose_headers
+
         response["Access-Control-Allow-Credentials"] = 'true'
 
         return response

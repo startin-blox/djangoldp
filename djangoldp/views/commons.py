@@ -1,58 +1,36 @@
-import logging
-from collections import OrderedDict
+"""
+Common view utilities and authentication classes.
 
-from django.conf import settings
-from pyld import jsonld
+Note: Renderers and parsers have been moved to separate modules:
+- djangoldp.renderers (JSONLDRenderer, TurtleRenderer)
+- djangoldp.parsers (JSONLDParser, TurtleParser)
+
+Backward compatibility imports are provided below for existing code.
+"""
+
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import ParseError
-from rest_framework.parsers import JSONParser
-from rest_framework.renderers import JSONRenderer
 
-logger = logging.getLogger('djangoldp')
+# Backward compatibility: import renderers and parsers from their new locations
+from djangoldp.renderers import JSONLDRenderer, TurtleRenderer
+from djangoldp.parsers import JSONLDParser, TurtleParser
 
-
-# renders into JSONLD format by applying context to the data
-# https://github.com/digitalbazaar/pyld
-class JSONLDRenderer(JSONRenderer):
-    media_type = 'application/ld+json'
-
-    def render(self, data, accepted_media_type=None, renderer_context=None):
-        if isinstance(data, dict):
-            context = data.get("@context")
-            if isinstance(context, list):
-                context_value = [settings.LDP_RDF_CONTEXT] + context
-            elif isinstance(context, str) or isinstance(context, dict):
-                context_value = [settings.LDP_RDF_CONTEXT, context]
-            else:
-                context_value = settings.LDP_RDF_CONTEXT
-
-            ordered_data = OrderedDict()
-            ordered_data["@context"] = context_value
-            for key, value in data.items():
-                if key != "@context":
-                    ordered_data[key] = value
-            data = ordered_data
-
-        return super(JSONLDRenderer, self).render(data, accepted_media_type, renderer_context)
+# Re-export for backward compatibility
+__all__ = [
+    'NoCSRFAuthentication',
+    'JSONLDRenderer',
+    'TurtleRenderer',
+    'JSONLDParser',
+    'TurtleParser',
+]
 
 
-# https://github.com/digitalbazaar/pyld
-class JSONLDParser(JSONParser):
-    #TODO: It current only works with pyld 1.0. We need to check our support of JSON-LD
-    media_type = 'application/ld+json'
-
-    def parse(self, stream, media_type=None, parser_context=None):
-        data = super(JSONLDParser, self).parse(stream, media_type, parser_context)
-        # compact applies the context to the data and makes it a format which is easier to work with
-        # see: http://json-ld.org/spec/latest/json-ld/#compacted-document-form
-        try:
-            return jsonld.compact(data, ctx=settings.LDP_RDF_CONTEXT)
-        except jsonld.JsonLdError as e:
-            raise ParseError(str(e.cause))
-
-
-# an authentication class which exempts CSRF authentication
 class NoCSRFAuthentication(SessionAuthentication):
+    """
+    An authentication class which exempts CSRF authentication.
+
+    Used for LDP endpoints that need to accept requests from external
+    federated servers without CSRF tokens.
+    """
     def enforce_csrf(self, request):
         return
 

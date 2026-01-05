@@ -33,8 +33,8 @@ class TestGET(APITestCase):
         self.assertIn('@type', response.data)
 
         # test headers returned
-        self.assertEqual(response['Content-Type'], 'application/ld+json') 
-        self.assertEqual(response['Accept-Post'], 'application/ld+json')
+        self.assertEqual(response['Content-Type'], 'application/ld+json')
+        self.assertEqual(response['Accept-Post'], 'application/ld+json, text/turtle')
         self.assertEqual(response['Allow'], 'GET, PUT, PATCH, DELETE, HEAD, OPTIONS')
         self.assertEqual(response['Access-Control-Allow-Origin'], 'http://localhost:8080/test/')
         self.assertIn('DPoP', response['Access-Control-Allow-Headers'])

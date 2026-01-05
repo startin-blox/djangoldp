@@ -119,8 +119,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'djangoldp.middleware.AllowRequestedCORSMiddleware',
-    'django.middleware.gzip.GZipMiddleware',
-    'django_brotli.middleware.BrotliMiddleware'
+    'django.middleware.gzip.GZipMiddleware'
 ]
 
 ##################

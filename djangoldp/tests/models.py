@@ -1,7 +1,7 @@
+from datetime import date
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
-from django.utils.datetime_safe import date
 
 from djangoldp import fields
 from djangoldp.models import Model, DynamicNestedField
@@ -215,6 +215,7 @@ class Post(Model):
     author = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
     peer_user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, related_name="peers_post",
                                   on_delete=models.SET_NULL)
+    # Timestamp fields (created_at, updated_at) are inherited from Model base class
 
     class Meta(Model.Meta):
         ordering = ['pk']

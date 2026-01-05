@@ -38,6 +38,9 @@ class Model(models.Model):
     is_backlink = models.BooleanField(default=False, help_text='set automatically to indicate the Model is a backlink')
     allow_create_backlink = models.BooleanField(default=True,
                                                 help_text='set to False to disable backlink creation after Model save')
+    # Timestamp fields for HTTP caching support (Last-Modified, If-Modified-Since)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     objects = LDPModelManager()
 
     class Meta:

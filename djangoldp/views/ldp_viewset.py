@@ -6,13 +6,17 @@ from django.shortcuts import get_object_or_404
 from django.urls import include, path, re_path
 from django.urls.resolvers import get_resolver
 from django.utils.decorators import classonlymethod
+from django.utils.http import parse_etags, http_date, parse_http_date
 
 # DjangoLDP imports
+from djangoldp.etag import generate_etag, generate_container_etag, normalize_etag
 from djangoldp.filters import LocalObjectOnContainerPathBackend, SearchByQueryParamFilterBackend
 from djangoldp.models import DynamicNestedField, LDPSource
+from djangoldp.parsers import JSONLDParser, TurtleParser
 from djangoldp.related import get_prefetch_fields
+from djangoldp.renderers import JSONLDRenderer, TurtleRenderer
 from djangoldp.utils import is_authenticated_user
-from djangoldp.views.commons import JSONLDParser, JSONLDRenderer, NoCSRFAuthentication
+from djangoldp.views.commons import NoCSRFAuthentication
 
 # DRF imports
 from rest_framework import status
@@ -20,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 import logging
+import re
 
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
@@ -30,8 +35,8 @@ class LDPViewSetGenerator(ModelViewSet):
     model = None
     nested_fields = []
     model_prefix = None
-    list_actions = {'get': 'list', 'post': 'create'}
-    detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
+    list_actions = {'get': 'list', 'post': 'create', 'options': 'options'}
+    detail_actions = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy', 'options': 'options'}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -123,11 +128,17 @@ class LDPViewSet(LDPViewSetGenerator):
     """An automatically generated viewset that serves models following the Linked Data Platform convention"""
     fields = None
     exclude = None
-    renderer_classes = (JSONLDRenderer,)
-    parser_classes = (JSONLDParser,)
+    renderer_classes = (JSONLDRenderer, TurtleRenderer)
+    parser_classes = (JSONLDParser, TurtleParser)
     authentication_classes = (NoCSRFAuthentication,)
     filter_backends = [SearchByQueryParamFilterBackend, LocalObjectOnContainerPathBackend]
     prefetch_fields = None
+    metadata_class = None  # Disable DRF metadata to use custom OPTIONS handler
+
+    # Fix Issues #3, #5: Define CORS expose headers once at class level
+    # These headers are exposed to JavaScript clients in cross-origin requests
+    LDP_EXPOSE_HEADERS = ['Link', 'ETag', 'Last-Modified', 'Accept-Post', 'Accept-Patch',
+                          'Preference-Applied', 'Location', 'User', 'Allow', 'Content-Type']
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -202,15 +213,64 @@ class LDPViewSet(LDPViewSetGenerator):
         self.force_depth = None
         serializer.is_valid(raise_exception=True)
 
+        # Check If-None-Match for creation (should fail if resource exists)
+        if_none_match = request.META.get('HTTP_IF_NONE_MATCH')
+        if if_none_match == '*':
+            # Client wants to ensure resource doesn't exist
+            # For create operations, this is always satisfied
+            pass
+
         self.perform_create(serializer)
         response_serializer = self.get_serializer()
         data = response_serializer.to_representation(serializer.instance)
         headers = self.get_success_headers(data)
-        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+
+        # Generate ETag for newly created resource
+        etag = generate_etag(serializer.instance, data)
+
+        # Check Prefer header for return preference (RFC 7240)
+        # Fix Issue #4: Use regex for precise parsing
+        prefer_header = request.META.get('HTTP_PREFER', '')
+        prefer_minimal = bool(re.search(r'\breturn\s*=\s*minimal\b', prefer_header, re.IGNORECASE))
+        prefer_representation = bool(re.search(r'\breturn\s*=\s*representation\b', prefer_header, re.IGNORECASE))
+
+        # If Prefer: return=minimal, return 204 with Location header
+        if prefer_minimal and not prefer_representation:
+            response = Response(status=status.HTTP_204_NO_CONTENT, headers=headers)
+            # Fix Issue #1: Ensure Location header is not empty
+            location = data.get('@id', '')
+            if not location:
+                # Fallback to building Location from request path and instance pk
+                location = request.build_absolute_uri(f"{request.path.rstrip('/')}/{serializer.instance.pk}/")
+            response['Location'] = str(location)
+            response['ETag'] = etag
+            response['Preference-Applied'] = 'return=minimal'
+            logger.debug(f"CREATE: Applied Prefer: return=minimal, returning 204 with Location: {response['Location']}")
+        else:
+            # Default or explicit return=representation
+            response = Response(data, status=status.HTTP_201_CREATED, headers=headers)
+            response['ETag'] = etag
+            if prefer_representation:
+                response['Preference-Applied'] = 'return=representation'
+            logger.debug(f"CREATE: Returning full representation with 201")
+
+        # Add Last-Modified if available
+        # Fix Issue #2: Check for both existence and non-None value
+        if hasattr(serializer.instance, 'updated_at') and serializer.instance.updated_at:
+            response['Last-Modified'] = http_date(serializer.instance.updated_at.timestamp())
+
+        return response
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+
+        # IMPORTANT: Check If-Match for updates
+        precondition_response = self.check_preconditions(request, instance)
+        if precondition_response:
+            return precondition_response
+
+        # Existing update logic...
         self.force_depth = 10
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         self.force_depth = None
@@ -224,7 +284,37 @@ class LDPViewSet(LDPViewSetGenerator):
 
         response_serializer = self.get_serializer()
         data = response_serializer.to_representation(serializer.instance)
-        return Response(data)
+
+        # Generate new ETag after update
+        new_etag = generate_etag(serializer.instance, data)
+
+        # Check Prefer header for return preference (RFC 7240)
+        # Fix Issue #4: Use regex for precise parsing
+        prefer_header = request.META.get('HTTP_PREFER', '')
+        prefer_minimal = bool(re.search(r'\breturn\s*=\s*minimal\b', prefer_header, re.IGNORECASE))
+        prefer_representation = bool(re.search(r'\breturn\s*=\s*representation\b', prefer_header, re.IGNORECASE))
+
+        # If Prefer: return=minimal, return 204 with Location header
+        if prefer_minimal and not prefer_representation:
+            response = Response(status=status.HTTP_204_NO_CONTENT)
+            # Fix Issue #1: Ensure Location header is not empty
+            location = data.get('@id', '')
+            if not location:
+                # Fallback to building Location from request path
+                location = request.build_absolute_uri(request.path)
+            response['Location'] = str(location)
+            response['ETag'] = new_etag
+            response['Preference-Applied'] = 'return=minimal'
+            logger.debug(f"UPDATE: Applied Prefer: return=minimal, returning 204 with Location: {response['Location']}")
+        else:
+            # Default or explicit return=representation
+            response = Response(data)
+            response['ETag'] = new_etag
+            if prefer_representation:
+                response['Preference-Applied'] = 'return=representation'
+            logger.debug(f"UPDATE: Returning full representation with 200")
+
+        return response
 
     def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, get_user_model()):
@@ -240,21 +330,296 @@ class LDPViewSet(LDPViewSetGenerator):
             self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), self.get_depth())
         return queryset.prefetch_related(*self.prefetch_fields)
 
-    def dispatch(self, request, *args, **kwargs):
-        '''overriden dispatch method to append some custom headers'''
-        response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
-        response["Accept-Post"] = "application/ld+json"
+    def check_preconditions(self, request, instance=None):
+        """
+        Check conditional request headers.
+        Returns Response if precondition fails, None if passes.
 
-        if response.status_code in [201, 200] and '@id' in response.data:
-            response["Location"] = str(response.data['@id'])
+        Handles:
+        - If-Match: Require ETag to match for updates (PUT/PATCH) - weak comparison
+        - If-None-Match: Return 304 for GET, 412 for PUT/POST if ETag matches - weak comparison
+        - If-Modified-Since: Return 304 if resource hasn't changed (GET only)
+        """
+        # If-Match: require ETag to match for updates (weak comparison)
+        if_match = request.META.get('HTTP_IF_MATCH')
+        if if_match and instance:
+            try:
+                # Serialize the instance to get consistent ETag (same as retrieve())
+                serializer = self.get_serializer(instance)
+                data = serializer.data
+                current_etag = generate_etag(instance, data)
+                # normalize_etag returns (is_weak, etag_value)
+                _, current_etag_value = normalize_etag(current_etag)
+
+                # Parse If-Match ETags
+                match_etags = parse_etags(if_match)
+
+                # For If-Match, use weak comparison (ignore weak/strong distinction)
+                # Only the values need to match
+                match_found = False
+                if '*' in match_etags:
+                    match_found = True
+                else:
+                    for etag in match_etags:
+                        _, etag_value = normalize_etag(etag)
+                        # Weak comparison: just compare values, ignore weak/strong status
+                        if etag_value == current_etag_value:
+                            match_found = True
+                            break
+
+                if not match_found:
+                    return Response(
+                        {'detail': 'Precondition failed: ETag does not match'},
+                        status=status.HTTP_412_PRECONDITION_FAILED
+                    )
+            except Exception as e:
+                # Malformed ETag should return 400 Bad Request
+                logger.warning(f"Malformed If-Match header: {if_match}, error: {e}")
+                return Response(
+                    {'detail': 'Bad Request: Malformed If-Match header'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # If-None-Match: behavior depends on HTTP method
+        if_none_match = request.META.get('HTTP_IF_NONE_MATCH')
+        if if_none_match and instance:
+            try:
+                # Serialize the instance to get consistent ETag (same as retrieve())
+                serializer = self.get_serializer(instance)
+                data = serializer.data
+                current_etag = generate_etag(instance, data)
+                _, current_etag_value = normalize_etag(current_etag)
+
+                # Parse If-None-Match ETags
+                none_match_etags = parse_etags(if_none_match)
+
+                # Check if current ETag matches any of the provided ETags (weak comparison)
+                etag_matches = False
+                if '*' in none_match_etags:
+                    etag_matches = True
+                else:
+                    for etag in none_match_etags:
+                        _, etag_value = normalize_etag(etag)
+                        # Weak comparison: just compare values
+                        if etag_value == current_etag_value:
+                            etag_matches = True
+                            break
+
+                if etag_matches:
+                    # For GET/HEAD: return 304 Not Modified
+                    if request.method in ['GET', 'HEAD']:
+                        return Response(status=status.HTTP_304_NOT_MODIFIED)
+                    # For PUT/POST/PATCH: return 412 Precondition Failed
+                    elif request.method in ['PUT', 'POST', 'PATCH']:
+                        return Response(
+                            {'detail': 'Precondition failed: Resource already exists or ETag matches'},
+                            status=status.HTTP_412_PRECONDITION_FAILED
+                        )
+            except Exception as e:
+                # Malformed ETag should return 400 Bad Request
+                logger.warning(f"Malformed If-None-Match header: {if_none_match}, error: {e}")
+                return Response(
+                    {'detail': 'Bad Request: Malformed If-None-Match header'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # If-Modified-Since (for GET/HEAD requests only)
+        if_modified_since = request.META.get('HTTP_IF_MODIFIED_SINCE')
+        if if_modified_since and instance and request.method in ['GET', 'HEAD']:
+            if hasattr(instance, 'updated_at') and instance.updated_at:
+                try:
+                    modified_since = parse_http_date(if_modified_since)
+                    # Compare at second precision (HTTP dates don't include microseconds)
+                    resource_timestamp = int(instance.updated_at.timestamp())
+                    if resource_timestamp <= modified_since:
+                        return Response(status=status.HTTP_304_NOT_MODIFIED)
+                except (ValueError, TypeError) as e:
+                    # Log malformed date but continue (don't return 400)
+                    logger.warning(f"Malformed If-Modified-Since header: {if_modified_since}, error: {e}")
+
+        return None
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a single resource with ETag and conditional request support.
+        """
+        instance = self.get_object()
+
+        # Check conditional headers
+        precondition_response = self.check_preconditions(request, instance)
+        if precondition_response:
+            return precondition_response
+
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        etag = generate_etag(instance, data)
+
+        response = Response(data)
+        response['ETag'] = etag
+
+        # Add Last-Modified if available
+        if hasattr(instance, 'updated_at'):
+            response['Last-Modified'] = http_date(instance.updated_at.timestamp())
+
+        return response
+
+    def list(self, request, *args, **kwargs):
+        """
+        List resources in a container with container ETag support.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Get total count for ETag generation
+        count = queryset.count()
+
+        # Handle pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+
+            # Extract page number from request for paginated ETag
+            page_number = None
+            try:
+                # Try to get page number from paginator
+                if hasattr(self, 'paginator') and hasattr(self.paginator, 'page'):
+                    page_number = self.paginator.page.number
+                # Fallback to query param
+                elif 'page' in request.query_params:
+                    page_number = int(request.query_params['page'])
+            except (AttributeError, ValueError, TypeError):
+                pass
+
+            # Generate container ETag with page number
+            etag = generate_container_etag(queryset, count, page_number)
         else:
-            pass
+            serializer = self.get_serializer(queryset, many=True)
+            response = Response(serializer.data)
+            # Generate container ETag without pagination
+            etag = generate_container_etag(queryset, count)
+
+        response['ETag'] = etag
+
+        return response
+
+    def options(self, request, *args, **kwargs):
+        """
+        Handle OPTIONS requests with proper LDP headers.
+        Returns allowed methods and accepted content types.
+        """
+        # Determine if this is a detail or list view
+        is_detail = self.lookup_field in kwargs
+
+        # Build Allow header based on view type
+        if is_detail:
+            # Detail view: GET, PUT, PATCH, DELETE, HEAD, OPTIONS
+            allowed_methods = ['GET', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+        else:
+            # Container view: GET, POST, HEAD, OPTIONS
+            allowed_methods = ['GET', 'POST', 'HEAD', 'OPTIONS']
+
+        # Use HttpResponse instead of DRF Response to avoid content-type rendering issues
+        from django.http import HttpResponse
+        response = HttpResponse(status=200)
+        response['Allow'] = ', '.join(allowed_methods)
+
+        # Add Accept-Post for container views
+        if not is_detail:
+            response['Accept-Post'] = 'application/ld+json, text/turtle'
+
+        # Add Accept-Patch for detail views (resources can be patched)
+        if is_detail:
+            response['Accept-Patch'] = 'application/ld+json, text/turtle'
+
+        # Add Link headers for LDP types
+        link_headers = []
+        if is_detail:
+            link_headers.append('<http://www.w3.org/ns/ldp#Resource>; rel="type"')
+            link_headers.append('<http://www.w3.org/ns/ldp#RDFSource>; rel="type"')
+        else:
+            link_headers.append('<http://www.w3.org/ns/ldp#Resource>; rel="type"')
+            link_headers.append('<http://www.w3.org/ns/ldp#RDFSource>; rel="type"')
+            link_headers.append('<http://www.w3.org/ns/ldp#Container>; rel="type"')
+            link_headers.append('<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"')
+
+        response['Link'] = ', '.join(link_headers)
+
+        # Add CORS expose headers for OPTIONS using class-level constant
+        response['Access-Control-Expose-Headers'] = ', '.join(self.LDP_EXPOSE_HEADERS)
+
+        logger.debug(f"OPTIONS: is_detail={is_detail}, Allow={response['Allow']}")
+
+        return response
+
+    def dispatch(self, request, *args, **kwargs):
+        '''
+        Overridden dispatch method to append custom headers for LDP compliance.
+
+        Adds:
+        - Accept-Post header for supported content types
+        - Link headers for LDP resource types
+        - Location header for created/updated resources
+        - User header for authenticated users
+
+        Note: CORS headers (Access-Control-Expose-Headers) are handled by
+        AllowRequestedCORSMiddleware to ensure consistency across all responses.
+        '''
+        # Handle OPTIONS requests directly to bypass DRF metadata handling
+        if request.method == 'OPTIONS':
+            return self.options(request, *args, **kwargs)
+
+        response = super(LDPViewSet, self).dispatch(request, *args, **kwargs)
+
+        # Update Accept-Post to include text/turtle (for non-OPTIONS requests)
+        response["Accept-Post"] = "application/ld+json, text/turtle"
+
+        # Only add Link headers for successful responses (2xx status codes)
+        if 200 <= response.status_code < 300:
+            # Add Link headers for LDP resource types
+            link_headers = []
+
+            # Preserve existing Link headers (e.g., from pagination) - PUT THESE FIRST
+            existing_link = response.get('Link', '')
+            if existing_link:
+                link_headers.append(existing_link)
+
+            # For detail views (single resource) - use explicit key check
+            if self.lookup_field in kwargs:
+                link_headers.append('<http://www.w3.org/ns/ldp#Resource>; rel="type"')
+                link_headers.append('<http://www.w3.org/ns/ldp#RDFSource>; rel="type"')
+
+            # For container views (list)
+            else:
+                link_headers.append('<http://www.w3.org/ns/ldp#Resource>; rel="type"')
+                link_headers.append('<http://www.w3.org/ns/ldp#RDFSource>; rel="type"')
+                link_headers.append('<http://www.w3.org/ns/ldp#Container>; rel="type"')
+                link_headers.append('<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"')
+
+            response['Link'] = ', '.join(link_headers)
+
+        if response.status_code in [201, 200] and hasattr(response, 'data') and isinstance(response.data, dict) and '@id' in response.data:
+            response["Location"] = str(response.data['@id'])
 
         if is_authenticated_user(request.user):
             try:
                 response['User'] = request.user.urlid
             except AttributeError:
                 pass
+
+        # Add Access-Control-Expose-Headers for CORS to allow JavaScript to access LDP headers
+        # Preserve any existing expose headers from middleware
+        existing_expose = response.get('Access-Control-Expose-Headers', '')
+
+        if existing_expose:
+            # Combine existing headers with LDP headers
+            existing_list = [h.strip() for h in existing_expose.split(',')]
+            # Fix Issue #6: Use dict.fromkeys() for order-preserving deduplication instead of set()
+            all_headers = list(dict.fromkeys(existing_list + self.LDP_EXPOSE_HEADERS))
+        else:
+            all_headers = self.LDP_EXPOSE_HEADERS
+
+        response['Access-Control-Expose-Headers'] = ', '.join(all_headers)
+
         return response
 
 
@@ -284,9 +649,6 @@ class LDPNestedViewSet(LDPViewSet):
             return related.all()
         if self.nested_field.one_to_one or self.nested_field.many_to_one:
             return type(related).objects.filter(pk=related.pk)
-
-
-        return response
 
 
 class LDPSourceViewSet(LDPViewSet):

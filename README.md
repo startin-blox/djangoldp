@@ -1,6 +1,11 @@
-# Setup a DjangoLDP server
+# DjangoLDP
+
+A Django package that extends Django REST Framework to serve models following the [W3C Linked Data Platform](https://www.w3.org/TR/ldp/) convention, with support for RDF serialization and ActivityPub federation.
 
 Check the [official documentation](https://docs.startinblox.com/import_documentation/djangoldp_guide/install-djangoldp-server.html).
+
+---
+
 
 ## Settings
 
@@ -73,6 +78,42 @@ def check_integrity(options):
 ```
 
 You can see a sample on the `check_integrity.py` file of DjangoLDP.
+
+## What's New in v5.0.0
+
+### Major Changes
+
+- **Django 5 LTS** - Upgraded to Django 5.2 LTS
+- **Turtle Serialization** - Full RDF Turtle parser and renderer ([guide](./docs/turtle_serialization.md))
+- **ETag Support** - Conditional requests with `If-Match`, `If-None-Match`, `If-Modified-Since`
+- **Link Headers** - W3C LDP-compliant pagination and type headers
+- **OPTIONS Method** - Full implementation with `Allow`, `Accept-Post`, `Accept-Patch`
+- **Prefer Headers** - RFC 7240 support (`return=minimal`, `return=representation`)
+
+### Quick Examples
+
+```bash
+# Request Turtle format
+curl -H "Accept: text/turtle" http://localhost:8000/users/
+
+# Conditional update (prevents conflicts)
+curl -X PUT -H "If-Match: W/\"abc123\"" -d '{"name":"updated"}' http://localhost:8000/users/1/
+
+# Minimal response (faster)
+curl -X POST -H "Prefer: return=minimal" -d '{"name":"new"}' http://localhost:8000/users/
+```
+
+### Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Turtle Serialization](./docs/turtle_serialization.md) | How to use RDF Turtle format |
+| [HTTP Headers](./docs/http_headers.md) | Complete headers reference |
+| [v5.0.0 Changelog](./docs/changelogs/v5.0.0_CHANGELOG.md) | Full list of changes |
+| [LDP Compliance](./docs/ldp_compliance_status.md) | W3C specification compliance |
+| [Architecture](./docs/project_structure.md) | Codebase architecture |
+
+---
 
 ## License
 
