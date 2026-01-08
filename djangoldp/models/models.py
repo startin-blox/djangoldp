@@ -292,7 +292,7 @@ class Activity(Model):
     type = models.CharField(null=True, blank=True, help_text='the ActivityStreams type of the Activity',
                             max_length=64)
     is_finished = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    # created_at is inherited from Model base class
     success = models.BooleanField(default=False, help_text='set to True when an Activity is successfully delivered')
 
     class Meta(Model.Meta):

@@ -12,14 +12,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Add created_at field to Activity model
-        migrations.AddField(
-            model_name='activity',
-            name='created_at',
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
-            preserve_default=False,
-        ),
-        # Add updated_at field to Activity model
+        # Activity already has created_at from migration 0006, only add updated_at
         migrations.AddField(
             model_name='activity',
             name='updated_at',
