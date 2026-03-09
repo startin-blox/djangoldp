@@ -1,10 +1,12 @@
 import os
 import json
-import requests
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.apps import apps
+from django.contrib.auth.models import AnonymousUser
+from django.urls.resolvers import get_resolver
 from urllib.parse import urlparse, urljoin
+from rest_framework.renderers import JSONRenderer
 
 class StaticContentGenerator:
     def __init__(self, stdout, style):
@@ -12,11 +14,11 @@ class StaticContentGenerator:
         self.style = style
         self.base_uri = getattr(settings, 'BASE_URL', '')
         self.max_depth = getattr(settings, 'MAX_RECURSION_DEPTH', 5)
-        self.request_timeout = getattr(settings, 'SSR_REQUEST_TIMEOUT', 10)
         self.regenerated_urls = set()
         self.failed_urls = set()
         self.output_dir = 'ssr'
         self.output_dir_filtered = 'ssr_filtered'
+        self.resolver = get_resolver()
 
     def generate_content(self):
         self._create_output_directory()
@@ -32,48 +34,73 @@ class StaticContentGenerator:
 
     def _process_model(self, model):
         self.stdout.write(f"Generating content for model: {model}")
-        url = self._build_url(model)
-        if url not in self.regenerated_urls and url not in self.failed_urls:
-            self._fetch_and_save_content(model, url, self.output_dir)
+        path = self._build_path(model)
+        if path not in self.regenerated_urls and path not in self.failed_urls:
+            self._fetch_and_save_content(model, path, self.output_dir)
         else:
-            self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
+            self.stdout.write(self.style.WARNING(f'Skipping {path} as it has already been fetched'))
         if hasattr(model._meta, 'static_params'):
-            url = self._build_url(model, True)
-            if url not in self.regenerated_urls and url not in self.failed_urls:
-                self._fetch_and_save_content(model, url, self.output_dir_filtered)
+            path = self._build_path(model, True)
+            if path not in self.regenerated_urls and path not in self.failed_urls:
+                self._fetch_and_save_content(model, path, self.output_dir_filtered)
             else:
-                self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
+                self.stdout.write(self.style.WARNING(f'Skipping {path} as it has already been fetched'))
 
-    def _build_url(self, model, use_static_params=False):
+    def _build_path(self, model, use_static_params=False):
         container_path = model.get_container_path()
-        url = urljoin(self.base_uri, container_path)
+        if container_path.startswith('/'):
+            container_path = container_path[1:]
         if hasattr(model._meta, 'static_params') and use_static_params:
-            url += '?' + '&'.join(f'{k}={v}' for k, v in model._meta.static_params.items())
-        return url
+            params = '&'.join(f'{k}={v}' for k, v in model._meta.static_params.items())
+            container_path += '?' + params
+        return container_path
 
-    def _fetch_and_save_content(self, model, url, output_dir):
+    def _get_response_from_view(self, path, method='GET'):
         try:
-            response = requests.get(url, timeout=self.request_timeout)
-            if response.status_code == 200:
-                content = self._update_ids_and_fetch_associated(response.text)
-                self._save_content(model, url, content, output_dir)
+            match = self.resolver.resolve('/' + path)
+            from django.test import RequestFactory
+            factory = RequestFactory()
+            
+            if method == 'GET':
+                request = factory.get('/' + path)
             else:
-                self.stdout.write(self.style.ERROR(f'Failed to fetch content from {url}: HTTP {response.status_code}'))
-        except requests.exceptions.RequestException as e:
-            self.stdout.write(self.style.ERROR(f'Error fetching content from {url}: {str(e)}'))
+                request = factory.post('/' + path)
+                
+            request.user = AnonymousUser()
+            response = match.func(request, *match.args, **match.kwargs)
+            return response
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Error resolving path {path}: {str(e)}'))
+            return None
 
-    def _save_content(self, model, url, content, output_dir):
-        relative_path = urlparse(url).path.strip('/')
-        file_path = os.path.join(output_dir, relative_path)
-        if file_path.endswith('/'):
-            file_path = file_path[:-1]
+    def _fetch_and_save_content(self, model, path, output_dir):
+        response = self._get_response_from_view(path)
+        if response and response.status_code == 200:
+            if hasattr(response, 'data'):
+                content = JSONRenderer().render(response.data).decode('utf-8')
+            else:
+                content = response.content.decode('utf-8')
+            content = self._update_ids_and_fetch_associated(content)
+            self._save_content(model, path, content, output_dir)
+        else:
+            self.failed_urls.add(path)
+            status = response.status_code if response else 'Unknown'
+            self.stdout.write(self.style.ERROR(f'Failed to fetch content for {path}: HTTP {status}'))
+
+    def _save_content(self, model, path, content, output_dir):
+        file_path = os.path.join(output_dir, path.rstrip('/'))
         if not file_path.endswith('.jsonld'):
             file_path += '.jsonld'
+        
+        if '?' in file_path:
+            file_path = file_path.split('?')[0]
+        
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            self.stdout.write(self.style.SUCCESS(f'Successfully saved content for {model._meta.model_name} from {url} to {file_path}'))
+            self.regenerated_urls.add(path)
+            self.stdout.write(self.style.SUCCESS(f'Successfully saved content for {model._meta.model_name} to {file_path}'))
         except IOError as e:
             self.stdout.write(self.style.ERROR(f'Error saving content for {model._meta.model_name}: {str(e)}'))
 
@@ -147,10 +174,16 @@ class StaticContentGenerator:
         return data
 
     def _fetch_and_save_associated_content(self, url, new_path, depth):
-        if url in self.regenerated_urls:
+        parsed_url = urlparse(url)
+        path = parsed_url.path
+        if path.startswith(urlparse(self.base_uri).path):
+            path = path[len(urlparse(self.base_uri).path):]
+        path = path.lstrip('/')
+
+        if path in self.regenerated_urls:
             self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been fetched'))
             return
-        if url in self.failed_urls:
+        if path in self.failed_urls:
             self.stdout.write(self.style.WARNING(f'Skipping {url} as it has already been tried and failed'))
             return
 
@@ -161,23 +194,27 @@ class StaticContentGenerator:
             file_path += '.jsonld'
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        try:
-            response = requests.get(url, timeout=self.request_timeout)
-            if response.status_code == 200:
-                updated_content = json.loads(self._update_ids_and_fetch_associated(response.text, depth + 1))
-                updated_content = self._rewrite_ids_before_saving(updated_content)
+        response = self._get_response_from_view(path)
+        if response and response.status_code == 200:
+            if hasattr(response, 'data'):
+                content = JSONRenderer().render(response.data).decode('utf-8')
+            else:
+                content = response.content.decode('utf-8')
+            
+            updated_content = json.loads(self._update_ids_and_fetch_associated(content, depth + 1))
+            updated_content = self._rewrite_ids_before_saving(updated_content)
 
+            try:
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(json.dumps(updated_content))
-                self.regenerated_urls.add(url)
+                self.regenerated_urls.add(path)
                 self.stdout.write(self.style.SUCCESS(f'Successfully fetched and saved associated content from {url} to {file_path}'))
-            else:
-                self.failed_urls.add(url)
-                self.stdout.write(self.style.ERROR(f'Failed to fetch associated content from {url}: HTTP {response.status_code}'))
-        except requests.exceptions.RequestException as e:
-            self.stdout.write(self.style.ERROR(f'Error fetching associated content from {url}: {str(e)}'))
-        except IOError as e:
-            self.stdout.write(self.style.ERROR(f'Error saving associated content from {url}: {str(e)}'))
+            except IOError as e:
+                self.stdout.write(self.style.ERROR(f'Error saving associated content from {url}: {str(e)}'))
+        else:
+            self.failed_urls.add(path)
+            status = response.status_code if response else 'Unknown'
+            self.stdout.write(self.style.ERROR(f'Failed to fetch associated content from {url}: HTTP {status}'))
 
 class Command(BaseCommand):
     help = 'Generate static content for models having the static_version meta attribute set to 1/true'
