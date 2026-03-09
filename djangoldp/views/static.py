@@ -17,6 +17,18 @@ logger = logging.getLogger("djangoldp")
 
 
 def serve_static_content(request, path):
+    if request.method == "OPTIONS":
+        return JsonResponse(
+            {},
+            safe=False,
+            status=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+        )
+
     if request.method != "GET":
         response = get_response_from_view(path, request.method)
         return response
