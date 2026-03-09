@@ -6,13 +6,14 @@ from rest_framework.fields import empty
 
 from djangoldp.models import Model
 from djangoldp.permissions import DEFAULT_DJANGOLDP_PERMISSIONS
+
 from .cache import GLOBAL_SERIALIZER_CACHE
 
 
 class RDFSerializerMixin:
     def add_permissions(self, data, user, model, obj=None):
         '''takes a set or list of permissions and returns them in the JSON-LD format'''
-        if self.parent and not settings.LDP_INCLUDE_INNER_PERMS:  # Don't serialize permissions on nested objects
+        if self.parent and not settings.LDP_INCLUDE_INNER_PERMS and not getattr(model._meta, 'include_inner_perms', False):  # Don't serialize permissions on nested objects
             return data
 
         if user.is_superuser:
