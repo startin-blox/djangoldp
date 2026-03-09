@@ -1,82 +1,44 @@
-import json
 import logging
 import os
-import time
 
-from django.conf import settings
-from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponseNotFound, JsonResponse
-from django.urls.resolvers import get_resolver
 
-from rest_framework.renderers import JSONRenderer
+from .static_helpers import (
+    build_file_path,
+    extract_content_from_response,
+    get_response_from_view,
+    is_cache_expired,
+    process_content,
+    read_json_file,
+    save_content_to_file,
+)
 
-logger = logging.getLogger('djangoldp')
+logger = logging.getLogger("djangoldp")
 
 
 def serve_static_content(request, path):
-
     if request.method != "GET":
-        resolver = get_resolver()
-        match = resolver.resolve("/" + path)
-        request.user = AnonymousUser()
-        return match.func(request, *match.args, **match.kwargs)
+        response = get_response_from_view(path, request.method)
+        return response
 
-    server_url = getattr(settings, "BASE_URL", "http://localhost")
+    is_filtered = request.GET.get("search-fields", False)
+    output_dir = "ssr" if not is_filtered else "ssr_filtered"
 
-    is_filtered = request.GET.get('search-fields', False)
+    file_path = build_file_path(output_dir, path)
 
-    output_dir = "ssr"
-    output_dir_filtered = "ssr_filtered"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-    if not os.path.exists(output_dir_filtered):
-        os.makedirs(output_dir_filtered, exist_ok=True)
-
-    file_path = os.path.join(output_dir if not is_filtered else output_dir_filtered, path[:-1])
-    if not file_path.endswith(".jsonld"):
-        file_path += ".jsonld"
-
-    if os.path.exists(file_path):
-        current_time = time.time()
-        file_mod_time = os.path.getmtime(file_path)
-        time_difference = current_time - file_mod_time
-        if time_difference > 24 * 60 * 60:
-            os.remove(file_path)
+    if os.path.exists(file_path) and is_cache_expired(file_path):
+        os.remove(file_path)
 
     if not os.path.exists(file_path):
-
-        resolver = get_resolver()
-        match = resolver.resolve("/" + path)
-        request.user = AnonymousUser()
-        response = match.func(request, *match.args, **match.kwargs)
-        if response.status_code == 200:
-            directory = os.path.dirname(file_path)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            json_content = JSONRenderer().render(response.data)
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(
-                    json_content.decode("utf-8")
-                    .replace('"@id":"' + server_url, '"@id":"' + server_url + "/ssr")
-                    .replace(
-                        '"@id":"' + server_url + "/ssr/ssr",
-                        '"@id":"' + server_url + "/ssr",
-                    )[:-1]
-                    + ',"@context": "'
-                    + getattr(
-                        settings,
-                        "LDP_RDF_CONTEXT",
-                        "https://cdn.startinblox.com/owl/context.jsonld",
-                    )
-                    + '"}'
-                )
+        response = get_response_from_view(path)
+        if response and response.status_code == 200:
+            content = extract_content_from_response(response)
+            processed_content = process_content(content, add_context=True)
+            save_content_to_file(file_path, processed_content)
 
     if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as file:
-            content = file.read()
-
-        try:
-            json_content = json.loads(content)
+        json_content = read_json_file(file_path)
+        if json_content:
             return JsonResponse(
                 json_content,
                 safe=False,
@@ -87,7 +49,5 @@ def serve_static_content(request, path):
                     "Cache-Control": "public, max-age=3600",
                 },
             )
-        except json.JSONDecodeError:
-            pass
 
     return HttpResponseNotFound("File not found")
