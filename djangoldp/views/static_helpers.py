@@ -8,7 +8,6 @@ from django.contrib.auth.models import AnonymousUser
 from django.urls.resolvers import get_resolver
 from rest_framework.renderers import JSONRenderer
 
-
 BASE_URL = getattr(settings, "BASE_URL", "http://localhost")
 PARSED_BASE_URL = urlparse(BASE_URL)
 RDF_CONTEXT = getattr(
@@ -33,7 +32,7 @@ def rewrite_ids(data):
             if original_id.startswith(BASE_URL) and "/ssr" not in original_id:
                 path = urlparse(original_id).path
                 if path.startswith(PARSED_BASE_URL.path):
-                    path = path[len(PARSED_BASE_URL.path):]
+                    path = path[len(PARSED_BASE_URL.path) :]
                 data["@id"] = urljoin(BASE_URL, "/ssr" + path)
             elif "/ssr/ssr" in original_id:
                 data["@id"] = original_id.replace("/ssr/ssr", "/ssr")
@@ -45,10 +44,11 @@ def rewrite_ids(data):
     return data
 
 
-def get_response_from_view(path, method="GET"):
+def get_response_from_view(path, method="GET", depth=None):
     resolver = get_resolver_cached()
-    from django.test import RequestFactory
     from urllib.parse import parse_qs
+
+    from django.test import RequestFactory
 
     query_string = None
     if "?" in path:
@@ -73,23 +73,22 @@ def get_response_from_view(path, method="GET"):
         parsed_params = parse_qs(query_string)
         get_params = {k: v[0] if len(v) == 1 else v for k, v in parsed_params.items()}
 
+    extra_headers = {
+        "HTTP_HOST": PARSED_BASE_URL.netloc,
+        "SERVER_NAME": PARSED_BASE_URL.hostname,
+        "SERVER_PORT": PARSED_BASE_URL.port
+        or (443 if PARSED_BASE_URL.scheme == "https" else 80),
+        "HTTP_X_FORWARDED_PROTO": PARSED_BASE_URL.scheme,
+    }
+
+    if depth is not None:
+        extra_headers["HTTP_DEPTH"] = str(depth)
+
     if method == "GET":
-        request = factory.get(
-            resolve_path,
-            data=get_params,
-            HTTP_HOST=PARSED_BASE_URL.netloc,
-            SERVER_NAME=PARSED_BASE_URL.hostname,
-            SERVER_PORT=PARSED_BASE_URL.port
-            or (443 if PARSED_BASE_URL.scheme == "https" else 80),
-        )
+        request = factory.get(resolve_path, data=get_params, **extra_headers)
     else:
         request = factory.post(
-            resolve_path,
-            data=get_params if method == "POST" else None,
-            HTTP_HOST=PARSED_BASE_URL.netloc,
-            SERVER_NAME=PARSED_BASE_URL.hostname,
-            SERVER_PORT=PARSED_BASE_URL.port
-            or (443 if PARSED_BASE_URL.scheme == "https" else 80),
+            resolve_path, data=get_params if method == "POST" else None, **extra_headers
         )
 
     request.user = AnonymousUser()
@@ -149,3 +148,21 @@ def process_content(content, add_context=True):
 
 def ensure_directory(directory):
     os.makedirs(directory, exist_ok=True)
+
+
+def get_model_from_path(path):
+    from django.apps import apps
+
+    path_stripped = path.rstrip("/").split("?")[0]
+
+    for model in apps.get_models():
+        if hasattr(model._meta, "static_version"):
+            container_path = model.get_container_path()
+            if container_path.startswith("/"):
+                container_path = container_path[1:]
+            if container_path in path_stripped or path_stripped.startswith(
+                container_path
+            ):
+                return model
+
+    return None

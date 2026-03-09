@@ -11,6 +11,7 @@ from djangoldp.views.static_helpers import (
     RDF_CONTEXT,
     build_file_path,
     extract_content_from_response,
+    get_model_from_path,
     get_response_from_view,
     rewrite_ids,
     save_content_to_file,
@@ -48,9 +49,10 @@ class StaticContentGenerator:
 
     def _process_model(self, model):
         self.stdout.write(f"Generating content for model: {model}")
+        depth = getattr(model._meta, "depth", None)
         path = self._build_path(model)
         if path not in self.regenerated_urls and path not in self.failed_urls:
-            self._fetch_and_save_content(model, path, self.output_dir)
+            self._fetch_and_save_content(model, path, self.output_dir, depth)
         else:
             self.stdout.write(
                 self.style.WARNING(f"Skipping {path} as it has already been fetched")
@@ -58,7 +60,9 @@ class StaticContentGenerator:
         if hasattr(model._meta, "static_params"):
             path = self._build_path(model, True)
             if path not in self.regenerated_urls and path not in self.failed_urls:
-                self._fetch_and_save_content(model, path, self.output_dir_filtered)
+                self._fetch_and_save_content(
+                    model, path, self.output_dir_filtered, depth
+                )
             else:
                 self.stdout.write(
                     self.style.WARNING(
@@ -76,8 +80,8 @@ class StaticContentGenerator:
             container_path += "?" + params
         return container_path
 
-    def _fetch_and_save_content(self, model, path, output_dir):
-        response = get_response_from_view(path)
+    def _fetch_and_save_content(self, model, path, output_dir, depth=None):
+        response = get_response_from_view(path, depth=depth)
         if response and response.status_code == 200:
             content = extract_content_from_response(response)
             self._save_content(model, path, content, output_dir)
@@ -197,7 +201,11 @@ class StaticContentGenerator:
 
         file_path = build_file_path(self.output_dir, path)
 
-        response = get_response_from_view(path)
+        model = get_model_from_path(path)
+        model_depth = getattr(model._meta, "depth", None) if model else None
+        response = get_response_from_view(
+            path, depth=model_depth if model_depth is not None else None
+        )
         if response and response.status_code == 200:
             content = extract_content_from_response(response)
             updated_content = self._update_ids_and_fetch_associated(content, depth)

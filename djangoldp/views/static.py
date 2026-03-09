@@ -6,6 +6,7 @@ from django.http import HttpResponseNotFound, JsonResponse
 from .static_helpers import (
     build_file_path,
     extract_content_from_response,
+    get_model_from_path,
     get_response_from_view,
     is_cache_expired,
     process_content,
@@ -42,7 +43,9 @@ def serve_static_content(request, path):
         os.remove(file_path)
 
     if not os.path.exists(file_path):
-        response = get_response_from_view(path)
+        model = get_model_from_path(path)
+        depth = getattr(model._meta, "depth", None) if model else None
+        response = get_response_from_view(path, depth=depth)
         if response and response.status_code == 200:
             content = extract_content_from_response(response)
             processed_content = process_content(content, add_context=True)
