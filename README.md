@@ -2,7 +2,9 @@
 
 A Django package that extends Django REST Framework to serve models following the [W3C Linked Data Platform](https://www.w3.org/TR/ldp/) convention, with support for RDF serialization and ActivityPub federation.
 
-Check the [official documentation](https://docs.startinblox.com/import_documentation/djangoldp_guide/install-djangoldp-server.html).
+## Getting Started
+
+Check the [official documentation](https://git.startinblox.com/documentation/doc/-/blob/master/source/import_documentation/djangoldp_guide/install-djangoldp-server.rst).
 
 ---
 
