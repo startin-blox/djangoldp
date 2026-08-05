@@ -1,8 +1,8 @@
 from django.conf import settings
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.shortcuts import redirect
-from djangoldp.models import Model
 from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.utils.http import url_has_allowed_host_and_scheme
+
 
 class AllowOnlySiteUrl:
     def __init__(self, get_response):
@@ -13,7 +13,7 @@ class AllowOnlySiteUrl:
         if(url_has_allowed_host_and_scheme(request.get_raw_uri(), allowed_hosts=settings.SITE_URL) or response.status_code != 200):
             return response
         else:
-            return redirect('{}{}'.format(settings.SITE_URL, request.path), permanent=True)
+            return redirect(f'{settings.SITE_URL}{request.path}', permanent=True)
 
 
 class AllowRequestedCORSMiddleware:
@@ -36,7 +36,7 @@ class AllowRequestedCORSMiddleware:
         response["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"
         response["Access-Control-Allow-Headers"] = \
             getattr(settings, 'OIDC_ACCESS_CONTROL_ALLOW_HEADERS',
-                    "authorization, Content-Type, if-match, accept, DPoP, cache-control, prefer")
+                    "authorization, Content-Type, if-match, if-none-match, accept, DPoP, pragma, no-cache, user-agent, cache-control, prefer, sentry-trace")
 
         # Enhanced CORS expose headers for LDP compliance
         # Allow customization via settings, or use default LDP headers
@@ -60,6 +60,7 @@ class AllowRequestedCORSMiddleware:
             response["Access-Control-Expose-Headers"] = expose_headers
 
         response["Access-Control-Allow-Credentials"] = 'true'
+        response["Access-Control-Max-Age"] = '86400'
 
         return response
 
