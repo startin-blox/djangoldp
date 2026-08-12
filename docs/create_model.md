@@ -137,7 +137,7 @@ The Model class allows you to use your models in federation, adding a `urlid` fi
 If you define a Meta for your Model, you will [need to explicitly inherit Model.Meta](https://docs.djangoproject.com/fr/2.2/topics/db/models/#meta-inheritance) in order to inherit the default settings, e.g. `default_permissions`
 
 ```python
-from djangoldp.models import Model, LDPMetaMixin
+from djangoldp.models import Model
 
 class Todo(Model):
     name = models.CharField(max_length=255)
@@ -148,6 +148,24 @@ class Todo(Model):
 See "Custom Meta options" below to see some helpful ways you can tweak the behaviour of DjangoLDP
 
 Your model will be automatically detected and registered with an LDPViewSet and corresponding URLs, as well as being registered with the Django admin panel. If you register your model with the admin panel manually, make sure to extend djangoldp.DjangoLDPAdmin so that the model is registered with [Django-Guardian object permissions](https://django-guardian.readthedocs.io/en/stable/userguide/admin-integration.html). An alternative version which extends Django's `UserAdmin` is available as djangoldp.DjangoLDPUserAdmin
+
+#### Model Fields
+
+Some additional RDF controls are available if using DjangoLDP fields on your model (`from djangoldp import fields`). There are extensions for all of Django's model fields (e.g. `djangoldp.fields.CharField`), which add the following options, for controlling serialization of your model fields in RDF:
+* `rdf_type`: the RDF type applied to the field when serializing data out (`LDPSerializer`).
+* `related_rdf_type`: the RDF type applied to the reverse relation in a to-many field when serializing data out (`LDPSerializer`).
+* `other_rdf_types`: other RDF types which are accepted in _input_ data through LDPSerializer. This is useful when, for example, you want to use `my_obscure_picture_ontology:profile` when outputting data, but want to support uploads using `foaf:img`.
+
+```python
+from djangoldp import fields
+from djangoldp.models import Model
+
+class UserImage(Model):
+    profile = fields.ImageField(rdf_type="my_obscure_picture_ontology:profile", other_rdf_types=["foaf:img"], ...)
+    depicts = fields.ForeignKey(related_name="pictures", rdf_type="foaf:depicts", related_rdf_type="foaf:depiction", ...)
+```
+
+A given RDF field should not correspond to more than one field on a given model.
 
 #### Model Federation
 
@@ -284,6 +302,14 @@ Indicates the type the model corresponds to in the ontology. E.g. where `'hd:cir
 
 ```python
 rdf_type = 'hd:circle'
+```
+
+### other_rdf_types
+
+Indicates a set of RDF types which will be accepted in import data, but which are not used in serializing output data. Useful for making imports more flexible.
+
+```python
+other_rdf_types = {'foaf:Person'}
 ```
 
 ### rdf_context

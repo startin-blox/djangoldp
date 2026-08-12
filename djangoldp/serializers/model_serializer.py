@@ -111,6 +111,34 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             return model_field.field.related_rdf_type
         return None
 
+    def _search_for_field_in_rdf_alternatives(self, field, data):
+        """
+        Useful when a field is missing from the input data.
+        Searches for RDF forms of the field source, sets the field value.
+
+        :param field: the serializer field.
+        :param data: serializer input data.
+        :raises FieldDoesNotExist: if the field does not exist on the serializer's model.
+        """
+        # TODO: This is not a robust solution but a temporary mitigation.
+        # The parser may compact the field to a different namespace or it may not be able to compact the field at all.
+
+        def use_rdf(rdf_field_name):
+            data[field.field_name] = data[rdf_field_name]
+            # NOTE: A given RDF field should not correspond to more than one field on a given model.
+            data.pop(rdf_field_name)
+
+        model_field = self.Meta.model._meta.get_field(field.source)
+        if model_field is not None and hasattr(model_field, "get_rdf_types"):
+            for rdf_field_name in model_field.get_rdf_types():
+                if rdf_field_name in data:
+                    use_rdf(rdf_field_name)
+        # May exist on the related field.
+        elif hasattr(model_field, "field") and getattr(model_field.field, "related_rdf_type", None) is not None:
+            rdf_field_name = model_field.field.related_rdf_type
+            if rdf_field_name in data:
+                use_rdf(rdf_field_name)
+
     def to_representation(self, obj):
         # external Models should only be returned with rdf values
         if Model.is_external(obj):
@@ -266,18 +294,9 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                         # in the data, first.
                         if field.field_name not in data:
                             try:
-                                model_field = self.Meta.model._meta.get_field(field.source)
-                                rdf_field_name = self._get_rdf_field_name(model_field)
-                                if (
-                                    model_field is not None
-                                    and field.field_name not in data
-                                    and rdf_field_name is not None
-                                    and rdf_field_name in data
-                                ):
-                                    data[field.field_name] = data[rdf_field_name]
-                                    data.pop(rdf_field_name)
-                                else:
-                                    continue
+                                self._search_for_field_in_rdf_alternatives(field, data)
+                                if field.field_name not in data:
+                                    continue # Still have not been able to find the field in data.
                             except FieldDoesNotExist:
                                 continue
 
@@ -369,22 +388,12 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         # a namespace associated to it.
         # Currently this data may not always find the correct field, but we make a best-effort by matching
         # the namespace of the data given to an rdf_type configured on that field.
-        # TODO: This is not a robust solution but a temporary mitigation.
-        # The parser may compact the field to a different namespace or it may not be able to compact the field at all.
         for field in self._writable_fields:
-            try:
-                model_field = self.Meta.model._meta.get_field(field.source)
-                rdf_field_name = self._get_rdf_field_name(model_field)
-                if (
-                    model_field is not None
-                    and field.field_name not in data
-                    and rdf_field_name is not None
-                    and rdf_field_name in data
-                ):
-                    data[field.field_name] = data[rdf_field_name]
-                    data.pop(rdf_field_name)
-            except FieldDoesNotExist:
-                pass
+            if field.field_name not in data:
+                try:
+                    self._search_for_field_in_rdf_alternatives(field, data)
+                except FieldDoesNotExist:
+                    pass
 
         ret = super().to_internal_value(data)
         if is_user_and_external:

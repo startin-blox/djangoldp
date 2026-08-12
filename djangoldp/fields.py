@@ -20,10 +20,42 @@ class LDPFieldMixin(models.Field):
     Extends Django field to store linked data information.
     """
 
-    def __init__(self, *args, rdf_type=None, related_rdf_type=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        rdf_type=None,
+        related_rdf_type=None,
+        other_rdf_types=None,
+        **kwargs
+    ):
+        """
+        :param rdf_type: the preferred RDF type for the field serialization.
+        :param related_rdf_type: the RDF type applied to the reverse relation in a to-many field.
+        :param rdf_type_flalbacks: other accepted RDF types for the field.
+        """
         super().__init__(*args, **kwargs)
         self.rdf_type = rdf_type
         self.related_rdf_type = related_rdf_type
+        self.other_rdf_types = other_rdf_types
+
+    def get_rdf_types(self):
+        """Returns a set of all accepted RDF types for the field."""
+        rdf_types = getattr(self, "other_rdf_types", set())
+        if rdf_types is None:
+            rdf_types = set()
+        if not isinstance(rdf_types, set):
+            rdf_types = set(rdf_types)
+
+        preferred_rdf_type = getattr(self, "rdf_type", None)
+        if preferred_rdf_type is not None:
+            rdf_types.add(preferred_rdf_type)
+
+        if (
+            hasattr(self, "field")
+            and getattr(self.field, "related_rdf_type", None) is not None
+        ):
+            rdf_types.add(self.field.related_rdf_type)
+        return rdf_types
 
 
 class BigIntegerField(LDPFieldMixin, models.BigIntegerField):

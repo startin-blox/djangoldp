@@ -1,8 +1,7 @@
 from django.test import TestCase
 
 from djangoldp.models import Model
-from djangoldp.tests.models import (Dummy, JobOffer, LDPDummy,
-                                    NoSuperUsersAllowedModel)
+from djangoldp.tests.models import Dummy, Enterprise, LDPDummy
 
 
 class LDPModelTest(TestCase):
@@ -35,6 +34,14 @@ class LDPModelTest(TestCase):
         path = 'http://happy-dev.fr/{}{}/'.format(get_resolver().reverse_dict[view_name][0][0][0], dummy.pk)
 
         self.assertEqual(path, dummy.get_absolute_url())
+
+    def test_get_rdf_types(self):
+        self.assertEqual(Enterprise.get_rdf_types(), {"dfc-b:Organization", "dfc-b:Enterprise"})
+
+    def test_get_subclass_with_rdf_type(self):
+        self.assertEqual(Model.get_subclass_with_rdf_type(Enterprise._meta.rdf_type), Enterprise)
+        for other_type in Enterprise._meta.other_rdf_types:
+            self.assertEqual(Model.get_subclass_with_rdf_type(other_type), Enterprise)
 
     def test_ldp_manager_local_objects(self):
         local = LDPDummy.objects.create(some='text')

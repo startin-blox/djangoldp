@@ -1,8 +1,9 @@
 import sys
-import yaml
 
 import django
+import yaml
 from django.conf import settings as django_settings
+
 from djangoldp.conf.ldpsettings import LDPSettings
 from djangoldp.tests.server_settings import yaml_config
 
@@ -19,6 +20,7 @@ test_runner = DiscoverRunner(verbosity=1)
 failures = test_runner.run_tests([
     'djangoldp.tests.tests_settings',
     'djangoldp.tests.tests_ldp_model',
+    'djangoldp.tests.tests_fields',
     'djangoldp.tests.tests_model_serializer',
     'djangoldp.tests.tests_ldp_viewset',
     'djangoldp.tests.tests_user_permissions',

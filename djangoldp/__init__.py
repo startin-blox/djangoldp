@@ -5,6 +5,7 @@ __version__ = "0.0.0"
 options.DEFAULT_NAMES += (
     "lookup_field",
     "rdf_type",
+    "other_rdf_types",
     "rdf_context",
     "auto_author",
     "owner_field",

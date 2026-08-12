@@ -260,6 +260,7 @@ class TestGET(APITestCase):
         self.assertNotIn("name", serialized_enterprise)
         self.assertNotIn("VATstatus", serialized_enterprise)
         self.assertNotIn("affiliated_to", serialized_enterprise)
+        self.assertEqual(serialized_enterprise["@type"], "dfc-b:Organization")
         self.assertEqual(serialized_enterprise["dfc-b:name"], enterprise.name)
         self.assertEqual(serialized_enterprise["dfc-b:VATStatus"], enterprise.VATstatus)
         self.assertIsNotNone(serialized_enterprise["dfc-b:affiliatedTo"])

@@ -1,12 +1,8 @@
-import os
-import sys
 import yaml
 import logging
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings as django_settings
-from pathlib import Path
 from collections import OrderedDict
-from typing import Iterable
 from importlib import import_module
 from . import default_settings
 
@@ -69,7 +65,7 @@ class LDPSettings(object):
 
         # start from default core settings
         settings = default_settings.__dict__.copy()
-        logger.debug(f'Building settings from core defaults')
+        logger.debug('Building settings from core defaults')
 
         # INSTALLED_APPS starts empty
         settings['INSTALLED_APPS'] = []
@@ -98,7 +94,7 @@ class LDPSettings(object):
         try:
             mod = import_module('settings')
             update_with(mod.__dict__)
-            logger.debug(f'Updating settings from local settings.py file')
+            logger.debug('Updating settings from local settings.py file')
         except ModuleNotFoundError:
             pass
 
@@ -106,7 +102,7 @@ class LDPSettings(object):
         try:
             conf = self._config.get('server', {})
             update_with(conf)
-            logger.debug(f'Updating settings with project config')
+            logger.debug('Updating settings with project config')
         except KeyError:
             pass
 
