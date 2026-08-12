@@ -407,17 +407,19 @@ class NoSuperUsersAllowedModel(Model):
 
 
 class Enterprise(Model):
-    name = fields.TextField(rdf_type="dfc-b:name", blank=True, null=True)
+    name = fields.TextField(rdf_type="dfc-b:name", other_rdf_types=["alt:name"], blank=True, null=True)
     VATstatus = fields.BooleanField(
-        rdf_type="dfc-b:VATStatus", default=False, null=True
+        rdf_type="dfc-b:VATStatus", other_rdf_types=["alt:VATStatus"], default=False, null=True
     )
     affiliated_to = fields.ManyToManyField(
         User,
         rdf_type="dfc-b:affiliatedTo",
         related_rdf_type="dfc-b:affiliates",
         related_name="affiliates",
+        other_rdf_types=["alt:affiliatedTo"],
         blank=True,
     )
 
     class Meta(Model.Meta):
-        rdf_type = "dfc-b:Enterprise"
+        rdf_type = "dfc-b:Organization"
+        other_rdf_types = ["dfc-b:Enterprise"]

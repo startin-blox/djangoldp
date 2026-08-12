@@ -311,3 +311,23 @@ class PostTestCase(TestCase):
         self.assertEqual(enterprise.VATstatus, body["dfc-b:VATStatus"])
         affiliate = get_user_model().objects.get(urlid="https://distantUser.com/users/1/") # Also asserts user exists
         self.assertTrue(enterprise.affiliated_to.get() == affiliate) # Also asserts count == 1
+
+    @override_settings(LDP_RDF_CONTEXT="https://cdn.startinblox.com/owl/dfc.jsonld")
+    def test_post_compacted_rdf_liberal_with_inputs(self):
+        """A variation on the previous test where other_rdf_types is provided."""
+        body = {
+            "@context": settings.LDP_RDF_CONTEXT,
+            "alt:name": "Startin'Blox",
+            "alt:VATStatus": True,
+            "alt:affiliatedTo": {
+                "@id": "https://distantUser.com/users/1/",
+                "@type": "foaf:user"
+            }
+        }
+        response = self.client.post("/enterprises/", data=json.dumps(body), content_type="application/ld+json")
+        self.assertEqual(response.status_code, 201)
+        enterprise = Enterprise.objects.get() # Also asserts count == 1
+        self.assertEqual(enterprise.name, body["alt:name"])
+        self.assertEqual(enterprise.VATstatus, body["alt:VATStatus"])
+        affiliate = get_user_model().objects.get(urlid="https://distantUser.com/users/1/") # Also asserts user exists
+        self.assertTrue(enterprise.affiliated_to.get() == affiliate) # Also asserts count == 1

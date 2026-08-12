@@ -207,6 +207,20 @@ class Model(models.Model):
         return Model.get_or_create(model, urlid, **kwargs)
 
     @classonlymethod
+    def get_rdf_types(cls):
+        rdf_types = getattr(cls._meta, "other_rdf_types", set())
+        if rdf_types is None:
+            rdf_types = set()
+        if not isinstance(rdf_types, set):
+            rdf_types = set(rdf_types)
+
+        preferred_rdf_type = getattr(cls._meta, "rdf_type", None)
+        if preferred_rdf_type is not None:
+            rdf_types.add(preferred_rdf_type)
+
+        return rdf_types
+
+    @classonlymethod
     def get_subclass_with_rdf_type(cls, type):
         #TODO: deprecate
         '''returns Model subclass with Meta.rdf_type matching parameterised type, or None'''
@@ -214,7 +228,7 @@ class Model(models.Model):
             return get_user_model()
 
         def find_subclass_with_rdf_type(cls):
-            if getattr(cls._meta, "rdf_type", None) == type:
+            if type in cls.get_rdf_types():
                 return cls
             for subcls in cls.__subclasses__():
                 result = find_subclass_with_rdf_type(subcls)
@@ -238,13 +252,8 @@ class Model(models.Model):
             pass
 
         for field in cls._meta.get_fields():
-            if (
-                getattr(field, "rdf_type", None) == rdf_type
-                or (
-                    hasattr(field, "field")
-                    and getattr(field.field, "related_rdf_type", None) == rdf_type
-                )
-            ):
+            # NOTE: A given RDF field should not correspond to more than one field on a given model.
+            if hasattr(field, "get_rdf_types") and rdf_type in field.get_rdf_types():
                 return field
         return None
 
