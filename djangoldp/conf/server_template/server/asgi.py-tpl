@@ -1,22 +1,22 @@
 """
-WSGI config for SIB project.
+ASGI config for SIB project.
 
-It exposes the WSGI callable as a module-level variable named `application`.
+It exposes the ASGI callable as a module-level variable named `application`.
 
 For more information on this file, see
-https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
+https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
 
-from django.core.wsgi import get_wsgi_application
+from django.core.asgi import get_asgi_application
 from django.conf import settings as django_settings
 from djangoldp.conf import ldpsettings
 
 if not django_settings.configured:
     ldpsettings.configure()
 
-application = get_wsgi_application()
+application = get_asgi_application()
 
 try:
     from djangoldp.activities.services import ActivityQueueService
