@@ -162,7 +162,7 @@ class InboxView(APIView):
         target_model = self._get_subclass_with_rdf_type_or_404(activity.target['@type'])
 
         try:
-            target = target_model.objects.get(urlid=activity.target['@id'])
+            target = target_model._default_manager.get(urlid=activity.target['@id'])
         except target_model.DoesNotExist:
             return Response({}, status=status.HTTP_404_NOT_FOUND)
 
@@ -190,8 +190,8 @@ class InboxView(APIView):
 
         # get the model reference to saved object
         try:
-            origin = origin_model.objects.get(urlid=activity.origin['@id'])
-            object_instance = object_model.objects.get(urlid=activity.object['@id'])
+            origin = origin_model._default_manager.get(urlid=activity.origin['@id'])
+            object_instance = object_model._default_manager.get(urlid=activity.object['@id'])
         except origin_model.DoesNotExist:
             raise Http404(activity.origin['@id'] + ' did not exist')
         except object_model.DoesNotExist:
@@ -223,7 +223,7 @@ class InboxView(APIView):
 
         # get the model reference to saved object
         try:
-            object_instance = object_model.objects.get(urlid=activity.object['@id'])
+            object_instance = object_model._default_manager.get(urlid=activity.object['@id'])
         except object_model.DoesNotExist:
             return
 
@@ -245,7 +245,7 @@ class InboxView(APIView):
 
         # get the model reference to saved object
         try:
-            object_instance = object_model.objects.get(urlid=activity.object['@id'])
+            object_instance = object_model._default_manager.get(urlid=activity.object['@id'])
         except object_model.DoesNotExist:
             raise Http404(activity.object['@id'] + ' did not exist')
         if Model.is_external(object_instance):

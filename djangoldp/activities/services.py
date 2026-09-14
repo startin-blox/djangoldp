@@ -440,9 +440,16 @@ class ActivityQueueService:
             type = type.lower()
         elif 'type' in activity and isinstance(activity.get('type'), str):
             type = activity.get('type').lower()
-        obj = model_represenation.objects.create(local_id=local_id, payload=payload, success=success,
-                                                 external_id=external_id, type=type, response_location=response_location,
-                                                 response_code=response_code, response_body=response_body)
+        obj = model_represenation._default_manager.create(
+            local_id=local_id,
+            payload=payload,
+            success=success,
+            external_id=external_id,
+            type=type,
+            response_location=response_location,
+            response_code=response_code,
+            response_body=response_body
+        )
         return obj
 
 
@@ -743,10 +750,10 @@ def check_m2m_for_backlinks(sender, instance, action, *args, **kwargs):
             sender_info = model_meta.get_field_info(sender)
             for field_name, relation_info in sender_info.relations.items():
                 if relation_info.related_model == member_model:
-                    pk_set = sender.objects.all().values_list(field_name, flat=True)
+                    pk_set = sender._default_manager.all().values_list(field_name, flat=True)
         if pk_set is None or len(pk_set) == 0:
             return
-        query_set = member_model.objects.filter(pk__in=pk_set)
+        query_set = member_model._default_manager.filter(pk__in=pk_set)
         targets = build_targets(query_set)
 
         if len(targets) > 0 and hasattr(instance, 'urlid'):

@@ -32,7 +32,7 @@ class Command(BaseCommand):
                 # create a default super user
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
-                User.objects.create_superuser('admin', 'admin@example.org', 'admin')
+                User._default_manager.create_superuser('admin', 'admin@example.org', 'admin')
 
             except (ValidationError, IntegrityError):
                 self.stdout.write('User "admin" already exists. Skipping...')
