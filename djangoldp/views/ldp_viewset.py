@@ -29,6 +29,27 @@ import re
 logger = logging.getLogger('djangoldp')
 get_user_model()._meta.rdf_context = {"get_full_name": "rdfs:label"}
 
+# The serializer class, filter backends and prefetch fields of a view depend
+# only on (model, depth, fields, ...), not on the request: recomputing them for
+# every item of a /batch/ request dominates the response time. Cache them
+# process-wide (the classes are immutable; the per-request Accept-Model-Fields
+# projection still happens at the serializer instance level).
+_VIEWSET_CACHES = {}
+
+
+def _cached_viewset_value(key, builder):
+    value = _VIEWSET_CACHES.get(key)
+    if value is None:
+        value = builder()
+        _VIEWSET_CACHES[key] = value
+    return value
+
+
+class _FieldProbeRequest:
+    """Minimal request stub carrying no Accept-Model-Fields header, so field
+    introspection always sees the full serializer field set."""
+    META = {}
+
 
 class LDPViewSetGenerator(ModelViewSet):
     """An extension of ModelViewSet that generates automatically URLs for the model"""
@@ -144,10 +165,25 @@ class LDPViewSet(LDPViewSetGenerator):
         super().__init__(**kwargs)
         # attach filter backends based on permissions classes, to reduce the queryset based on these permissions
         # https://www.django-rest-framework.org/api-guide/filtering/#generic-filtering
-        self.filter_backends = type(self).filter_backends + list({perm_class().get_filter_backend(self.model)
-                for perm_class in self.permission_classes if hasattr(perm_class(), 'get_filter_backend')})
-        if None in self.filter_backends:
-            self.filter_backends.remove(None)
+        model = self.model
+        if model is not None:
+            cache_key = (type(self), model)
+            backends = _cached_viewset_value(
+                cache_key,
+                lambda: tuple(
+                    type(self).filter_backends
+                    + list(
+                        {
+                            perm_class().get_filter_backend(model)
+                            for perm_class in self.permission_classes
+                            if hasattr(perm_class(), "get_filter_backend")
+                        }
+                    )
+                ),
+            )
+            self.filter_backends = [backend for backend in backends if backend is not None]
+        else:
+            self.filter_backends = type(self).filter_backends
     
     def filter_queryset(self, queryset):
         if self.request.user.is_superuser:
@@ -175,33 +211,47 @@ class LDPViewSet(LDPViewSetGenerator):
         return getattr(self.model._meta, 'depth', 0)
 
     def get_serializer_class(self):
-        model_name = self.model._meta.object_name.lower()
+        from djangoldp.serializers import LDPSerializer
+
+        model = self.model
+        depth = self.get_depth()
+        fields = tuple(self.fields) if self.fields else None
+        exclude = tuple(self.exclude or ())
+        nested = tuple(self.nested_fields or ())
+        base = self.serializer_class if self.serializer_class is not None else LDPSerializer
+        cache_key = (model, depth, fields, exclude, nested, base)
+        return _cached_viewset_value(
+            cache_key,
+            lambda: self._build_serializer_class(model, depth, fields, exclude, nested, base),
+        )
+
+    def _build_serializer_class(self, model, depth, fields, exclude, nested, base):
+        from djangoldp.serializers import LDPSerializer
+
+        model_name = model._meta.object_name.lower()
         try:
             lookup_field = get_resolver().reverse_dict[model_name + '-detail'][0][0][1][0]
         except:
             lookup_field = 'urlid'
-        
-        meta_args = {'model': self.model, 'extra_kwargs': {
-                '@id': {'lookup_field': lookup_field}},
-                'depth': self.get_depth(),
-                'extra_fields': self.nested_fields}
 
-        if self.fields:
-            meta_args['fields'] = self.fields
+        meta_args = {'model': model, 'extra_kwargs': {
+                '@id': {'lookup_field': lookup_field}},
+                'depth': depth,
+                'extra_fields': nested}
+
+        if fields is not None:
+            meta_args['fields'] = fields
         else:
-            meta_args['exclude'] = self.exclude or getattr(self.model._meta, 'serializer_fields_exclude', ())
+            meta_args['exclude'] = exclude or getattr(model._meta, 'serializer_fields_exclude', ())
         # create the Meta class to associate to LDPSerializer, using meta_args param
 
-        from djangoldp.serializers import LDPSerializer
         if self.serializer_class is None:
             self.serializer_class = LDPSerializer
 
-        parent_meta = (self.serializer_class.Meta,) if hasattr(self.serializer_class, 'Meta') else ()
+        parent_meta = (base.Meta,) if hasattr(base, 'Meta') else ()
         meta_class = type('Meta', parent_meta, meta_args)
 
-        return type(self.serializer_class)(self.model._meta.object_name.lower() + 'Serializer',
-                                   (self.serializer_class,),
-                                   {'Meta': meta_class})
+        return type(base)(model_name + 'Serializer', (base,), {'Meta': meta_class})
 
     # The chaining of filter through | may lead to duplicates and distinct should only be applied in the end.
     def filter_queryset(self, queryset):
@@ -327,7 +377,19 @@ class LDPViewSet(LDPViewSetGenerator):
         else:
             queryset = super(LDPViewSet, self).get_queryset(*args, **kwargs)
         if self.prefetch_fields is None:
-            self.prefetch_fields = get_prefetch_fields(self.model, self.get_serializer(), self.get_depth())
+            model = self.model
+            depth = self.get_depth()
+            prefetch = _cached_viewset_value(
+                (model, depth),
+                lambda: tuple(
+                    get_prefetch_fields(
+                        model,
+                        self.get_serializer_class()(context={"request": _FieldProbeRequest()}),
+                        depth,
+                    )
+                ),
+            )
+            self.prefetch_fields = prefetch
         return queryset.prefetch_related(*self.prefetch_fields)
 
     def check_preconditions(self, request, instance=None):
