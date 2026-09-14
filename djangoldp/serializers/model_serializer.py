@@ -471,7 +471,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
         if model is get_user_model() and not 'username' in validated_data:
             validated_data['username'] = str(uuid.uuid4())
-        instance = model.objects.create(**validated_data)
+        instance = model._default_manager.create(**validated_data)
 
         for field_name, value in many_to_many:
             validated_data[field_name] = value
@@ -532,7 +532,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             # try slug field, assuming that this is a local resource
             elif slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
-                sub_inst = field_model.objects.get(**kwargs)
+                sub_inst = field_model._default_manager.get(**kwargs)
             if sub_inst is None:
                 if create:
                     sub_inst = self.internal_create(field_dict, field_model)
@@ -547,7 +547,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             # try slug field if it exists
             if slug_field in field_dict:
                 kwargs = {slug_field: field_dict[slug_field]}
-                sub_inst = field_model.objects.get(**kwargs)
+                sub_inst = field_model._default_manager.get(**kwargs)
             else:
                 model, sub_inst = Model.resolve(field_dict['urlid'])
         # remote resource - get backlinked copy
@@ -597,10 +597,10 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         kwargs = {slug_field: value[slug_field]}
         if relation_info.to_many:
             manager = getattr(instance, attr)
-            oldObj = manager._meta.model.objects.get(**kwargs)
+            oldObj = manager._meta.model._default_manager.get(**kwargs)
         else:
             related_model = relation_info.related_model
-            oldObj = related_model.objects.get(**kwargs)
+            oldObj = related_model._default_manager.get(**kwargs)
 
         value = self.update(instance=oldObj, validated_data=value)
         return value
@@ -656,7 +656,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
     def get_or_create(self, field_model, item, kwargs):
         try:
-            old_obj = field_model.objects.get(**kwargs)
+            old_obj = field_model._default_manager.get(**kwargs)
             saved_item = self.update(instance=old_obj, validated_data=item)
         except field_model.DoesNotExist:
             saved_item = self.internal_create(validated_data=item, model=field_model)

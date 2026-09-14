@@ -318,12 +318,12 @@ class LDPViewSet(LDPViewSetGenerator):
 
     def perform_create(self, serializer, **kwargs):
         if hasattr(self.model._meta, 'auto_author') and isinstance(self.request.user, get_user_model()):
-            kwargs[self.model._meta.auto_author] = get_user_model().objects.get(pk=self.request.user.pk)
+            kwargs[self.model._meta.auto_author] = get_user_model()._default_manager.get(pk=self.request.user.pk)
         return serializer.save(**kwargs)
 
     def get_queryset(self, *args, **kwargs):
         if self.model:
-            queryset = self.model.objects.all()
+            queryset = self.model._default_manager.all()
         else:
             queryset = super(LDPViewSet, self).get_queryset(*args, **kwargs)
         if self.prefetch_fields is None:
@@ -648,7 +648,7 @@ class LDPNestedViewSet(LDPViewSet):
                 return related()
             return related.all()
         if self.nested_field.one_to_one or self.nested_field.many_to_one:
-            return type(related).objects.filter(pk=related.pk)
+            return type(related)._default_manager.filter(pk=related.pk)
 
 
 class LDPSourceViewSet(LDPViewSet):

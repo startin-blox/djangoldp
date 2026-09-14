@@ -134,7 +134,7 @@ class Model(models.Model):
 
         if match.url_name.endswith('-list') or len(match.kwargs.keys()) == 0:
             raise ValidationError('resolve_id received a path for a container or nested container')
-        return view.initkwargs['model'].objects.get(**kwargs)
+        return view.initkwargs['model']._default_manager.get(**kwargs)
 
     @classonlymethod
     def resolve_parent(cls, path):
@@ -185,7 +185,7 @@ class Model(models.Model):
         :raises Exception: if the object does not exist, but the data passed is invalid
         '''
         try:
-            rval = model.objects.get(urlid=urlid)
+            rval = model._default_manager.get(urlid=urlid)
             if update:
                 for field in field_tuples.keys():
                     setattr(rval, field, field_tuples[field])
@@ -194,7 +194,7 @@ class Model(models.Model):
         except ObjectDoesNotExist:
             if model is get_user_model():
                 field_tuples['username'] = str(uuid.uuid4())
-            return model.objects.create(urlid=urlid, is_backlink=True, **field_tuples)
+            return model._default_manager.create(urlid=urlid, is_backlink=True, **field_tuples)
 
     @classonlymethod
     def get_or_create_external(cls, model, urlid, **kwargs):
@@ -202,7 +202,7 @@ class Model(models.Model):
         checks that the parameterised urlid is external and then returns the result of Model.get_or_create
         :raises ObjectDoesNotExist: if the urlid is not external and the object doesn't exist
         '''
-        if not Model.is_external(urlid) and not model.objects.filter(urlid=urlid).exists():
+        if not Model.is_external(urlid) and not model._default_manager.filter(urlid=urlid).exists():
             raise ObjectDoesNotExist
         return Model.get_or_create(model, urlid, **kwargs)
 

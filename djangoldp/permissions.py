@@ -303,7 +303,7 @@ class InheritPermissions(LDPBasePermission):
             def filter_queryset(self, request:object, queryset:object, view:object) -> object:
                 request, view = InheritPermissions.clone_with_model(request, view, parent)
                 for filter in self.filters:
-                    allowed_parents = filter.filter_queryset(request, parent.objects.all(), view)
+                    allowed_parents = filter.filter_queryset(request, parent._default_manager.all(), view)
                     queryset = queryset.filter(**{filter_arg: allowed_parents})
                 return queryset
         return InheritFilterBackend
@@ -330,7 +330,7 @@ class InheritPermissions(LDPBasePermission):
             for field in InheritPermissions.get_parent_fields(view.model):
                 if field in request.data:
                     model = InheritPermissions.get_parent_model(view.model, field)
-                    parent = model.objects.get(urlid=request.data[field]['@id'])
+                    parent = model._default_manager.get(urlid=request.data[field]['@id'])
                     _request, _view = InheritPermissions.clone_with_model(request, view, model)
                     if not all([perm().has_object_permission(_request, _view, parent) for perm in model._meta.permission_classes]):
                         return False

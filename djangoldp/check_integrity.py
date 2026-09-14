@@ -83,7 +83,7 @@ def check_integrity(options):
   base_urls = set()
 
   for model in models:
-    for obj in model.objects.all():
+    for obj in model._default_manager.all():
       if hasattr(obj, "urlid"):
         if(obj.urlid):
           if(not obj.urlid.startswith(settings.BASE_URL)):
