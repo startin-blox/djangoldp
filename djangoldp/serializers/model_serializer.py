@@ -1,7 +1,8 @@
-import uuid
 import json
+import uuid
 from collections import OrderedDict
 from collections.abc import Mapping
+from functools import cached_property
 from urllib import parse
 
 from django.conf import settings
@@ -10,13 +11,15 @@ from django.core.exceptions import FieldDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import QuerySet
-from django.urls import resolve, Resolver404, get_script_prefix
+from django.urls import Resolver404, get_script_prefix, resolve
 from django.utils.encoding import uri_to_iri
-from functools import cached_property
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import SkipField, empty, ReadOnlyField
-from rest_framework.fields import get_error_detail
-from rest_framework.serializers import HyperlinkedModelSerializer, ModelSerializer, LIST_SERIALIZER_KWARGS
+from rest_framework.fields import ReadOnlyField, SkipField, empty, get_error_detail
+from rest_framework.serializers import (
+    LIST_SERIALIZER_KWARGS,
+    HyperlinkedModelSerializer,
+    ModelSerializer,
+)
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.field_mapping import get_nested_relation_kwargs
@@ -139,11 +142,21 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
             if rdf_field_name in data:
                 use_rdf(rdf_field_name)
 
+    def to_representation_external_model(self, obj):
+        """By default, external instances should only be returned with only RDF fields set."""
+        data = {'@id': obj.urlid}
+        return self.serialize_rdf_fields(obj, data)
+
+    def serialize_additional_fields(self, obj, data):
+        """
+        A hook which allows subclasses to add any additional changes to a serialized local object,
+        without overriding to_representation
+        """
+        return data
+
     def to_representation(self, obj):
-        # external Models should only be returned with rdf values
         if Model.is_external(obj):
-            data = {'@id': obj.urlid}
-            return self.serialize_rdf_fields(obj, data)
+            return self.to_representation_external_model(obj)
 
         data = super().to_representation(obj)
 
@@ -176,6 +189,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
         data = self.serialize_rdf_fields(obj, data, include_context=True)
         data = self.add_permissions(data, self.context['request'].user, type(obj), obj=obj)
+        data = self.serialize_additional_fields(obj, data)
         return data
 
     def build_property_field(self, field_name, model_class):
@@ -376,6 +390,9 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
 
         return serializer
 
+    def to_internal_value_pre_process_data(self, data):
+        """A hook which allows subclasses to pre-process data before it is passed to processing"""
+
     def to_internal_value(self, data):
         # TODO: This hack is needed because external users don't pass validation.
         # Objects require all fields to be optional to be created as external, and username is required.
@@ -395,6 +412,7 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
                 except FieldDoesNotExist:
                     pass
 
+        self.to_internal_value_pre_process_data(data)
         ret = super().to_internal_value(data)
         if is_user_and_external:
             ret['urlid'] = data['@id']
@@ -493,7 +511,6 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         return validated_data
 
     def update(self, instance, validated_data):
-        model = self.Meta.model
         nested_fields = []
         nested_fields_name = list(filter(lambda key: isinstance(validated_data[key], list), validated_data))
         for field_name in nested_fields_name:
@@ -523,6 +540,8 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
         for field_name in nested_fk_fields_name:
             field_dict = validated_data[field_name]
             field_model = model._meta.get_field(field_name).related_model
+            if field_model is None:
+                continue # JSONField or other dict value which is not a foreign key
 
             slug_field = Model.slug_field(field_model)
             sub_inst = None
@@ -558,14 +577,17 @@ class LDPSerializer(HyperlinkedModelSerializer, RDFSerializerMixin):
     def update_dict_value(self, attr, instance, value):
         info = model_meta.get_field_info(instance)
         relation_info = info.relations.get(attr)
-        slug_field = Model.slug_field(relation_info.related_model)
+        if relation_info is None:
+            return value # The dictionary corresponds to a JSON field.
 
+        # The dictionary represents an object in a relation.
+        slug_field = Model.slug_field(relation_info.related_model)
         if slug_field in value:
             value = self.update_dict_value_when_id_is_provided(attr, instance, relation_info, slug_field, value)
         else:
             if 'urlid' in value:
                 if parse.urlparse(settings.BASE_URL).netloc == parse.urlparse(value['urlid']).netloc:
-                    model, oldObj = Model.resolve(value['urlid'])
+                    _model, oldObj = Model.resolve(value['urlid'])
                     value = self.update(instance=oldObj, validated_data=value)
                 elif hasattr(relation_info.related_model, 'urlid'):
                     value = Model.get_or_create_external(relation_info.related_model, value['urlid'])
